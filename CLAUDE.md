@@ -29,7 +29,7 @@ docs/       spec, stages, ADRs, diagrams
 - Events use the shared envelope in `libs/contracts`, are published through the transactional outbox, and are consumed idempotently.
 - Event changes are backward compatible: add optional fields only. Breaking changes ship as a new versioned event.
 - `libs/` holds technical infrastructure only (messaging, auth validation, storage, observability, contracts). No business logic in libs.
-- Files go through the `ObjectStorage` port (MinIO locally, S3 compatible). Store object keys in the database, never full URLs.
+- Files go through the `ObjectStorage` port (SeaweedFS locally, S3 compatible). Store object keys in the database, never full URLs.
 
 ## Code rules
 
