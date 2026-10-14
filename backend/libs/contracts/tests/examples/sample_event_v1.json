@@ -1,0 +1,9 @@
+{
+  "event_id": "7b0e1c52-3f0a-4a53-9a0b-2f4f6f0f6a11",
+  "event_type": "sample.created",
+  "event_version": 1,
+  "occurred_at": "2026-10-12T21:00:00Z",
+  "correlation_id": "0c5a9d86-2c8e-4d7e-a0a3-5b6c1b8f2d44",
+  "producer": "sample-service",
+  "payload": {"sample_id": "s-1", "quantity": 3}
+}
