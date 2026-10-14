@@ -64,10 +64,12 @@ mypy_path = [
     "libs/storage/src",
     "libs/web/src",
     "services/catalog/src",
+    "services/catalog/tests",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["libs", "services"]
+pythonpath = ["services/catalog/tests"]
 markers = ["integration: needs Docker (Testcontainers)"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
