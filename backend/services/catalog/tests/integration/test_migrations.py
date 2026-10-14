@@ -4,7 +4,7 @@ import httpx
 import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
-from sqlalchemy import text
+from sqlalchemy import make_url, text
 
 from catalog.infra.database import create_engine, database_readiness_check
 from catalog.infra.models import Base
@@ -46,9 +46,11 @@ async def fetch_all(url: str, query: str) -> list[tuple[object, ...]]:
 
 
 async def test_upgrade_creates_tables_and_seeds_the_eighteen_categories(
-    migrated_database_url: str,
+    empty_database_url: str, alembic_runner: Callable[[str, str, str], None]
 ) -> None:
-    rows = await fetch_all(migrated_database_url, "SELECT name, slug FROM categories")
+    alembic_runner(empty_database_url, "upgrade", "head")
+
+    rows = await fetch_all(empty_database_url, "SELECT name, slug FROM categories")
 
     assert {str(name): str(slug) for name, slug in rows} == EXPECTED_CATEGORIES
     assert len(rows) == 18
@@ -98,7 +100,7 @@ async def test_ready_endpoint_is_green_with_a_reachable_database(
     migrated_database_url: str,
 ) -> None:
     settings = CatalogSettings(
-        database_url=migrated_database_url,
+        database_url=make_url(migrated_database_url),
         jwt=JwtSettings(jwks_url="http://dev-auth:8080/jwks.json", issuer="ecommerce-auth"),
     )
     app = create_catalog_app(settings)
