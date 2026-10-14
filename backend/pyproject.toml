@@ -1,0 +1,70 @@
+[project]
+name = "ecommerce-backend"
+version = "0.1.0"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "ecommerce-observability",
+    "ecommerce-contracts",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28",
+    "mypy>=1.13",
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=6.0",
+    "ruff>=0.8",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["libs/*"]
+
+[tool.uv.sources]
+ecommerce-observability = { workspace = true }
+ecommerce-contracts = { workspace = true }
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+src = ["libs/observability/src", "libs/contracts/src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "ASYNC", "N", "RUF", "C4", "PT", "ERA", "T20"]
+
+[tool.mypy]
+strict = true
+python_version = "3.13"
+plugins = ["pydantic.mypy"]
+explicit_package_bases = true
+mypy_path = [
+    "libs/observability/src",
+    "libs/contracts/src",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["libs"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = [
+    "--import-mode=importlib",
+    "--cov",
+    "--cov-branch",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-report=xml",
+    "--cov-fail-under=85",
+]
+
+[tool.coverage.run]
+source = ["libs"]
+omit = ["*/tests/*"]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+[tool.coverage.xml]
+output = "coverage.xml"

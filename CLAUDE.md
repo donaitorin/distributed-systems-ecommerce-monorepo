@@ -35,7 +35,7 @@ docs/       spec, stages, ADRs, diagrams
 
 - English everywhere: code, identifiers, README, commit messages.
 - No code comments or docstrings. Make the code self-explanatory through naming and small functions. Tool pragmas such as `# noqa` or `# type: ignore` are allowed only when unavoidable.
-- Backend: Python 3.12, FastAPI, Pydantic v2, SQLAlchemy 2 async, Alembic, aiokafka. Full type hints; mypy strict must pass.
+- Backend: Python 3.13, FastAPI, Pydantic v2, SQLAlchemy 2 async, Alembic, aiokafka. Full type hints; mypy strict must pass.
 - Layers per service: `api`, `application`, `domain`, `infra`. `domain` has no framework imports.
 - Money is `Decimal` in Python and `NUMERIC(12,2)` in PostgreSQL. Never float.
 - Queries are always parameterized. Never build SQL with string formatting.
