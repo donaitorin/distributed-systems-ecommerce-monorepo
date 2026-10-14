@@ -10,6 +10,7 @@ E-commerce code challenge built as event-driven microservices. The working speci
 - When a stage is done, stop and report: what was built, how to verify it (exact commands), and a suggested split of the changes into commits using Conventional Commits.
 - When a decision is not covered by the spec, ask instead of assuming. If you must assume, say so in your report.
 - Prefer the simplest solution that satisfies the spec. Do not add dependencies the spec does not mention without asking.
+- Never run destructive commands without asking first: docker compose down -v, deleting volumes, dropping databases or tables, rm -rf outside a temporary directory, or git reset/clean.
 
 ## Repository layout
 
