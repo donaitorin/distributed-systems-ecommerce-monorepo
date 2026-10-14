@@ -1,0 +1,29 @@
+from catalog.domain.errors import DomainError
+
+
+class ProductNotFoundError(DomainError):
+    def __init__(self, sku: str) -> None:
+        super().__init__(f"product {sku} not found")
+        self.sku = sku
+
+
+class DuplicateSkuError(DomainError):
+    def __init__(self, sku: str) -> None:
+        super().__init__(f"sku {sku} already exists")
+        self.sku = sku
+
+
+class UnknownCategoryError(DomainError):
+    pass
+
+
+class DuplicateCategoryError(DomainError):
+    def __init__(self, name: str) -> None:
+        super().__init__(f"category {name} already exists")
+        self.name = name
+
+
+class PreconditionFailedError(DomainError):
+    def __init__(self, sku: str) -> None:
+        super().__init__(f"product {sku} was modified")
+        self.sku = sku

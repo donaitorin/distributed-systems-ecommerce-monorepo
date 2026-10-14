@@ -23,12 +23,14 @@ def stub_settings(**overrides: Any) -> JwtSettings:
 
 
 class StubTokenIssuer:
-    def __init__(self, kid: str = "test-key") -> None:
+    def __init__(self, kid: str = "test-key", private_key: rsa.RSAPrivateKey | None = None) -> None:
         self.kid = kid
-        self._private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        self.private_key = private_key or rsa.generate_private_key(
+            public_exponent=65537, key_size=2048
+        )
 
     def jwks_document(self) -> dict[str, Any]:
-        jwk = RSAAlgorithm.to_jwk(self._private_key.public_key(), as_dict=True)
+        jwk = RSAAlgorithm.to_jwk(self.private_key.public_key(), as_dict=True)
         return {"keys": [{**jwk, "kid": self.kid, "use": "sig", "alg": "RS256"}]}
 
     def issue(
@@ -49,11 +51,11 @@ class StubTokenIssuer:
             "iat": int(now),
             "exp": int(now + expires_in_seconds),
         } | extra_claims
-        return jwt.encode(claims, self._private_key, algorithm="RS256", headers={"kid": self.kid})
+        return jwt.encode(claims, self.private_key, algorithm="RS256", headers={"kid": self.kid})
 
     def issue_with_claims(self, claims: Mapping[str, Any]) -> str:
         return jwt.encode(
-            dict(claims), self._private_key, algorithm="RS256", headers={"kid": self.kid}
+            dict(claims), self.private_key, algorithm="RS256", headers={"kid": self.kid}
         )
 
 

@@ -63,3 +63,64 @@ def test_app_without_a_verifier_has_none_installed() -> None:
     app = create_app(ServiceSettings(name="svc"))
 
     assert not hasattr(app.state, "token_verifier")
+
+
+async def test_shutdown_hooks_run_when_the_app_stops() -> None:
+    calls: list[str] = []
+
+    async def dispose_engine() -> None:
+        calls.append("engine")
+
+    async def close_client() -> None:
+        calls.append("client")
+
+    app = create_app(ServiceSettings(name="svc"), on_shutdown=[dispose_engine, close_client])
+
+    async with app.router.lifespan_context(app):
+        assert calls == []
+
+    assert sorted(calls) == ["client", "engine"]
+
+
+async def test_a_failing_shutdown_hook_does_not_skip_the_others() -> None:
+    calls: list[str] = []
+
+    async def failing() -> None:
+        raise RuntimeError("cannot dispose")
+
+    async def healthy() -> None:
+        calls.append("healthy")
+
+    app = create_app(ServiceSettings(name="svc"), on_shutdown=[healthy, failing])
+
+    with pytest.raises(RuntimeError, match="cannot dispose"):
+        async with app.router.lifespan_context(app):
+            pass
+
+    assert calls == ["healthy"]
+
+
+async def test_the_verifier_is_still_closed_when_a_hook_fails() -> None:
+    managed = ManagedTokenVerifier(build_stub_verifier(StubTokenIssuer()), httpx.AsyncClient())
+
+    async def failing() -> None:
+        raise RuntimeError("cannot dispose")
+
+    app = create_app(ServiceSettings(name="svc"), token_verifier=managed, on_shutdown=[failing])
+
+    with pytest.raises(RuntimeError):
+        async with app.router.lifespan_context(app):
+            pass
+
+    assert managed.http_client.is_closed
+
+
+async def test_root_path_is_applied_to_the_openapi_servers() -> None:
+    app = create_app(ServiceSettings(name="svc"), root_path="/catalog")
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.get("/openapi.json")
+
+    assert response.json()["servers"] == [{"url": "/catalog"}]

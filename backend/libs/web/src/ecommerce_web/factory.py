@@ -1,5 +1,5 @@
-from collections.abc import AsyncIterator, Sequence
-from contextlib import asynccontextmanager
+from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
+from contextlib import AsyncExitStack, asynccontextmanager
 from http import HTTPStatus
 
 from fastapi import FastAPI, Request
@@ -16,16 +16,23 @@ def create_app(
     settings: ServiceSettings,
     readiness_checks: Sequence[ReadinessCheck] = (),
     token_verifier: ManagedTokenVerifier | None = None,
+    on_shutdown: Sequence[Callable[[], Awaitable[None]]] = (),
+    root_path: str = "",
 ) -> FastAPI:
     configure_logging(settings.name, settings.log_level)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        yield
-        if token_verifier is not None:
-            await token_verifier.aclose()
+        async with AsyncExitStack() as stack:
+            for hook in on_shutdown:
+                stack.push_async_callback(hook)
+            if token_verifier is not None:
+                stack.push_async_callback(token_verifier.aclose)
+            yield
 
-    app = FastAPI(title=settings.name, version=settings.version, lifespan=lifespan)
+    app = FastAPI(
+        title=settings.name, version=settings.version, lifespan=lifespan, root_path=root_path
+    )
     if token_verifier is not None:
         app.state.token_verifier = token_verifier.verifier
 

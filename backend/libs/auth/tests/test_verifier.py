@@ -167,7 +167,7 @@ async def test_token_without_kid_is_rejected(
             "aud": DEFAULT_AUDIENCE,
             "exp": 9999999999,
         },
-        issuer._private_key,
+        issuer.private_key,
         algorithm="RS256",
     )
 

@@ -8,6 +8,7 @@ dependencies = [
     "ecommerce-auth",
     "ecommerce-storage",
     "ecommerce-web",
+    "ecommerce-catalog",
 ]
 
 [dependency-groups]
@@ -18,6 +19,7 @@ dev = [
     "pytest>=8.3",
     "pytest-asyncio>=0.24",
     "pytest-cov>=6.0",
+    "testcontainers[postgres]>=4.9",
     "ruff>=0.8",
 ]
 
@@ -25,7 +27,7 @@ dev = [
 package = false
 
 [tool.uv.workspace]
-members = ["libs/*"]
+members = ["libs/*", "services/*"]
 
 [tool.uv.sources]
 ecommerce-observability = { workspace = true }
@@ -33,6 +35,7 @@ ecommerce-contracts = { workspace = true }
 ecommerce-auth = { workspace = true }
 ecommerce-storage = { workspace = true }
 ecommerce-web = { workspace = true }
+ecommerce-catalog = { workspace = true }
 
 [tool.ruff]
 line-length = 100
@@ -43,6 +46,7 @@ src = [
     "libs/auth/src",
     "libs/storage/src",
     "libs/web/src",
+    "services/catalog/src",
 ]
 
 [tool.ruff.lint]
@@ -59,10 +63,14 @@ mypy_path = [
     "libs/auth/src",
     "libs/storage/src",
     "libs/web/src",
+    "services/catalog/src",
+    "services/catalog/tests",
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["libs"]
+testpaths = ["libs", "services"]
+pythonpath = ["services/catalog/tests"]
+markers = ["integration: needs Docker (Testcontainers)"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 addopts = [
@@ -76,7 +84,7 @@ addopts = [
 ]
 
 [tool.coverage.run]
-source = ["libs"]
+source = ["libs", "services"]
 omit = ["*/tests/*"]
 
 [tool.coverage.html]
