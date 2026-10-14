@@ -33,6 +33,7 @@ class RequestIdMiddleware:
 
         incoming = dict(scope["headers"]).get(REQUEST_ID_HEADER.lower().encode())
         request_id = resolve_request_id(incoming.decode("latin-1") if incoming else None)
+        scope.setdefault("state", {})["request_id"] = request_id
         token = _request_id.set(request_id)
 
         async def send_with_request_id(message: Message) -> None:

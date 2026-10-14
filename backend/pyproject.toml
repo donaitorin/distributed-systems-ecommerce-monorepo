@@ -5,10 +5,14 @@ requires-python = ">=3.13,<3.14"
 dependencies = [
     "ecommerce-observability",
     "ecommerce-contracts",
+    "ecommerce-auth",
+    "ecommerce-storage",
+    "ecommerce-web",
 ]
 
 [dependency-groups]
 dev = [
+    "boto3-stubs[s3]>=1.35",
     "httpx>=0.28",
     "mypy>=1.13",
     "pytest>=8.3",
@@ -26,11 +30,20 @@ members = ["libs/*"]
 [tool.uv.sources]
 ecommerce-observability = { workspace = true }
 ecommerce-contracts = { workspace = true }
+ecommerce-auth = { workspace = true }
+ecommerce-storage = { workspace = true }
+ecommerce-web = { workspace = true }
 
 [tool.ruff]
 line-length = 100
 target-version = "py313"
-src = ["libs/observability/src", "libs/contracts/src"]
+src = [
+    "libs/observability/src",
+    "libs/contracts/src",
+    "libs/auth/src",
+    "libs/storage/src",
+    "libs/web/src",
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "ASYNC", "N", "RUF", "C4", "PT", "ERA", "T20"]
@@ -43,6 +56,9 @@ explicit_package_bases = true
 mypy_path = [
     "libs/observability/src",
     "libs/contracts/src",
+    "libs/auth/src",
+    "libs/storage/src",
+    "libs/web/src",
 ]
 
 [tool.pytest.ini_options]
