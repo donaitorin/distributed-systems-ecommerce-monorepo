@@ -1,24 +1,30 @@
 import asyncio
 import os
+from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import pool
+from sqlalchemy import URL, pool
 from sqlalchemy.engine import Connection
-from sqlalchemy.ext.asyncio import async_engine_from_config
+from sqlalchemy.ext.asyncio import create_async_engine
 
 from catalog.infra.models import Base
+from catalog.settings import database_url_from_env
 
 config = context.config
 target_metadata = Base.metadata
 
+if config.config_file_name is not None and config.attributes.get("configure_logging", True):
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
-def resolve_database_url() -> str:
-    return config.get_main_option("sqlalchemy.url") or os.environ["CATALOG_DATABASE_URL"]
+
+def resolve_database_url() -> URL | str:
+    return config.attributes.get("database_url") or database_url_from_env(os.environ)
 
 
 def run_migrations_offline() -> None:
+    url = resolve_database_url()
     context.configure(
-        url=resolve_database_url(),
+        url=url if isinstance(url, str) else url.render_as_string(hide_password=False),
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
@@ -34,9 +40,7 @@ def run_migrations(connection: Connection) -> None:
 
 
 async def run_migrations_online() -> None:
-    section = config.get_section(config.config_ini_section, {})
-    section["sqlalchemy.url"] = resolve_database_url()
-    engine = async_engine_from_config(section, prefix="sqlalchemy.", poolclass=pool.NullPool)
+    engine = create_async_engine(resolve_database_url(), poolclass=pool.NullPool)
     async with engine.connect() as connection:
         await connection.run_sync(run_migrations)
     await engine.dispose()

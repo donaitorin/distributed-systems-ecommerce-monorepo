@@ -214,7 +214,11 @@ services:
         condition: service_healthy
     command: ["alembic", "upgrade", "head"]
     environment:
-      CATALOG_DATABASE_URL: postgresql+asyncpg://catalog_user:${CATALOG_DB_PASSWORD}@postgres:5432/catalog_db
+      CATALOG_DB_HOST: postgres
+      CATALOG_DB_PORT: "5432"
+      CATALOG_DB_NAME: catalog_db
+      CATALOG_DB_USER: catalog_user
+      CATALOG_DB_PASSWORD: ${CATALOG_DB_PASSWORD}
 
   catalog:
     <<: *catalog-image
@@ -226,7 +230,11 @@ services:
         condition: service_completed_successfully
     environment:
       <<: *jwt-environment
-      CATALOG_DATABASE_URL: postgresql+asyncpg://catalog_user:${CATALOG_DB_PASSWORD}@postgres:5432/catalog_db
+      CATALOG_DB_HOST: postgres
+      CATALOG_DB_PORT: "5432"
+      CATALOG_DB_NAME: catalog_db
+      CATALOG_DB_USER: catalog_user
+      CATALOG_DB_PASSWORD: ${CATALOG_DB_PASSWORD}
       JWT_JWKS_URL: http://dev-auth:8080/jwks.json
       ROOT_PATH: /catalog
     healthcheck:

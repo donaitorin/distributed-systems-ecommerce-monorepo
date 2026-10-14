@@ -1,4 +1,4 @@
-from sqlalchemy import text
+from sqlalchemy import URL, text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import (
 from ecommerce_web import ReadinessCheck
 
 
-def create_engine(database_url: str) -> AsyncEngine:
+def create_engine(database_url: URL | str) -> AsyncEngine:
     return create_async_engine(database_url, pool_pre_ping=True, pool_size=5, max_overflow=5)
 
 

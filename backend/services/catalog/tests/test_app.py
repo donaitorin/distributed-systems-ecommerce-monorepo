@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import httpx
 import pytest
+from sqlalchemy import make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
 from catalog.infra.database import create_engine
@@ -11,11 +12,20 @@ from catalog.settings import CatalogSettings
 from ecommerce_auth import JwtSettings
 
 UNREACHABLE_DATABASE = "postgresql+asyncpg://catalog_user:pw@127.0.0.1:1/catalog_db"
+UNREACHABLE_ENVIRON = {
+    "CATALOG_DB_HOST": "127.0.0.1",
+    "CATALOG_DB_PORT": "1",
+    "CATALOG_DB_NAME": "catalog_db",
+    "CATALOG_DB_USER": "catalog_user",
+    "CATALOG_DB_PASSWORD": "pw",
+    "JWT_JWKS_URL": "http://dev-auth:8080/jwks.json",
+    "JWT_ISSUER": "ecommerce-auth",
+}
 
 
 def make_settings(**overrides: str) -> CatalogSettings:
     return CatalogSettings(
-        database_url=UNREACHABLE_DATABASE,
+        database_url=make_url(UNREACHABLE_DATABASE),
         jwt=JwtSettings(jwks_url="http://dev-auth:8080/jwks.json", issuer="ecommerce-auth"),
         **overrides,
     )
@@ -86,9 +96,8 @@ async def test_root_path_comes_from_the_settings(engine: AsyncEngine) -> None:
 
 
 def test_build_creates_the_app_from_the_environment(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("CATALOG_DATABASE_URL", UNREACHABLE_DATABASE)
-    monkeypatch.setenv("JWT_JWKS_URL", "http://dev-auth:8080/jwks.json")
-    monkeypatch.setenv("JWT_ISSUER", "ecommerce-auth")
+    for key, value in UNREACHABLE_ENVIRON.items():
+        monkeypatch.setenv(key, value)
 
     app = build()
 
