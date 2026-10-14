@@ -18,7 +18,9 @@ from ecommerce_observability import (
 
 
 async def echo_request_id(request: Request) -> JSONResponse:
-    return JSONResponse({"request_id": get_request_id()})
+    return JSONResponse(
+        {"request_id": get_request_id(), "state_request_id": request.state.request_id}
+    )
 
 
 def build_app() -> Starlette:
@@ -39,7 +41,7 @@ async def test_generates_request_id_when_missing(client: httpx.AsyncClient) -> N
 
     generated = response.headers[REQUEST_ID_HEADER]
     assert UUID(generated)
-    assert response.json() == {"request_id": generated}
+    assert response.json() == {"request_id": generated, "state_request_id": generated}
 
 
 async def test_propagates_valid_incoming_request_id(client: httpx.AsyncClient) -> None:
@@ -48,7 +50,7 @@ async def test_propagates_valid_incoming_request_id(client: httpx.AsyncClient) -
     response = await client.get("/", headers={REQUEST_ID_HEADER: incoming})
 
     assert response.headers[REQUEST_ID_HEADER] == incoming
-    assert response.json() == {"request_id": incoming}
+    assert response.json() == {"request_id": incoming, "state_request_id": incoming}
 
 
 async def test_replaces_invalid_incoming_request_id(client: httpx.AsyncClient) -> None:
@@ -56,7 +58,7 @@ async def test_replaces_invalid_incoming_request_id(client: httpx.AsyncClient) -
 
     replaced = response.headers[REQUEST_ID_HEADER]
     assert UUID(replaced)
-    assert response.json() == {"request_id": replaced}
+    assert response.json() == {"request_id": replaced, "state_request_id": replaced}
 
 
 async def test_each_request_gets_its_own_id(client: httpx.AsyncClient) -> None:
