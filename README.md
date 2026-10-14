@@ -32,7 +32,16 @@ All ports are bound to `127.0.0.1` and can be changed in `.env`.
 | Kafka UI | `kafka-ui` | 8088 |
 | Object storage S3 API (SeaweedFS) | `object-storage` | 19000 |
 
-One-shot jobs `kafka-init` and `object-storage-init` create the topics and buckets, then exit.
+One-shot jobs `kafka-init`, `object-storage-init` and `catalog-migrate` create the topics and buckets and apply database migrations, then exit.
+
+## Services
+
+| Service | Container | Reachable through the gateway |
+| --- | --- | --- |
+| Catalog | `catalog` | `/api/v1/products`, `/api/v1/categories`, and `/catalog/docs`, `/catalog/health`, `/catalog/ready` |
+| Dev auth (temporary, removed when the auth service lands) | `dev-auth` | Internal only: serves the public JWKS that catalog trusts |
+
+`dev-auth` generates an RSA key pair into a Docker volume on first start. Nothing secret is stored in the repository.
 
 ## Commands
 

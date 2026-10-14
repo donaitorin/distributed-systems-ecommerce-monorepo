@@ -1,5 +1,16 @@
 name: ecommerce
 
+x-catalog-image: &catalog-image
+  image: ecommerce/catalog:dev
+  build:
+    context: ./backend
+    dockerfile: services/catalog/Dockerfile
+
+x-jwt-environment: &jwt-environment
+  JWT_ISSUER: ${JWT_ISSUER:-ecommerce-auth}
+  JWT_AUDIENCE: ${JWT_AUDIENCE:-ecommerce-api}
+  JWT_JWKS_CACHE_TTL_SECONDS: ${JWT_JWKS_CACHE_TTL_SECONDS:-300}
+
 services:
   postgres:
     image: postgres:17.11-alpine
@@ -179,7 +190,54 @@ services:
       retries: 5
       start_period: 5s
 
+  dev-auth:
+    <<: *catalog-image
+    restart: unless-stopped
+    command: ["python", "-m", "ecommerce_auth.dev_tokens", "serve"]
+    environment:
+      <<: *jwt-environment
+      DEV_KEYS_DIR: /keys
+    volumes:
+      - dev-auth-keys:/keys
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  catalog-migrate:
+    <<: *catalog-image
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      CATALOG_DATABASE_URL: postgresql+asyncpg://catalog_user:${CATALOG_DB_PASSWORD}@postgres:5432/catalog_db
+
+  catalog:
+    <<: *catalog-image
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      catalog-migrate:
+        condition: service_completed_successfully
+    environment:
+      <<: *jwt-environment
+      CATALOG_DATABASE_URL: postgresql+asyncpg://catalog_user:${CATALOG_DB_PASSWORD}@postgres:5432/catalog_db
+      JWT_JWKS_URL: http://dev-auth:8080/jwks.json
+      ROOT_PATH: /catalog
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready', timeout=2)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
 volumes:
+  dev-auth-keys:
   postgres-data:
   redis-cart-data:
   kafka-data:

@@ -1,0 +1,22 @@
+http:
+  routers:
+    catalog-api:
+      rule: "PathPrefix(`/api/v1/products`) || PathPrefix(`/api/v1/categories`)"
+      entryPoints: [web]
+      service: catalog
+    catalog-docs:
+      rule: "PathPrefix(`/catalog`)"
+      entryPoints: [web]
+      middlewares: [catalog-strip-prefix]
+      service: catalog
+
+  middlewares:
+    catalog-strip-prefix:
+      stripPrefix:
+        prefixes: ["/catalog"]
+
+  services:
+    catalog:
+      loadBalancer:
+        servers:
+          - url: "http://catalog:8000"
