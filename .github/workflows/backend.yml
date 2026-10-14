@@ -30,6 +30,7 @@ jobs:
 
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
+          version: "0.13.1"
           python-version-file: backend/.python-version
           enable-cache: true
           cache-dependency-glob: backend/uv.lock
@@ -48,3 +49,15 @@ jobs:
             backend/htmlcov
             backend/coverage.xml
           if-no-files-found: ignore
+
+  catalog-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build catalog image
+        run: docker build --file backend/services/catalog/Dockerfile --tag ecommerce/catalog:ci backend
+
+      - name: Check the image runs as a non-root user
+        run: test "$(docker run --rm --entrypoint id ecommerce/catalog:ci -u)" != "0"
