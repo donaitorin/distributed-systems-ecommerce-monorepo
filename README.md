@@ -101,6 +101,40 @@ curl -s -X DELETE localhost:8000/api/v1/products/DEMO-1/image \
 
 The response has `image_url` (1200 px) and `thumbnail_url` (400 px), both WebP, served through the gateway under `/media/` with a one-year immutable cache header. Open `image_url` in the browser to see the result. Only JPEG, PNG and WebP are accepted, checked by content and not by file name, up to 5 MB and 25 megapixels (`413`, `415` and `422` otherwise). EXIF, GPS and ICC color profiles are removed. If object storage is down, only these two endpoints fail (`503` with `Retry-After`); catalog stays ready. The design is in [ADR 0003](docs/adr/0003-product-images.md).
 
+### CSV import rules
+
+`data/sample-products.csv` (downloaded Thursday 15 October 2026) is committed on purpose: it is seeded with edge cases and the tests run the whole file. The parsing and validation core is pure code in `catalog.domain.csv_import` (no I/O); the upload, confirmation and worker flow is built on top of it.
+
+Required columns are `name`, `sku`, `price` and `stock`; `description`, `category` and `weight_kg` are optional. Column names ignore case and spaces, order does not matter, and unknown or repeated columns reject the file. Row numbers are spreadsheet rows: the header is row 1, and a quoted cell with line breaks is still one row.
+
+| Case in the file | Rule |
+| --- | --- |
+| Rows with every field empty | Ignored, counted in the report, never an error |
+| Empty or whitespace-only name | Error |
+| `$29.99` | Read as `29.99`, with a warning. Other formats (`1,299.99`, `29,99`, `12$`, `1e3`) are errors |
+| Non-numeric price (`free`), negative price, more than 2 decimals | Error. `0.00` is valid |
+| Negative or non-integer stock | Error. `0` and `99999` are valid |
+| Empty weight / empty category | Valid, stored as `null` |
+| Category that does not exist | Error, never created automatically. Matching ignores case and extra spaces; the report groups unknown names with how many rows they affect and suggests the closest existing one |
+| Same SKU in several rows | The last row wins. Every earlier row with different data gets a warning ("replaced by row N"); an earlier row identical to the winner is skipped silently. If the last row is invalid the SKU is not imported |
+| Same name, different SKU | Valid: the SKU is the identity |
+| HTML or SQL-looking names, commas, quotes, `—`, `™` | Stored literally (real `csv` parser, UTF-8 with BOM detection) |
+| Not UTF-8, binary, empty, header only, malformed quoting, missing columns | The whole file is rejected and every document-level problem is reported at once |
+
+Every problem carries the row, the column, the received value and the reason, separated into errors and warnings. The sample file produces:
+
+| Row | Column | Severity | Received | Reason |
+| --- | --- | --- | --- | --- |
+| 2 | sku | warning | `RS-001` | replaced by row 36, the last row with this SKU |
+| 4 | price | warning | `$29.99` | currency symbol removed, read as 29.99 |
+| 7 | price | error | `free` | price must be a plain number such as 29.99 |
+| 16 | stock | error | `-5` | stock must not be negative |
+| 25 | name | error | (empty) | name must not be empty |
+| 41 | name | error | (spaces) | name must not be empty |
+| 56 | sku | warning | `BS-021` | replaced by row 89, the last row with this SKU |
+
+97 rows = 2 blank + 4 with errors + 3 skipped (rows 2 and 56 replaced by later rows, row 11 identical to the winning row 89) + 88 importable products.
+
 ## Commands
 
 | Command | Description |
