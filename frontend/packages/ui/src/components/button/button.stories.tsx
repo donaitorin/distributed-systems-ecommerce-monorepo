@@ -12,18 +12,19 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Primary: Story = {
+  args: { variant: "primary", loading: false, disabled: false },
   play: async ({ canvasElement, args }) => {
     await userEvent.click(within(canvasElement).getByRole("button", { name: "Save changes" }));
     await expect(args.onClick).toHaveBeenCalledTimes(1);
   },
 };
 
-export const Secondary: Story = { args: { variant: "secondary", children: "Cancel" } };
+export const Secondary: Story = { args: { variant: "secondary", loading: false, disabled: false, children: "Cancel" } };
 
-export const Danger: Story = { args: { variant: "danger", children: "Delete product" } };
+export const Danger: Story = { args: { variant: "danger", loading: false, disabled: false, children: "Delete product" } };
 
 export const Loading: Story = {
-  args: { loading: true, children: "Saving" },
+  args: { variant: "primary", loading: true, disabled: false, children: "Saving" },
   play: async ({ canvasElement, args }) => {
     const button = within(canvasElement).getByRole("button", { name: "Saving" });
     await userEvent.click(button);
@@ -32,4 +33,4 @@ export const Loading: Story = {
   },
 };
 
-export const Disabled: Story = { args: { disabled: true } };
+export const Disabled: Story = { args: { variant: "primary", loading: false, disabled: true } };

@@ -36,7 +36,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Success: Story = { args: { variant: "success" } };
+export const Success: Story = { args: { variant: "success", title: "Product saved" } };
 
 export const ErrorToast: Story = {
   args: { variant: "error", title: "Could not save", description: "The server is unavailable." },

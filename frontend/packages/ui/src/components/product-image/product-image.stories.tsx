@@ -17,6 +17,7 @@ const meta = {
     thumbnailUrl: SAMPLE_THUMBNAIL,
     imageUrl: SAMPLE_IMAGE,
     alt: "Running shoes",
+    priority: false,
   },
 } satisfies Meta<typeof ProductImage>;
 

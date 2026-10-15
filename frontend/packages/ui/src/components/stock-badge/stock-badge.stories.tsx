@@ -4,7 +4,7 @@ import { StockBadge } from "./stock-badge";
 const meta = {
   title: "Components/StockBadge",
   component: StockBadge,
-  args: { stock: 24 },
+  args: { stock: 24, lowStockThreshold: 5 },
 } satisfies Meta<typeof StockBadge>;
 
 export default meta;
