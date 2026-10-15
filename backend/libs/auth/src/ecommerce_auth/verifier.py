@@ -4,7 +4,7 @@ import httpx
 import jwt
 
 from ecommerce_auth.errors import InvalidTokenError
-from ecommerce_auth.jwks import JwksClient
+from ecommerce_auth.jwks import JwksClient, SigningKeyProvider
 from ecommerce_auth.roles import Role
 from ecommerce_auth.settings import JwtSettings
 
@@ -18,7 +18,7 @@ class AuthenticatedUser:
 
 
 class TokenVerifier:
-    def __init__(self, settings: JwtSettings, jwks_client: JwksClient) -> None:
+    def __init__(self, settings: JwtSettings, jwks_client: SigningKeyProvider) -> None:
         self._settings = settings
         self._jwks_client = jwks_client
 

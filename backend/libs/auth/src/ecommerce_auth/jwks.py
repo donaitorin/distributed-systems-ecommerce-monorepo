@@ -1,7 +1,7 @@
 import asyncio
 import time
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Protocol
 
 import httpx
 import jwt
@@ -10,6 +10,10 @@ from jwt.algorithms import RSAAlgorithm
 
 from ecommerce_auth.errors import KeysUnavailableError
 from ecommerce_auth.settings import JwtSettings
+
+
+class SigningKeyProvider(Protocol):
+    async def get_key(self, kid: str) -> RSAPublicKey: ...
 
 
 class JwksClient:
