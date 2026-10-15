@@ -9,7 +9,7 @@ DESCRIPTIONS = {
     409: "Conflict with an existing resource",
     412: "If-Match does not match the current version",
     413: "The upload exceeds the 5 MB limit",
-    415: "The upload is not multipart or not a JPEG, PNG or WebP image",
+    415: "The upload is not multipart or not a supported file",
     422: "Invalid request data",
     428: "If-Match header is required",
     503: "The search exceeded its time limit; retry after the Retry-After delay",

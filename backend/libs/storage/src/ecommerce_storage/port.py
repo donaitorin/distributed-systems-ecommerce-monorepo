@@ -1,3 +1,4 @@
+from collections.abc import AsyncIterator, Iterator
 from typing import Protocol
 
 
@@ -9,10 +10,20 @@ class ObjectStorageError(RuntimeError):
     pass
 
 
+class ObjectNotFoundError(ObjectStorageError):
+    pass
+
+
 class ObjectStorage(Protocol):
     async def put(
         self, key: str, data: bytes, content_type: str, cache_control: str | None = None
     ) -> None: ...
+
+    async def put_stream(
+        self, key: str, chunks: AsyncIterator[bytes], content_type: str
+    ) -> None: ...
+
+    def read_chunks(self, key: str) -> Iterator[bytes]: ...
 
     async def delete(self, key: str) -> None: ...
 

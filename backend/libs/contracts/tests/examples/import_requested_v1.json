@@ -1,0 +1,13 @@
+{
+  "event_id": "5d1f3c0e-8b0a-4f43-8d0f-0f1d2a3b4c5d",
+  "event_type": "import.requested",
+  "event_version": 1,
+  "occurred_at": "2026-10-15T20:00:00Z",
+  "correlation_id": "0c5a9d86-2c8e-4d7e-a0a3-5b6c1b8f2d44",
+  "producer": "catalog-service",
+  "payload": {
+    "import_id": "9a1c1f0e-3a55-4a7c-b0b9-9d0f52f6a001",
+    "object_key": "imports/9a1c1f0e-3a55-4a7c-b0b9-9d0f52f6a001/source.csv",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

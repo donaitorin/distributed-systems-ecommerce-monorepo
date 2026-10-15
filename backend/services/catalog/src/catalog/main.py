@@ -9,6 +9,7 @@ from catalog.api import install_api
 from catalog.api.media import MediaUrls
 from catalog.application.categories import CategoryService
 from catalog.application.images import ImageService
+from catalog.application.imports import ImportService
 from catalog.application.ports import ImageProcessor, UnitOfWorkFactory
 from catalog.application.products import ProductService, utc_now
 from catalog.infra.database import create_engine, create_session_factory, database_readiness_check
@@ -28,6 +29,7 @@ def create_catalog_app(
     unit_of_work: UnitOfWorkFactory | None = None,
     clock: Callable[[], datetime] = utc_now,
     storage: ObjectStorage | None = None,
+    imports_storage: ObjectStorage | None = None,
     image_processor: ImageProcessor | None = None,
 ) -> FastAPI:
     engine = engine or create_engine(settings.database_url)
@@ -47,6 +49,12 @@ def create_catalog_app(
     app.state.category_service = CategoryService(work)
     media_storage = storage or build_media_storage(settings)
     app.state.media_urls = MediaUrls(media_storage)
+    app.state.import_service = ImportService(
+        work,
+        imports_storage or build_imports_storage(settings),
+        settings.import_max_bytes,
+        clock,
+    )
     app.state.image_service = ImageService(
         work, image_processor or PillowImageProcessor(), media_storage, clock
     )
@@ -57,6 +65,13 @@ def create_catalog_app(
 def build_media_storage(settings: CatalogSettings) -> ObjectStorage:
     media = settings.media
     return S3ObjectStorage(build_s3_client(media.s3), media.bucket, media.public_base_url)
+
+
+def build_imports_storage(settings: CatalogSettings) -> ObjectStorage:
+    media = settings.media
+    return S3ObjectStorage(
+        build_s3_client(media.s3), settings.imports_bucket, media.public_base_url
+    )
 
 
 def build() -> FastAPI:

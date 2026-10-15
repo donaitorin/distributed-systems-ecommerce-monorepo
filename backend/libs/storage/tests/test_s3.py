@@ -1,14 +1,23 @@
+import io
+from collections.abc import AsyncIterator
+from typing import TYPE_CHECKING
+
 import pytest
+from botocore.response import StreamingBody
 from botocore.stub import Stubber
 
 from ecommerce_storage import (
     InvalidObjectKeyError,
+    ObjectNotFoundError,
     ObjectStorage,
     ObjectStorageError,
     S3ObjectStorage,
     S3Settings,
     build_s3_client,
 )
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
 
 BUCKET = "media"
 BASE_URL = "http://localhost:8000/media"
@@ -182,3 +191,190 @@ def test_requests_have_bounded_timeouts_and_retries() -> None:
     assert config["connect_timeout"] == 3.0
     assert config["read_timeout"] == 15.0
     assert config["retries"] == {"total_max_attempts": 2, "mode": "standard"}
+
+
+async def chunks_of(*parts: bytes) -> AsyncIterator[bytes]:
+    for part in parts:
+        yield part
+
+
+def small_parts_storage(client: "S3Client") -> S3ObjectStorage:
+    return S3ObjectStorage(client, BUCKET, BASE_URL, part_size=5)
+
+
+async def test_a_small_stream_is_sent_with_a_single_put() -> None:
+    client = build_s3_client(seaweed_settings())
+    storage = small_parts_storage(client)
+
+    with Stubber(client) as stubber:
+        stubber.add_response(
+            "put_object",
+            {},
+            {"Bucket": BUCKET, "Key": "imports/a.csv", "Body": b"abc", "ContentType": "text/csv"},
+        )
+        await storage.put_stream("imports/a.csv", chunks_of(b"a", b"bc"), "text/csv")
+        stubber.assert_no_pending_responses()
+
+
+async def test_a_large_stream_uses_a_multipart_upload_with_ordered_parts() -> None:
+    client = build_s3_client(seaweed_settings())
+    storage = small_parts_storage(client)
+    key = "imports/a.csv"
+
+    with Stubber(client) as stubber:
+        stubber.add_response(
+            "create_multipart_upload",
+            {"UploadId": "u-1"},
+            {"Bucket": BUCKET, "Key": key, "ContentType": "text/csv"},
+        )
+        for number, body in enumerate((b"12345", b"67890", b"ab"), start=1):
+            stubber.add_response(
+                "upload_part",
+                {"ETag": f"etag-{number}"},
+                {
+                    "Bucket": BUCKET,
+                    "Key": key,
+                    "UploadId": "u-1",
+                    "PartNumber": number,
+                    "Body": body,
+                },
+            )
+        stubber.add_response(
+            "complete_multipart_upload",
+            {},
+            {
+                "Bucket": BUCKET,
+                "Key": key,
+                "UploadId": "u-1",
+                "MultipartUpload": {
+                    "Parts": [
+                        {"ETag": "etag-1", "PartNumber": 1},
+                        {"ETag": "etag-2", "PartNumber": 2},
+                        {"ETag": "etag-3", "PartNumber": 3},
+                    ]
+                },
+            },
+        )
+        await storage.put_stream(key, chunks_of(b"123", b"45678", b"90ab"), "text/csv")
+        stubber.assert_no_pending_responses()
+
+
+async def test_a_stream_ending_exactly_on_a_part_boundary_has_no_empty_last_part() -> None:
+    client = build_s3_client(seaweed_settings())
+    storage = small_parts_storage(client)
+    key = "imports/a.csv"
+
+    with Stubber(client) as stubber:
+        stubber.add_response("create_multipart_upload", {"UploadId": "u"}, None)
+        stubber.add_response("upload_part", {"ETag": "e1"}, None)
+        stubber.add_response(
+            "complete_multipart_upload",
+            {},
+            {
+                "Bucket": BUCKET,
+                "Key": key,
+                "UploadId": "u",
+                "MultipartUpload": {"Parts": [{"ETag": "e1", "PartNumber": 1}]},
+            },
+        )
+        await storage.put_stream(key, chunks_of(b"12345"), "text/csv")
+        stubber.assert_no_pending_responses()
+
+
+async def test_a_failing_source_aborts_the_multipart_upload() -> None:
+    client = build_s3_client(seaweed_settings())
+    storage = small_parts_storage(client)
+
+    async def failing() -> AsyncIterator[bytes]:
+        yield b"1234567"
+        raise RuntimeError("size limit exceeded")
+
+    with Stubber(client) as stubber:
+        stubber.add_response("create_multipart_upload", {"UploadId": "u-9"}, None)
+        stubber.add_response("upload_part", {"ETag": "e1"}, None)
+        stubber.add_response(
+            "abort_multipart_upload",
+            {},
+            {"Bucket": BUCKET, "Key": "imports/a.csv", "UploadId": "u-9"},
+        )
+        with pytest.raises(RuntimeError, match="size limit exceeded"):
+            await storage.put_stream("imports/a.csv", failing(), "text/csv")
+        stubber.assert_no_pending_responses()
+
+
+async def test_a_failing_part_upload_aborts_and_is_reported_as_a_storage_error() -> None:
+    client = build_s3_client(seaweed_settings())
+    storage = small_parts_storage(client)
+
+    with Stubber(client) as stubber:
+        stubber.add_response("create_multipart_upload", {"UploadId": "u-2"}, None)
+        stubber.add_client_error("upload_part", service_error_code="InternalError")
+        stubber.add_response("abort_multipart_upload", {}, None)
+        with pytest.raises(ObjectStorageError):
+            await storage.put_stream("imports/a.csv", chunks_of(b"1234567890"), "text/csv")
+        stubber.assert_no_pending_responses()
+
+
+async def test_a_failing_abort_does_not_hide_the_original_error() -> None:
+    client = build_s3_client(seaweed_settings())
+    storage = small_parts_storage(client)
+
+    async def failing() -> AsyncIterator[bytes]:
+        yield b"1234567"
+        raise RuntimeError("original")
+
+    with Stubber(client) as stubber:
+        stubber.add_response("create_multipart_upload", {"UploadId": "u"}, None)
+        stubber.add_response("upload_part", {"ETag": "e"}, None)
+        stubber.add_client_error("abort_multipart_upload", service_error_code="InternalError")
+        with pytest.raises(RuntimeError, match="original"):
+            await storage.put_stream("imports/a.csv", failing(), "text/csv")
+
+
+def test_read_chunks_streams_the_body_of_the_object() -> None:
+    client = build_s3_client(seaweed_settings())
+    storage = S3ObjectStorage(client, BUCKET, BASE_URL)
+    body = StreamingBody(io.BytesIO(b"hello world"), 11)
+
+    with Stubber(client) as stubber:
+        stubber.add_response(
+            "get_object", {"Body": body}, {"Bucket": BUCKET, "Key": "imports/a.csv"}
+        )
+        assert b"".join(storage.read_chunks("imports/a.csv")) == b"hello world"
+
+
+@pytest.mark.parametrize("code", ["NoSuchKey", "404"])
+def test_reading_a_missing_object_is_reported_as_not_found(code: str) -> None:
+    client = build_s3_client(seaweed_settings())
+    storage = S3ObjectStorage(client, BUCKET, BASE_URL)
+
+    with Stubber(client) as stubber:
+        stubber.add_client_error("get_object", service_error_code=code, http_status_code=404)
+        with pytest.raises(ObjectNotFoundError):
+            list(storage.read_chunks("imports/missing.csv"))
+
+
+def test_other_read_failures_are_storage_errors() -> None:
+    client = build_s3_client(seaweed_settings())
+    storage = S3ObjectStorage(client, BUCKET, BASE_URL)
+
+    with Stubber(client) as stubber:
+        stubber.add_client_error(
+            "get_object", service_error_code="AccessDenied", http_status_code=403
+        )
+        with pytest.raises(ObjectStorageError) as raised:
+            list(storage.read_chunks("imports/a.csv"))
+
+    assert not isinstance(raised.value, ObjectNotFoundError)
+
+
+def test_an_unreachable_endpoint_is_a_storage_error_when_reading() -> None:
+    client = build_s3_client(
+        S3Settings(
+            "a", "s", endpoint_url="http://127.0.0.1:1", connect_timeout_seconds=0.2, max_attempts=1
+        )
+    )
+    storage = S3ObjectStorage(client, BUCKET, BASE_URL)
+
+    with pytest.raises(ObjectStorageError):
+        list(storage.read_chunks("imports/a.csv"))
