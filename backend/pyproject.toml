@@ -5,6 +5,7 @@ requires-python = ">=3.13,<3.14"
 dependencies = [
     "ecommerce-observability",
     "ecommerce-contracts",
+    "ecommerce-messaging",
     "ecommerce-auth",
     "ecommerce-storage",
     "ecommerce-web",
@@ -32,6 +33,7 @@ members = ["libs/*", "services/*"]
 [tool.uv.sources]
 ecommerce-observability = { workspace = true }
 ecommerce-contracts = { workspace = true }
+ecommerce-messaging = { workspace = true }
 ecommerce-auth = { workspace = true }
 ecommerce-storage = { workspace = true }
 ecommerce-web = { workspace = true }
@@ -44,6 +46,7 @@ src = [
     "test_support",
     "libs/observability/src",
     "libs/contracts/src",
+    "libs/messaging/src",
     "libs/auth/src",
     "libs/storage/src",
     "libs/web/src",
@@ -61,6 +64,7 @@ explicit_package_bases = true
 mypy_path = [
     "libs/observability/src",
     "libs/contracts/src",
+    "libs/messaging/src",
     "libs/auth/src",
     "libs/storage/src",
     "libs/web/src",
@@ -95,3 +99,7 @@ directory = "htmlcov"
 
 [tool.coverage.xml]
 output = "coverage.xml"
+
+[[tool.mypy.overrides]]
+module = ["aiokafka", "aiokafka.*"]
+ignore_missing_imports = true
