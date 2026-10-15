@@ -34,7 +34,7 @@ export function Pagination({
 }: PaginationProps) {
   return (
     <nav aria-label={label} className="flex flex-wrap items-center justify-between gap-4">
-      <p role="status" className="text-sm text-muted-foreground">
+      <p role="status" className="text-sm text-secondary">
         {totalMessage(total, totalExact)}
       </p>
       <div className="flex gap-2">

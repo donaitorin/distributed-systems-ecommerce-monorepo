@@ -22,12 +22,12 @@ export function PriceTag({ amount, currency = "USD", className }: PriceTagProps)
 
   if (formatted === null) {
     return (
-      <span className={cn("text-base font-semibold text-muted-foreground", className)}>
+      <span className={cn("text-base font-semibold text-secondary", className)}>
         <span aria-hidden="true">&mdash;</span>
         <span className="sr-only">Price unavailable</span>
       </span>
     );
   }
 
-  return <span className={cn("text-base font-semibold text-foreground", className)}>{formatted}</span>;
+  return <span className={cn("text-base font-semibold text-primary", className)}>{formatted}</span>;
 }

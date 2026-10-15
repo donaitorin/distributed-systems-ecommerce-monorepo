@@ -33,7 +33,7 @@ export function ProductCard({
   return (
     <article
       className={cn(
-        "relative flex flex-col overflow-hidden rounded-lg border border-border bg-background",
+        "relative flex flex-col overflow-hidden rounded-lg border border-border bg-surface text-primary",
         className,
       )}
     >
@@ -55,14 +55,14 @@ export function ProductCardSkeleton({ className }: { className?: string }) {
   return (
     <div
       role="status"
-      className={cn("flex flex-col overflow-hidden rounded-lg border border-border", className)}
+      className={cn("flex flex-col overflow-hidden rounded-lg border border-border bg-surface", className)}
     >
       <span className="sr-only">Loading product</span>
-      <div className="aspect-square w-full animate-pulse bg-muted" aria-hidden="true" />
+      <div className="aspect-square w-full animate-pulse bg-border" aria-hidden="true" />
       <div className="flex flex-col gap-2 p-4" aria-hidden="true">
-        <div className="h-5 w-3/4 animate-pulse rounded-sm bg-muted" />
-        <div className="h-5 w-1/4 animate-pulse rounded-sm bg-muted" />
-        <div className="h-6 w-1/3 animate-pulse rounded-full bg-muted" />
+        <div className="h-5 w-3/4 animate-pulse rounded-sm bg-border" />
+        <div className="h-5 w-1/4 animate-pulse rounded-sm bg-border" />
+        <div className="h-6 w-1/3 animate-pulse rounded-full bg-border" />
       </div>
     </div>
   );

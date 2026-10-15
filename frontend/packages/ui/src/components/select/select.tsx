@@ -41,7 +41,7 @@ export function Select({
 
   return (
     <div className="flex flex-col gap-1">
-      <label htmlFor={triggerId} className="text-sm font-medium text-foreground">
+      <label htmlFor={triggerId} className="text-sm font-medium text-primary">
         {label}
       </label>
       <RadixSelect.Root {...rootProps}>
@@ -50,9 +50,10 @@ export function Select({
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy || undefined}
           className={cn(
-            "flex min-h-11 items-center justify-between gap-2 rounded-md border bg-background px-3 text-base text-foreground",
-            "data-placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-60",
-            error ? "border-danger" : "border-control-border",
+            "flex min-h-11 items-center justify-between gap-2 rounded-md border bg-surface px-3 text-base text-primary",
+            "data-placeholder:text-secondary",
+            "disabled:cursor-not-allowed disabled:border-border disabled:bg-surface-2 disabled:text-tertiary",
+            error ? "border-danger-strong" : "border-border-strong",
           )}
         >
           <RadixSelect.Value placeholder={placeholder} />
@@ -64,7 +65,7 @@ export function Select({
           <RadixSelect.Content
             position="popper"
             sideOffset={4}
-            className="z-50 max-h-80 min-w-(--radix-select-trigger-width) overflow-hidden rounded-md border border-control-border bg-background text-foreground"
+            className="z-50 max-h-80 min-w-(--radix-select-trigger-width) overflow-hidden rounded-md border border-border-strong bg-surface text-primary"
           >
             <RadixSelect.Viewport className="p-1">
               {options.map((option) => (
@@ -72,7 +73,7 @@ export function Select({
                   key={option.value}
                   value={option.value}
                   disabled={option.disabled}
-                  className="flex min-h-11 cursor-pointer items-center justify-between gap-2 rounded-sm px-3 text-base data-disabled:cursor-not-allowed data-disabled:opacity-60 data-highlighted:bg-muted"
+                  className="flex min-h-11 cursor-pointer items-center justify-between gap-2 rounded-sm px-3 text-base data-disabled:cursor-not-allowed data-disabled:text-tertiary data-highlighted:bg-accent-soft"
                 >
                   <RadixSelect.ItemText>{option.label}</RadixSelect.ItemText>
                   <RadixSelect.ItemIndicator>
@@ -85,12 +86,12 @@ export function Select({
         </RadixSelect.Portal>
       </RadixSelect.Root>
       {hint ? (
-        <p id={hintId} className="text-sm text-muted-foreground">
+        <p id={hintId} className="text-sm text-secondary">
           {hint}
         </p>
       ) : null}
       {error ? (
-        <p id={errorId} className="text-sm font-medium text-danger">
+        <p id={errorId} className="text-sm font-medium text-danger-strong">
           {error}
         </p>
       ) : null}

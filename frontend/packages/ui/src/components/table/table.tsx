@@ -36,7 +36,9 @@ export function Table<Row>({
 
   const messageRow = (message: string, role?: "alert") => (
     <tr>
-      <td colSpan={columns.length} className="px-4 py-8 text-center text-sm" role={role}>
+      <td colSpan={columns.length} className="px-4 py-8 text-center text-sm"
+        role={role}
+      >
         {message}
       </td>
     </tr>
@@ -48,7 +50,7 @@ export function Table<Row>({
         <tr key={index} className="border-t border-border">
           {columns.map((column) => (
             <td key={column.key} className={cellClasses(column)}>
-              <span className="block h-4 animate-pulse rounded-sm bg-muted" aria-hidden="true" />
+              <span className="block h-4 animate-pulse rounded-sm bg-border" aria-hidden="true" />
             </td>
           ))}
         </tr>
@@ -77,11 +79,11 @@ export function Table<Row>({
       aria-label={caption}
       // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- keyboard users must be able to scroll wide tables
       tabIndex={0}
-      className="overflow-x-auto rounded-md border border-border"
+      className="overflow-x-auto rounded-md border border-border bg-surface text-primary"
     >
       <table className="w-full border-collapse" aria-busy={loading || undefined}>
         <caption className="sr-only">{caption}</caption>
-        <thead className="bg-muted">
+        <thead className="bg-surface-2">
           <tr>
             {columns.map((column) => (
               <th key={column.key} scope="col" className={cn(cellClasses(column), "font-semibold")}>

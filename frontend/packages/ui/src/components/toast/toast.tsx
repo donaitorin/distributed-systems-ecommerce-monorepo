@@ -17,18 +17,18 @@ export type ToastProps = {
 const VARIANTS = {
   success: {
     label: "Success",
-    icon: <CheckIcon />,
-    classes: "border-success-soft-foreground bg-success-soft text-success-soft-foreground",
+    icon: <CheckIcon className="size-4 shrink-0 text-success-strong" />,
+    classes: "border-success-strong",
   },
   error: {
     label: "Error",
-    icon: <AlertIcon />,
-    classes: "border-danger-soft-foreground bg-danger-soft text-danger-soft-foreground",
+    icon: <AlertIcon className="size-4 shrink-0 text-danger-strong" />,
+    classes: "border-danger-strong",
   },
   info: {
     label: "Notice",
-    icon: <InfoIcon />,
-    classes: "border-info-soft-foreground bg-info-soft text-info-soft-foreground",
+    icon: <InfoIcon className="size-4 shrink-0 text-accent-strong" />,
+    classes: "border-accent-strong",
   },
 } satisfies Record<ToastVariant, { label: string; icon: ReactNode; classes: string }>;
 
@@ -57,7 +57,7 @@ export function Toast({
       onOpenChange={onOpenChange}
       duration={duration}
       type={variant === "error" ? "foreground" : "background"}
-      className={cn("flex items-start gap-3 rounded-md border p-4", classes)}
+      className={cn("flex items-start gap-3 rounded-md border-2 bg-surface p-4 text-primary", classes)}
     >
       {icon}
       <div className="flex-1">
@@ -71,7 +71,7 @@ export function Toast({
       </div>
       <RadixToast.Close
         aria-label="Dismiss"
-        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md"
+        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md hover:bg-surface-2"
       >
         <CloseIcon />
       </RadixToast.Close>

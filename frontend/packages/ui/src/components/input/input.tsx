@@ -16,7 +16,7 @@ export function Input({ label, hint, error, id, className, ...props }: InputProp
 
   return (
     <div className="flex flex-col gap-1">
-      <label htmlFor={inputId} className="text-sm font-medium text-foreground">
+      <label htmlFor={inputId} className="text-sm font-medium text-primary">
         {label}
       </label>
       <input
@@ -24,20 +24,21 @@ export function Input({ label, hint, error, id, className, ...props }: InputProp
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy || undefined}
         className={cn(
-          "min-h-11 rounded-md border bg-background px-3 text-base text-foreground",
-          "placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-60",
-          error ? "border-danger" : "border-control-border",
+          "min-h-11 rounded-md border bg-surface px-3 text-base text-primary",
+          "placeholder:text-secondary",
+          "disabled:cursor-not-allowed disabled:border-border disabled:bg-surface-2 disabled:text-tertiary disabled:placeholder:text-tertiary",
+          error ? "border-danger-strong" : "border-border-strong",
           className,
         )}
         {...props}
       />
       {hint ? (
-        <p id={hintId} className="text-sm text-muted-foreground">
+        <p id={hintId} className="text-sm text-secondary">
           {hint}
         </p>
       ) : null}
       {error ? (
-        <p id={errorId} className="text-sm font-medium text-danger">
+        <p id={errorId} className="text-sm font-medium text-danger-strong">
           {error}
         </p>
       ) : null}

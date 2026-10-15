@@ -1,12 +1,21 @@
 @layer base {
   html {
     font-family: var(--font-sans);
-    color: var(--color-foreground);
+    color: var(--color-primary);
     background-color: var(--color-background);
   }
 
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-serif);
+  }
+
   :focus-visible {
-    outline: 2px solid var(--color-focus-ring);
+    outline: 2px solid var(--color-accent-strong);
     outline-offset: 2px;
   }
 

@@ -22,7 +22,7 @@ export function ProductImagePlaceholder({ label }: { label: string }) {
       viewBox="0 0 400 400"
       role="img"
       aria-label={label}
-      className="size-full bg-muted text-muted-foreground"
+      className="size-full bg-surface-2 text-secondary"
     >
       <rect width="400" height="400" fill="currentColor" fillOpacity="0.08" />
       <g fill="none" stroke="currentColor" strokeWidth="12" strokeLinecap="round" strokeLinejoin="round">
@@ -56,7 +56,7 @@ export function ProductImage({
   const showPlaceholder = source === null || failedKey === sourceKey;
 
   return (
-    <div className={cn("aspect-square w-full overflow-hidden bg-muted", className)}>
+    <div className={cn("aspect-square w-full overflow-hidden bg-surface-2", className)}>
       {showPlaceholder ? (
         <ProductImagePlaceholder label={alt} />
       ) : (

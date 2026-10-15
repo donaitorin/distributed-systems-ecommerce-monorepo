@@ -15,20 +15,20 @@ function statusFor(stock: number, lowStockThreshold: number): StockStatus {
     return {
       label: "Out of stock",
       icon: <CloseIcon />,
-      classes: "bg-danger-soft text-danger-soft-foreground",
+      classes: "bg-danger-soft text-danger-strong",
     };
   }
   if (stock <= lowStockThreshold) {
     return {
       label: `Only ${stock} left`,
       icon: <AlertIcon />,
-      classes: "bg-warning-soft text-warning-soft-foreground",
+      classes: "bg-warning-soft text-warning-strong",
     };
   }
   return {
     label: "In stock",
     icon: <CheckIcon />,
-    classes: "bg-success-soft text-success-soft-foreground",
+    classes: "bg-success-soft text-success-strong",
   };
 }
 

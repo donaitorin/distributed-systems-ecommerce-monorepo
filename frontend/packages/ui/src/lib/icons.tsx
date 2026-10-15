@@ -1,8 +1,9 @@
 import type { ComponentProps } from "react";
+import { cn } from "./cn";
 
 type IconProps = ComponentProps<"svg">;
 
-function Icon({ children, ...props }: IconProps) {
+function Icon({ children, className, ...props }: IconProps) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -14,7 +15,7 @@ function Icon({ children, ...props }: IconProps) {
       strokeLinejoin="round"
       aria-hidden="true"
       focusable="false"
-      className="size-4 shrink-0"
+      className={cn("size-4 shrink-0", className)}
       {...props}
     >
       {children}
@@ -66,7 +67,7 @@ export function ChevronDownIcon(props: IconProps) {
 
 export function SpinnerIcon({ className, ...props }: IconProps) {
   return (
-    <Icon className={className ?? "size-4 shrink-0 animate-spin"} {...props}>
+    <Icon className={cn("animate-spin", className)} {...props}>
       <path d="M21 12a9 9 0 1 1-6.2-8.6" />
     </Icon>
   );
