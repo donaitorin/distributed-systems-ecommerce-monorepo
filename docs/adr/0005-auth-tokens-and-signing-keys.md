@@ -10,8 +10,8 @@ The auth service owns credentials, roles and tokens. Every other service must va
 
 ### Access tokens
 
-- RS256 JWTs with `sub` (user id), `role`, `iss`, `aud`, `iat`, `exp` and `jti`, valid for 15 minutes. `libs/auth` verifies `iss`, `aud`, `sub`, `role` and `exp` against the JWKS.
-- The `role` claim is read from the database whenever a token pair is issued, so a role change reaches the token on the next refresh, within 15 minutes. Access tokens cannot be revoked before they expire; logout and reuse detection act on refresh tokens only. 15 minutes is the accepted window.
+- RS256 JWTs with `sub` (user id), `email`, `role`, `iss`, `aud`, `iat`, `exp` and `jti`, valid for 15 minutes. `libs/auth` verifies `iss`, `aud`, `sub`, `role` and `exp` against the JWKS.
+- The `role` and `email` claims are read from the database whenever a token pair is issued, so a role change reaches the token on the next refresh, within 15 minutes. `email` is the normalized address; Accounts uses it to create a missing profile. Tokens issued before the claim existed have none, and consumers must tolerate that for up to 15 minutes. Access tokens cannot be revoked before they expire; logout and reuse detection act on refresh tokens only. 15 minutes is the accepted window.
 
 ### Refresh tokens
 

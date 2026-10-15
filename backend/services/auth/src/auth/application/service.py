@@ -141,4 +141,4 @@ class AuthService:
             family_expires_at=family_expires_at,
             now=now,
         )
-        return TokenPair(self._issuer.issue(user.id, user.role, now), refresh_token)
+        return TokenPair(self._issuer.issue(user.id, user.email, user.role, now), refresh_token)

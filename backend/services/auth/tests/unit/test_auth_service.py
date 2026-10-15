@@ -221,6 +221,17 @@ async def test_refresh_reads_the_current_role_from_the_user(harness: Harness) ->
     assert claims["role"] == "admin"
 
 
+async def test_login_and_refresh_put_the_stored_email_in_the_token(harness: Harness) -> None:
+    pair = await harness.logged_in()
+    user = next(iter(harness.store.users.values()))
+
+    refreshed = await harness.service.refresh(pair.refresh_token)
+
+    for issued in (pair, refreshed):
+        claims = jwt.decode(issued.access.value, options={"verify_signature": False})
+        assert claims["email"] == user.email
+
+
 async def test_an_unknown_refresh_token_is_rejected(harness: Harness) -> None:
     with pytest.raises(InvalidRefreshTokenError):
         await harness.service.refresh("never-issued")
