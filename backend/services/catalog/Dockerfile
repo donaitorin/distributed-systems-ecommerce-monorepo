@@ -9,7 +9,7 @@ ENV UV_COMPILE_BYTECODE=1 \
 WORKDIR /app
 COPY pyproject.toml uv.lock .python-version ./
 COPY libs ./libs
-COPY services ./services
+COPY services/catalog ./services/catalog
 RUN uv sync --frozen --no-dev --no-editable --package ecommerce-catalog
 
 FROM python:3.13.16-slim-bookworm AS runtime

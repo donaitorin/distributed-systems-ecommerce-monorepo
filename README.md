@@ -39,6 +39,7 @@ One-shot jobs `kafka-init`, `object-storage-init`, `auth-migrate` and `catalog-m
 | Service | Container | Reachable through the gateway |
 | --- | --- | --- |
 | Auth | `auth` | `/api/v1/auth/*`, and `/auth/docs`, `/auth/health`, `/auth/ready` |
+| Accounts | `accounts`, `accounts-worker` | `/api/v1/accounts/*`, and `/accounts/docs`, `/accounts/health`, `/accounts/ready` |
 | Catalog | `catalog` | `/api/v1/products`, `/api/v1/categories`, and `/catalog/docs`, `/catalog/health`, `/catalog/ready` |
 
 The auth service generates its RSA signing key into a Docker volume on first start, and catalog (and every other service) validates tokens against its JWKS. Nothing secret is stored in the repository.
@@ -62,6 +63,33 @@ curl -s -X POST localhost:8000/api/v1/auth/login -H "Content-Type: application/j
 ```
 
 Access tokens are RS256 JWTs that live 15 minutes; any service validates them locally against the JWKS. Refresh tokens are opaque, live 7 days (30 days at most per session) and are stored only as a SHA-256 hash. Tokens are returned in the JSON body: the frontend keeps them in `httpOnly` cookies. Passwords are hashed with Argon2id and must have 10 to 128 characters and not be a common password; there are no composition rules. Emails are trimmed and lowercased. The initial admin comes from `AUTH_ADMIN_EMAIL` and `AUTH_ADMIN_PASSWORD` in `.env`. Reusing a rotated refresh token is rejected; after a 10 second grace window it revokes the whole session. `POST /register` publishes `user.registered` and a role change publishes `user.role_changed` on the `auth.events` topic (key: user id) through the transactional outbox; the `auth-worker` container relays them to Kafka, so registration works while Kafka is down and the events leave when it is back. The gateway limits `POST /login` to 10 requests per minute and `POST /register` to 5 per minute per client address (`429`, with a burst equal to the rate). The design, the signing key rotation procedure and the trade-offs are in [ADR 0005](docs/adr/0005-auth-tokens-and-signing-keys.md).
+
+## Accounts API
+
+| Endpoint | Description |
+| --- | --- |
+| `GET /api/v1/accounts/me` | The profile of the token's user: `user_id`, `email`, `role`, `name`, `phone`, `created_at`, `updated_at` |
+| `PATCH /api/v1/accounts/me` | Body `{name?, phone?}`. `name` is 1 to 100 characters after trimming and cannot be `null`; `phone` is optional, `+` and 8 to 15 digits (spaces, dashes, dots and parentheses are stripped), and `null` or blank clears it. Omitted fields stay as they are |
+| `GET /api/v1/accounts/me/addresses` | `{items}` in creation order |
+| `POST /api/v1/accounts/me/addresses` | `recipient_name`, `line1`, `city`, `postal_code`, `country` (ISO 3166-1 alpha-2, uppercased) and optional `line2`, `region`, `phone`. `409` after 10 addresses, `422` with field locations |
+| `DELETE /api/v1/accounts/me/addresses/{id}` | Hard delete, `204`. `404` for an unknown address or one owned by someone else (orders will snapshot the address they ship to) |
+| `GET /api/v1/accounts` | Admin only. `{items, next_cursor}`, newest first. Filters `email` (case-insensitive prefix) and `role`; `limit` 25, 50 or 100; opaque `cursor` bound to the filters (`422` `invalid_cursor` or `cursor_mismatch` on `query.cursor`) |
+
+```bash
+TOKEN=$(make -s dev-token)
+curl -s localhost:8000/api/v1/accounts/me -H "Authorization: Bearer $TOKEN"
+curl -s "localhost:8000/api/v1/accounts?role=admin&limit=25" -H "Authorization: Bearer $TOKEN"
+```
+
+Accounts owns the profile; auth owns identity and roles. Authorization always uses the role in the token, never the local copy, which exists to display and filter users in the backoffice. The admin list is forward-only (no previous page, no total).
+
+How a profile comes to exist and stays current:
+
+- **Events.** The `accounts-worker` container consumes `auth.events` in the group `accounts-auth-events`, starting from the earliest offset, so users registered before accounts existed get a profile the first time it runs. `user.registered` creates the profile or, if it already exists, fills a missing email; it never touches the name, phone or addresses. `user.role_changed` updates the role and creates the profile when the registration has not arrived yet. Every event is claimed in `processed_events` in the same transaction as its effect, so a redelivered or republished event does nothing. Messages that are not valid events, or have an unsupported version, go to `auth.events.dlq` with `x-error` headers and the worker keeps consuming.
+- **Lazy creation.** Any authenticated `/me` request inserts the profile from the token claims (`sub`, `email`, `role`, `iat`) with `INSERT ... ON CONFLICT DO NOTHING`, and never updates an existing row. This covers the seeded admin, which has no registration event, and users whose event has not been consumed yet. Access tokens issued before the `email` claim existed have none, so the email stays empty until the registration event fills it.
+- **Ordering rule.** The role carries the time it was written (`role_updated_at`), and a write changes the role only if its time is strictly newer: `registered_at` for `user.registered`, `changed_at` for `user.role_changed`, and the token `iat` for the lazy path (the token role was read from the database at that moment). When a profile has no role time, because the token had no `iat`, any event wins. The reasoning and its limits are in [ADR 0006](docs/adr/0006-accounts-profile-consistency.md).
+
+The accounts API needs only its own database: `/ready` checks Postgres, the API does not start Kafka, and it fetches the signing keys lazily like catalog. Only the worker needs Kafka.
 
 ## Catalog API
 
@@ -195,6 +223,7 @@ Uploading the same file twice returns the existing import (`200`). Rows are upse
 | `make test-backend` | Backend tests with coverage (integration tests need Docker) |
 | `make test-backend-unit` | Backend tests without Docker |
 | `make lint-backend` | Ruff, format check and mypy |
+| `make check-comments` | Fail if backend Python code contains comments or docstrings (tool pragmas are allowed) |
 
 ## Repository layout
 

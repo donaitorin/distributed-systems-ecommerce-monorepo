@@ -17,9 +17,10 @@ class JwtAccessTokenIssuer:
         self._audience = audience
         self._ttl = ttl
 
-    def issue(self, user_id: UUID, role: Role, now: datetime) -> AccessToken:
+    def issue(self, user_id: UUID, email: str, role: Role, now: datetime) -> AccessToken:
         claims = {
             "sub": str(user_id),
+            "email": email,
             "role": role.value,
             "iss": self._issuer,
             "aud": self._audience,

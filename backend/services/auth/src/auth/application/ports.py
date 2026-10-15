@@ -28,7 +28,7 @@ class PasswordHasher(Protocol):
 
 
 class AccessTokenIssuer(Protocol):
-    def issue(self, user_id: UUID, role: Role, now: datetime) -> AccessToken: ...
+    def issue(self, user_id: UUID, email: str, role: Role, now: datetime) -> AccessToken: ...
 
 
 class UserRepository(Protocol):

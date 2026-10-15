@@ -1,0 +1,22 @@
+http:
+  routers:
+    accounts-api:
+      rule: "Path(`/api/v1/accounts`) || PathPrefix(`/api/v1/accounts/`)"
+      entryPoints: [web]
+      service: accounts
+    accounts-docs:
+      rule: "Path(`/accounts`) || PathPrefix(`/accounts/`)"
+      entryPoints: [web]
+      middlewares: [accounts-strip-prefix]
+      service: accounts
+
+  middlewares:
+    accounts-strip-prefix:
+      stripPrefix:
+        prefixes: ["/accounts"]
+
+  services:
+    accounts:
+      loadBalancer:
+        servers:
+          - url: "http://accounts:8000"

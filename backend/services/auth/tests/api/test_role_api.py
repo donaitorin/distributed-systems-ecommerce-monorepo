@@ -94,7 +94,7 @@ async def test_a_token_signed_by_someone_else_is_unauthorized(
     issuer = JwtAccessTokenIssuer(
         KeyStore([stranger], stranger.kid), ISSUER, AUDIENCE, timedelta(minutes=5)
     )
-    forged = issuer.issue(uuid4(), Role.ADMIN, datetime.now(UTC))
+    forged = issuer.issue(uuid4(), "admin@example.com", Role.ADMIN, datetime.now(UTC))
 
     response = await patch_role(client, uuid4(), "admin", forged.value)
 

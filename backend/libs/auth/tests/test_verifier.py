@@ -1,4 +1,5 @@
 import time
+from datetime import UTC, datetime
 
 import httpx
 import jwt
@@ -7,7 +8,6 @@ from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
 from ecommerce_auth import (
     DEFAULT_AUDIENCE,
-    AuthenticatedUser,
     InvalidTokenError,
     JwksClient,
     KeysUnavailableError,
@@ -36,7 +36,54 @@ async def test_valid_token_yields_the_authenticated_user(
 
     user = await verifier.verify(token)
 
-    assert user == AuthenticatedUser(user_id="user-1", role=role)
+    assert (user.user_id, user.role) == ("user-1", role)
+
+
+async def test_the_user_carries_the_email_and_issue_time_claims(
+    issuer: StubTokenIssuer, verifier: TokenVerifier
+) -> None:
+    user = await verifier.verify(
+        issuer.issue(subject="user-1", email="ada@example.com", iat=1_700_000_000)
+    )
+
+    assert user.email == "ada@example.com"
+    assert user.issued_at == datetime.fromtimestamp(1_700_000_000, UTC)
+
+
+@pytest.mark.parametrize("email", [None, "", 7])
+async def test_a_missing_or_malformed_email_claim_reads_as_none(
+    issuer: StubTokenIssuer, verifier: TokenVerifier, email: object
+) -> None:
+    user = await verifier.verify(issuer.issue(email=email))
+
+    assert user.email is None
+
+
+async def test_a_token_without_an_issue_time_still_verifies(
+    issuer: StubTokenIssuer, verifier: TokenVerifier
+) -> None:
+    now = int(time.time())
+    token = issuer.issue_with_claims(
+        {
+            "sub": "user-1",
+            "role": "customer",
+            "aud": DEFAULT_AUDIENCE,
+            "iss": STUB_ISSUER,
+            "exp": now + 60,
+        }
+    )
+
+    user = await verifier.verify(token)
+
+    assert user.issued_at is None
+
+
+async def test_a_boolean_issue_time_is_ignored(
+    issuer: StubTokenIssuer, verifier: TokenVerifier
+) -> None:
+    user = await verifier.verify(issuer.issue(iat=True))
+
+    assert user.issued_at is None
 
 
 async def test_expired_token_is_rejected(issuer: StubTokenIssuer, verifier: TokenVerifier) -> None:
@@ -214,7 +261,7 @@ async def test_any_key_provider_can_back_the_verifier(issuer: StubTokenIssuer) -
 
     user = await verifier.verify(issuer.issue(subject="user-1", role=Role.ADMIN))
 
-    assert user == AuthenticatedUser(user_id="user-1", role=Role.ADMIN)
+    assert (user.user_id, user.role) == ("user-1", Role.ADMIN)
 
 
 async def test_a_key_provider_that_does_not_know_the_kid_rejects_the_token() -> None:

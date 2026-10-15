@@ -21,6 +21,9 @@ def unverified_claims(token: str) -> dict[str, Any]:
     return claims
 
 
+EMAIL = "ada@example.com"
+
+
 def issuer_for(store: KeyStore) -> JwtAccessTokenIssuer:
     return JwtAccessTokenIssuer(store, ISSUER, AUDIENCE, TTL)
 
@@ -30,7 +33,7 @@ async def test_tokens_verify_with_the_shared_auth_library() -> None:
     store = KeyStore([key], key.kid)
     user_id = uuid4()
 
-    token = issuer_for(store).issue(user_id, Role.ADMIN, NOW)
+    token = issuer_for(store).issue(user_id, EMAIL, Role.ADMIN, NOW)
 
     user = await verifier_for(store.jwks_document()).verify(token.value)
     assert user.user_id == str(user_id)
@@ -41,12 +44,13 @@ def test_the_token_carries_the_expected_claims_and_header() -> None:
     key = new_signing_key()
     store = KeyStore([key], key.kid)
 
-    token = issuer_for(store).issue(uuid4(), Role.CUSTOMER, NOW)
+    token = issuer_for(store).issue(uuid4(), EMAIL, Role.CUSTOMER, NOW)
 
     claims = jwt.decode(token.value, options={"verify_signature": False})
     assert claims["iss"] == ISSUER
     assert claims["aud"] == AUDIENCE
     assert claims["role"] == "customer"
+    assert claims["email"] == EMAIL
     assert claims["exp"] - claims["iat"] == int(TTL.total_seconds())
     assert claims["jti"]
     header = jwt.get_unverified_header(token.value)
@@ -60,10 +64,10 @@ def test_every_token_has_its_own_jti() -> None:
     user_id = uuid4()
 
     first = jwt.decode(
-        issuer.issue(user_id, Role.CUSTOMER, NOW).value, options={"verify_signature": False}
+        issuer.issue(user_id, EMAIL, Role.CUSTOMER, NOW).value, options={"verify_signature": False}
     )
     second = jwt.decode(
-        issuer.issue(user_id, Role.CUSTOMER, NOW).value, options={"verify_signature": False}
+        issuer.issue(user_id, EMAIL, Role.CUSTOMER, NOW).value, options={"verify_signature": False}
     )
 
     assert first["jti"] != second["jti"]
@@ -71,9 +75,9 @@ def test_every_token_has_its_own_jti() -> None:
 
 async def test_during_a_rotation_tokens_from_both_keys_verify() -> None:
     old, new = new_signing_key(), new_signing_key()
-    before_rotation = issuer_for(KeyStore([old], old.kid)).issue(uuid4(), Role.CUSTOMER, NOW)
+    before_rotation = issuer_for(KeyStore([old], old.kid)).issue(uuid4(), EMAIL, Role.CUSTOMER, NOW)
     both = KeyStore([old, new], new.kid)
-    after_rotation = issuer_for(both).issue(uuid4(), Role.CUSTOMER, NOW)
+    after_rotation = issuer_for(both).issue(uuid4(), EMAIL, Role.CUSTOMER, NOW)
     verifier = verifier_for(both.jwks_document())
 
     assert (await verifier.verify(before_rotation.value)).role is LibRole.CUSTOMER
@@ -83,7 +87,7 @@ async def test_during_a_rotation_tokens_from_both_keys_verify() -> None:
 
 async def test_a_token_signed_by_a_removed_key_is_rejected() -> None:
     old, new = new_signing_key(), new_signing_key()
-    token = issuer_for(KeyStore([old], old.kid)).issue(uuid4(), Role.CUSTOMER, NOW)
+    token = issuer_for(KeyStore([old], old.kid)).issue(uuid4(), EMAIL, Role.CUSTOMER, NOW)
     verifier = verifier_for(KeyStore([new], new.kid).jwks_document())
 
     with pytest.raises(InvalidTokenError):
