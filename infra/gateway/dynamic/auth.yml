@@ -1,0 +1,22 @@
+http:
+  routers:
+    auth-api:
+      rule: "PathPrefix(`/api/v1/auth`)"
+      entryPoints: [web]
+      service: auth
+    auth-docs:
+      rule: "Path(`/auth`) || PathPrefix(`/auth/`)"
+      entryPoints: [web]
+      middlewares: [auth-strip-prefix]
+      service: auth
+
+  middlewares:
+    auth-strip-prefix:
+      stripPrefix:
+        prefixes: ["/auth"]
+
+  services:
+    auth:
+      loadBalancer:
+        servers:
+          - url: "http://auth:8000"

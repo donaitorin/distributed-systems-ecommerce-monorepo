@@ -2,9 +2,26 @@ name: ecommerce
 
 x-catalog-image: &catalog-image
   image: ecommerce/catalog:dev
-  build:
-    context: ./backend
-    dockerfile: services/catalog/Dockerfile
+  pull_policy: never
+
+x-catalog-build: &catalog-build
+  context: ./backend
+  dockerfile: services/catalog/Dockerfile
+
+x-auth-image: &auth-image
+  image: ecommerce/auth:dev
+  pull_policy: never
+
+x-auth-build: &auth-build
+  context: ./backend
+  dockerfile: services/auth/Dockerfile
+
+x-auth-database-environment: &auth-database-environment
+  AUTH_DB_HOST: postgres
+  AUTH_DB_PORT: "5432"
+  AUTH_DB_NAME: auth_db
+  AUTH_DB_USER: auth_user
+  AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD}
 
 x-jwt-environment: &jwt-environment
   JWT_ISSUER: ${JWT_ISSUER:-ecommerce-auth}
@@ -206,6 +223,42 @@ services:
       retries: 10
       start_period: 5s
 
+  auth-migrate:
+    <<: *auth-image
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["sh", "-c", "alembic upgrade head && python -m auth.tools.seed"]
+    environment:
+      <<: *auth-database-environment
+      AUTH_ADMIN_EMAIL: ${AUTH_ADMIN_EMAIL:?set AUTH_ADMIN_EMAIL in .env}
+      AUTH_ADMIN_PASSWORD: ${AUTH_ADMIN_PASSWORD:?set AUTH_ADMIN_PASSWORD in .env}
+
+  auth:
+    <<: *auth-image
+    pull_policy: build
+    build: *auth-build
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      auth-migrate:
+        condition: service_completed_successfully
+    environment:
+      <<: [*jwt-environment, *auth-database-environment]
+      AUTH_KEYS_DIR: /keys
+      AUTH_GENERATE_KEY_IF_MISSING: "true"
+      ROOT_PATH: /auth
+    volumes:
+      - auth-keys:/keys
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready', timeout=2)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
   catalog-migrate:
     <<: *catalog-image
     restart: "no"
@@ -222,6 +275,8 @@ services:
 
   catalog:
     <<: *catalog-image
+    pull_policy: build
+    build: *catalog-build
     restart: unless-stopped
     depends_on:
       postgres:
@@ -288,6 +343,7 @@ services:
       MEDIA_PUBLIC_BASE_URL: ${MEDIA_PUBLIC_BASE_URL:-http://127.0.0.1:${GATEWAY_HTTP_PORT:-8000}/media}
 
 volumes:
+  auth-keys:
   dev-auth-keys:
   postgres-data:
   redis-cart-data:
