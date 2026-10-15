@@ -1,3 +1,5 @@
+"use client";
+
 import { useId } from "react";
 import { Select as RadixSelect } from "radix-ui";
 import { cn } from "../../lib/cn";

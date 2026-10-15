@@ -1,3 +1,5 @@
+"use client";
+
 import type { ReactNode } from "react";
 import { Dialog } from "radix-ui";
 import { CloseIcon } from "../../lib/icons";

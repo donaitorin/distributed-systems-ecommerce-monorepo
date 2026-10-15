@@ -1,3 +1,5 @@
+"use client";
+
 import type { ReactNode } from "react";
 import { Toast as RadixToast } from "radix-ui";
 import { cn } from "../../lib/cn";

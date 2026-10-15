@@ -1,3 +1,5 @@
+"use client";
+
 import { useId, type ComponentProps } from "react";
 import { cn } from "../../lib/cn";
 

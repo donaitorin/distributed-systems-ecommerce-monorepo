@@ -23,3 +23,9 @@ export {
   ProductCardSkeleton,
   type ProductCardProps,
 } from "./components/product-card/product-card";
+export {
+  AppShell,
+  MAIN_CONTENT_ID,
+  type AppShellProps,
+  type NavigationLink,
+} from "./components/app-shell/app-shell";
