@@ -102,7 +102,7 @@ async def test_ready_endpoint_is_green_with_a_reachable_database(
 ) -> None:
     settings = CatalogSettings(
         database_url=make_url(migrated_database_url),
-        jwt=JwtSettings(jwks_url="http://dev-auth:8080/jwks.json", issuer="ecommerce-auth"),
+        jwt=JwtSettings(jwks_url="http://auth:8000/jwks.json", issuer="ecommerce-auth"),
         media=media_settings(),
     )
     app = create_catalog_app(settings)
@@ -122,7 +122,7 @@ async def test_ready_does_not_depend_on_object_storage(migrated_database_url: st
     assert unreachable.s3.endpoint_url == "http://127.0.0.1:1"
     settings = CatalogSettings(
         database_url=make_url(migrated_database_url),
-        jwt=JwtSettings(jwks_url="http://dev-auth:8080/jwks.json", issuer="ecommerce-auth"),
+        jwt=JwtSettings(jwks_url="http://auth:8000/jwks.json", issuer="ecommerce-auth"),
         media=unreachable,
     )
     app = create_catalog_app(settings)

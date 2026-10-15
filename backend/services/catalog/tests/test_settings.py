@@ -7,7 +7,7 @@ ENVIRON = {
     "CATALOG_DB_NAME": "catalog_db",
     "CATALOG_DB_USER": "catalog_user",
     "CATALOG_DB_PASSWORD": "pw",
-    "JWT_JWKS_URL": "http://dev-auth:8080/jwks.json",
+    "JWT_JWKS_URL": "http://auth:8000/jwks.json",
     "JWT_ISSUER": "ecommerce-auth",
     "OBJECT_STORAGE_ACCESS_KEY": "access",
     "OBJECT_STORAGE_SECRET_KEY": "secret",
@@ -25,7 +25,7 @@ def test_from_env_reads_database_and_jwt_settings_with_defaults() -> None:
     assert settings.database_url.database == "catalog_db"
     assert settings.database_url.drivername == "postgresql+asyncpg"
     assert settings.jwt.audience == "ecommerce-api"
-    assert settings.jwt.jwks_url == "http://dev-auth:8080/jwks.json"
+    assert settings.jwt.jwks_url == "http://auth:8000/jwks.json"
     assert settings.log_level == "INFO"
     assert settings.root_path == ""
 

@@ -16,9 +16,7 @@ FROM python:3.13.16-slim-bookworm AS runtime
 ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
-RUN useradd --system --uid 10001 --no-create-home --shell /usr/sbin/nologin app \
-    && mkdir /keys \
-    && chown app:app /keys
+RUN useradd --system --uid 10001 --no-create-home --shell /usr/sbin/nologin app
 COPY --from=builder /opt/venv /opt/venv
 WORKDIR /srv/catalog
 COPY services/catalog/alembic.ini ./alembic.ini
