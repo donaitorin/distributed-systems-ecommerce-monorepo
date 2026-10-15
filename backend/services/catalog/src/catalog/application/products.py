@@ -3,9 +3,19 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import UUID
 
+from catalog.application.cursors import decode_cursor, encode_cursor
 from catalog.application.errors import PreconditionFailedError, ProductNotFoundError
 from catalog.application.ports import UnitOfWork, UnitOfWorkFactory
 from catalog.domain.errors import ValidationFailedError, Violation
+from catalog.domain.listing import (
+    Direction,
+    ListedProduct,
+    PageRequest,
+    ProductFilters,
+    ProductListing,
+    Sort,
+    resolve_sort,
+)
 from catalog.domain.preconditions import VersionPrecondition
 from catalog.domain.product import (
     Product,
@@ -55,9 +65,36 @@ class ProductService:
             raise ProductNotFoundError(normalized)
         return product
 
-    async def list(self, limit: int) -> list[Product]:
+    async def search(
+        self, filters: ProductFilters, sort: Sort | None, limit: int, cursor: str | None
+    ) -> ProductListing:
+        effective_sort = resolve_sort(sort, filters)
+        fingerprint = filters.fingerprint(effective_sort)
+        page = PageRequest(limit)
+        if cursor is not None:
+            decoded = decode_cursor(cursor, effective_sort, fingerprint)
+            page = PageRequest(limit, decoded.direction, decoded.position, decoded.mode)
         async with self._unit_of_work() as uow:
-            return await uow.products.list(limit)
+            result = await uow.products.search(filters, effective_sort, page)
+            total = await uow.products.count(filters, result.mode)
+        has_more = len(result.rows) > limit
+        rows = result.rows[:limit]
+        going_back = page.direction is Direction.BEFORE
+        if going_back:
+            rows.reverse()
+
+        def cursor_at(row: ListedProduct, direction: Direction) -> str:
+            position = row.position(effective_sort)
+            return encode_cursor(direction, effective_sort, fingerprint, position, result.mode)
+
+        has_previous = has_more if going_back else cursor is not None
+        has_next = going_back or has_more
+        return ProductListing(
+            items=[row.product for row in rows],
+            next_cursor=cursor_at(rows[-1], Direction.AFTER) if rows and has_next else None,
+            prev_cursor=cursor_at(rows[0], Direction.BEFORE) if rows and has_previous else None,
+            total=total,
+        )
 
     async def replace(
         self,

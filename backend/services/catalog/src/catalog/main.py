@@ -33,7 +33,9 @@ def create_catalog_app(
         on_shutdown=[engine.dispose],
         root_path=settings.root_path,
     )
-    work = unit_of_work or (lambda: SqlAlchemyUnitOfWork(session_factory))
+    work = unit_of_work or (
+        lambda: SqlAlchemyUnitOfWork(session_factory, settings.search_timeout_ms)
+    )
     app.state.session_factory = session_factory
     app.state.product_service = ProductService(work, clock)
     app.state.category_service = CategoryService(work)

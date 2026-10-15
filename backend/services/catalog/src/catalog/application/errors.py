@@ -27,3 +27,9 @@ class PreconditionFailedError(DomainError):
     def __init__(self, sku: str) -> None:
         super().__init__(f"product {sku} was modified")
         self.sku = sku
+
+
+class SearchTimeoutError(DomainError):
+    def __init__(self, timeout_ms: int) -> None:
+        super().__init__(f"search exceeded {timeout_ms} ms")
+        self.timeout_ms = timeout_ms

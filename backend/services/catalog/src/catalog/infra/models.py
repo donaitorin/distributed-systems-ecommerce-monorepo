@@ -4,6 +4,7 @@ from uuid import UUID
 
 from sqlalchemy import (
     CheckConstraint,
+    Computed,
     DateTime,
     ForeignKey,
     Index,
@@ -15,6 +16,7 @@ from sqlalchemy import (
     func,
     text,
 )
+from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 NAMING_CONVENTION = {
@@ -24,6 +26,13 @@ NAMING_CONVENTION = {
     "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
     "pk": "pk_%(table_name)s",
 }
+
+
+SEARCH_VECTOR_EXPRESSION = (
+    "setweight(to_tsvector('english'::regconfig, coalesce(name, '')), 'A') || "
+    "setweight(to_tsvector('simple'::regconfig, sku), 'A') || "
+    "setweight(to_tsvector('english'::regconfig, coalesce(description, '')), 'C')"
+)
 
 
 class Base(DeclarativeBase):
@@ -59,8 +68,31 @@ class ProductModel(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    search_vector: Mapped[str] = mapped_column(
+        TSVECTOR, Computed(SEARCH_VECTOR_EXPRESSION, persisted=True), deferred=True
+    )
 
     __table_args__ = (
+        Index(
+            "ix_products_search_vector",
+            "search_vector",
+            postgresql_using="gin",
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+        Index(
+            "ix_products_name_trgm",
+            "name",
+            postgresql_using="gin",
+            postgresql_ops={"name": "gin_trgm_ops"},
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+        Index(
+            "ix_products_created_at_id",
+            "created_at",
+            "id",
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+        Index("ix_products_price_id", "price", "id", postgresql_where=text("deleted_at IS NULL")),
         CheckConstraint("price >= 0", name="price_non_negative"),
         CheckConstraint("stock >= 0", name="stock_non_negative"),
         CheckConstraint("weight_kg IS NULL OR weight_kg >= 0", name="weight_non_negative"),

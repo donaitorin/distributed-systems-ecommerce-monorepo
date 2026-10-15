@@ -66,3 +66,19 @@ def test_every_database_variable_is_required(missing: str) -> None:
 
     with pytest.raises(KeyError):
         CatalogSettings.from_env(environ)
+
+
+def test_the_search_timeout_defaults_to_two_seconds() -> None:
+    assert CatalogSettings.from_env(ENVIRON).search_timeout_ms == 2000
+
+
+def test_the_search_timeout_can_be_configured() -> None:
+    settings = CatalogSettings.from_env(ENVIRON | {"CATALOG_SEARCH_TIMEOUT_MS": "750"})
+
+    assert settings.search_timeout_ms == 750
+
+
+@pytest.mark.parametrize("value", ["0", "-5", "abc", "", "1.5", "60001"])
+def test_an_invalid_search_timeout_is_rejected(value: str) -> None:
+    with pytest.raises(ValueError, match="CATALOG_SEARCH_TIMEOUT_MS"):
+        CatalogSettings.from_env(ENVIRON | {"CATALOG_SEARCH_TIMEOUT_MS": value})

@@ -4,6 +4,14 @@ from types import TracebackType
 from typing import Protocol, Self
 from uuid import UUID
 
+from catalog.domain.listing import (
+    PageRequest,
+    ProductFilters,
+    SearchResult,
+    Sort,
+    TextMode,
+    Total,
+)
 from catalog.domain.product import Category, NewProduct, Product, ProductData
 
 
@@ -12,7 +20,11 @@ class ProductRepository(Protocol):
 
     async def get_for_update(self, sku: str) -> Product | None: ...
 
-    async def list(self, limit: int) -> list[Product]: ...
+    async def search(
+        self, filters: ProductFilters, sort: Sort, page: PageRequest
+    ) -> SearchResult: ...
+
+    async def count(self, filters: ProductFilters, mode: TextMode | None) -> Total: ...
 
     async def add(self, new_product: NewProduct, now: datetime) -> Product: ...
 

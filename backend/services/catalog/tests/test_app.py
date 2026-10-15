@@ -1,4 +1,5 @@
 from collections.abc import AsyncIterator
+from typing import Any
 from unittest.mock import patch
 
 import httpx
@@ -23,7 +24,7 @@ UNREACHABLE_ENVIRON = {
 }
 
 
-def make_settings(**overrides: str) -> CatalogSettings:
+def make_settings(**overrides: Any) -> CatalogSettings:
     return CatalogSettings(
         database_url=make_url(UNREACHABLE_DATABASE),
         jwt=JwtSettings(jwks_url="http://dev-auth:8080/jwks.json", issuer="ecommerce-auth"),

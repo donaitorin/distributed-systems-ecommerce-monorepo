@@ -12,6 +12,17 @@ from catalog.application.errors import (
     ProductNotFoundError,
     UnknownCategoryError,
 )
+from catalog.domain.listing import (
+    Direction,
+    ListedProduct,
+    PageRequest,
+    ProductFilters,
+    SearchResult,
+    Sort,
+    SortKey,
+    TextMode,
+    Total,
+)
 from catalog.domain.product import Category, NewProduct, Product, ProductData
 
 
@@ -42,6 +53,40 @@ class InMemoryStore:
         return created
 
 
+def _matches(item: StoredProduct, filters: ProductFilters, categories: dict[UUID, str]) -> bool:
+    if filters.query is not None and _score(item, filters) is None:
+        return False
+    if filters.category is not None and (
+        item.category_id is None or categories.get(item.category_id) != filters.category
+    ):
+        return False
+    if filters.min_price is not None and item.price < filters.min_price:
+        return False
+    if filters.max_price is not None and item.price > filters.max_price:
+        return False
+    return not (filters.in_stock and item.stock <= 0)
+
+
+def _category_slug(item: StoredProduct, categories: dict[UUID, str]) -> str | None:
+    return categories.get(item.category_id) if item.category_id is not None else None
+
+
+def _score(item: StoredProduct, filters: ProductFilters) -> float | None:
+    if filters.query is None:
+        return None
+    terms = filters.query.lower().split()
+    haystack = f"{item.name} {item.sku} {item.description or ''}".lower()
+    if not all(term in haystack for term in terms):
+        return None
+    in_name = sum(term in item.name.lower() for term in terms)
+    return 1.0 + in_name / len(terms) - len(item.name) / 10_000
+
+
+def _order_key(row: ListedProduct, sort: Sort) -> tuple[SortKey, UUID]:
+    position = row.position(sort)
+    return position.key, position.id
+
+
 class InMemoryProductRepository:
     def __init__(self, store: InMemoryStore) -> None:
         self._store = store
@@ -53,12 +98,38 @@ class InMemoryProductRepository:
     async def get_for_update(self, sku: str) -> Product | None:
         return await self.get(sku)
 
-    async def list(self, limit: int) -> list[Product]:
-        active = sorted(
-            (item for item in self._store.products.values() if item.deleted_at is None),
-            key=lambda item: item.sku,
-        )
-        return [self._to_product(item) for item in active[:limit]]
+    async def search(self, filters: ProductFilters, sort: Sort, page: PageRequest) -> SearchResult:
+        listed = [
+            ListedProduct(self._to_product(item), _score(item, filters))
+            for item in self._matching(filters)
+        ]
+        descending = sort is not Sort.PRICE_ASC
+        ordered_descending = descending if page.direction is Direction.AFTER else not descending
+        ordered = sorted(listed, key=lambda row: _order_key(row, sort), reverse=ordered_descending)
+        if page.position is not None:
+            boundary = (page.position.key, page.position.id)
+            ordered = [
+                row
+                for row in ordered
+                if (
+                    _order_key(row, sort) < boundary
+                    if ordered_descending
+                    else _order_key(row, sort) > boundary
+                )
+            ]
+        mode = TextMode.FULL_TEXT if filters.query is not None else None
+        return SearchResult(ordered[: page.limit + 1], mode)
+
+    async def count(self, filters: ProductFilters, mode: TextMode | None) -> Total:
+        return Total(len(self._matching(filters)), exact=True)
+
+    def _matching(self, filters: ProductFilters) -> list[StoredProduct]:
+        categories = {item.id: item.slug for item in self._store.categories.values()}
+        return [
+            item
+            for item in self._store.products.values()
+            if item.deleted_at is None and _matches(item, filters, categories)
+        ]
 
     async def add(self, new_product: NewProduct, now: datetime) -> Product:
         if new_product.sku in self._store.products:

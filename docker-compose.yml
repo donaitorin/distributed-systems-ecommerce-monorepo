@@ -237,6 +237,7 @@ services:
       CATALOG_DB_PASSWORD: ${CATALOG_DB_PASSWORD}
       JWT_JWKS_URL: http://dev-auth:8080/jwks.json
       ROOT_PATH: /catalog
+      CATALOG_SEARCH_TIMEOUT_MS: ${CATALOG_SEARCH_TIMEOUT_MS:-2000}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready', timeout=2)"]
       interval: 10s

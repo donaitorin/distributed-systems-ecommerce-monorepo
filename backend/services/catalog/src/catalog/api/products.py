@@ -1,8 +1,8 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Path, Query, Response, status
+from fastapi import APIRouter, Depends, Path, Response, status
 
-from catalog.api.dependencies import IfMatch, ProductServiceDep
+from catalog.api.dependencies import IfMatch, ListParams, ProductServiceDep, list_params
 from catalog.api.responses import problem_responses
 from catalog.api.schemas import ProblemOut, ProductCreate, ProductOut, ProductPage, ProductWrite
 from catalog.domain.preconditions import format_entity_tag
@@ -20,13 +20,25 @@ def with_etag(response: Response, product: Product) -> ProductOut:
     return ProductOut.from_domain(product)
 
 
-@router.get("", response_model=ProductPage, summary="List products")
+@router.get(
+    "",
+    response_model=ProductPage,
+    summary="Search and list products",
+    description=(
+        "Keyset-paginated listing. Without q the default order is newest first; with q it is "
+        "relevance, and typos in q still match. sort=relevance without q falls back to newest. "
+        "in_stock=true hides sold-out products; in_stock=false is the same as omitting it. "
+        "An unknown category slug returns an empty page. A cursor is only valid with the q, "
+        "category, price, in_stock and sort values it was issued for."
+    ),
+    responses=problem_responses(422, 503),
+)
 async def list_products(
     service: ProductServiceDep,
-    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    params: Annotated[ListParams, Depends(list_params)],
 ) -> ProductPage:
-    products = await service.list(limit)
-    return ProductPage(items=[ProductOut.from_domain(item) for item in products])
+    listing = await service.search(params.filters, params.sort, params.limit, params.cursor)
+    return ProductPage.from_domain(listing)
 
 
 @router.get(
