@@ -1,0 +1,12 @@
+http:
+  routers:
+    media:
+      rule: "PathPrefix(`/media/`) && (Method(`GET`) || Method(`HEAD`))"
+      entryPoints: [web]
+      service: media
+
+  services:
+    media:
+      loadBalancer:
+        servers:
+          - url: "http://object-storage:8333"
