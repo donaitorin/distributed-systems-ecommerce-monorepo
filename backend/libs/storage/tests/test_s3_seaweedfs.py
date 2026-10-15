@@ -1,10 +1,13 @@
+import asyncio
+import hashlib
+from collections.abc import AsyncIterator, Iterator
 from uuid import uuid4
 
 import httpx
 import pytest
 from botocore.exceptions import ClientError
 
-from ecommerce_storage import S3ObjectStorage, build_s3_client
+from ecommerce_storage import ObjectNotFoundError, S3ObjectStorage, build_s3_client
 from seaweedfs_support import SeaweedFs
 
 pytestmark = pytest.mark.integration
@@ -91,3 +94,85 @@ async def test_the_imports_bucket_is_private(seaweedfs: SeaweedFs) -> None:
     client.delete_object(Bucket=seaweedfs.imports_bucket, Key=key)
     with pytest.raises(ClientError):
         client.head_object(Bucket=seaweedfs.imports_bucket, Key=key)
+
+
+async def blocks(total: int, size: int, fail_after: int | None = None) -> AsyncIterator[bytes]:
+    sent = 0
+    index = 0
+    while sent < total:
+        if fail_after is not None and index == fail_after:
+            raise RuntimeError("client went away")
+        block = bytes([index % 251]) * min(size, total - sent)
+        sent += len(block)
+        index += 1
+        yield block
+
+
+def digest_of(chunks: Iterator[bytes]) -> tuple[str, int]:
+    hasher = hashlib.sha256()
+    total = 0
+    for chunk in chunks:
+        hasher.update(chunk)
+        total += len(chunk)
+    return hasher.hexdigest(), total
+
+
+async def expected_digest(total: int, size: int) -> tuple[str, int]:
+    hasher = hashlib.sha256()
+    count = 0
+    async for block in blocks(total, size):
+        hasher.update(block)
+        count += len(block)
+    return hasher.hexdigest(), count
+
+
+@pytest.fixture
+def imports_storage(seaweedfs: SeaweedFs) -> S3ObjectStorage:
+    return S3ObjectStorage(
+        build_s3_client(seaweedfs.settings), seaweedfs.imports_bucket, seaweedfs.endpoint
+    )
+
+
+async def test_a_large_stream_is_uploaded_in_parts_and_read_back_identically(
+    imports_storage: S3ObjectStorage,
+) -> None:
+    key = f"tests/{uuid4().hex}.csv"
+    total = 21 * 1024 * 1024
+
+    await imports_storage.put_stream(key, blocks(total, 1024 * 1024 + 7), "text/csv")
+
+    read = await asyncio.to_thread(digest_of, imports_storage.read_chunks(key))
+    assert read == await expected_digest(total, 1024 * 1024 + 7)
+
+
+async def test_a_small_stream_is_uploaded_with_its_content_type(
+    imports_storage: S3ObjectStorage, seaweedfs: SeaweedFs
+) -> None:
+    key = f"tests/{uuid4().hex}.csv"
+
+    await imports_storage.put_stream(key, blocks(100, 10), "text/csv")
+
+    head = build_s3_client(seaweedfs.settings).head_object(Bucket="imports", Key=key)
+    assert head["ContentType"] == "text/csv"
+    assert head["ContentLength"] == 100
+
+
+async def test_a_stream_that_fails_midway_leaves_no_object(
+    imports_storage: S3ObjectStorage, seaweedfs: SeaweedFs
+) -> None:
+    key = f"tests/{uuid4().hex}.csv"
+
+    with pytest.raises(RuntimeError, match="client went away"):
+        await imports_storage.put_stream(
+            key, blocks(30 * 1024 * 1024, 1024 * 1024, fail_after=12), "text/csv"
+        )
+
+    with pytest.raises(ClientError):
+        build_s3_client(seaweedfs.settings).head_object(Bucket="imports", Key=key)
+    leftovers = build_s3_client(seaweedfs.settings).list_multipart_uploads(Bucket="imports")
+    assert key not in [item["Key"] for item in leftovers.get("Uploads", [])]
+
+
+async def test_reading_a_missing_object_is_not_found(imports_storage: S3ObjectStorage) -> None:
+    with pytest.raises(ObjectNotFoundError):
+        await asyncio.to_thread(list, imports_storage.read_chunks(f"tests/{uuid4().hex}.csv"))

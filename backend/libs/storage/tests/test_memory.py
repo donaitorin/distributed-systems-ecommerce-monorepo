@@ -1,6 +1,13 @@
+from collections.abc import AsyncIterator
+
 import pytest
 
-from ecommerce_storage import InMemoryObjectStorage, InvalidObjectKeyError, ObjectStorage
+from ecommerce_storage import (
+    InMemoryObjectStorage,
+    InvalidObjectKeyError,
+    ObjectNotFoundError,
+    ObjectStorage,
+)
 
 
 def test_in_memory_adapter_satisfies_the_port() -> None:
@@ -81,3 +88,54 @@ async def test_put_keeps_the_cache_control_when_given() -> None:
     assert second is not None
     assert first.cache_control == "public, max-age=60"
     assert second.cache_control is None
+
+
+async def chunks_of(*parts: bytes) -> AsyncIterator[bytes]:
+    for part in parts:
+        yield part
+
+
+async def test_put_stream_stores_the_concatenated_chunks() -> None:
+    storage = InMemoryObjectStorage()
+
+    await storage.put_stream("imports/a.csv", chunks_of(b"one,", b"two\n", b"three"), "text/csv")
+
+    stored = storage.get("imports/a.csv")
+    assert stored is not None
+    assert (stored.data, stored.content_type) == (b"one,two\nthree", "text/csv")
+
+
+async def test_a_stream_that_fails_stores_nothing() -> None:
+    storage = InMemoryObjectStorage()
+
+    async def failing() -> AsyncIterator[bytes]:
+        yield b"partial"
+        raise RuntimeError("upload aborted")
+
+    with pytest.raises(RuntimeError):
+        await storage.put_stream("imports/a.csv", failing(), "text/csv")
+
+    assert storage.keys() == []
+
+
+async def test_read_chunks_returns_the_object_in_slices() -> None:
+    storage = InMemoryObjectStorage()
+    data = b"x" * (64 * 1024 * 2 + 10)
+    await storage.put("imports/a.csv", data, "text/csv")
+
+    chunks = list(storage.read_chunks("imports/a.csv"))
+
+    assert [len(chunk) for chunk in chunks] == [65536, 65536, 10]
+    assert b"".join(chunks) == data
+
+
+def test_reading_a_missing_object_is_reported() -> None:
+    with pytest.raises(ObjectNotFoundError):
+        list(InMemoryObjectStorage().read_chunks("imports/missing.csv"))
+
+
+async def test_streaming_keys_are_validated() -> None:
+    with pytest.raises(InvalidObjectKeyError):
+        await InMemoryObjectStorage().put_stream("../escape", chunks_of(b"x"), "text/csv")
+    with pytest.raises(InvalidObjectKeyError):
+        list(InMemoryObjectStorage().read_chunks(""))
