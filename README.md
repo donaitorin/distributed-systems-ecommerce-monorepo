@@ -61,6 +61,32 @@ curl -s -X PUT localhost:8000/api/v1/products/DEMO-1 \
 
 Products carry a `version`, returned as the `ETag`. `PUT` and `DELETE` require it in `If-Match` (`428` when missing, `412` when stale), so two editors can never silently overwrite each other's stock. Prices and weights are JSON strings to keep their precision. The interactive docs are at `/catalog/docs`.
 
+### Search, filters and pagination
+
+`GET /api/v1/products` is a keyset-paginated search. All parameters are optional.
+
+| Parameter | Values | Default |
+| --- | --- | --- |
+| `q` | Free text, up to 100 characters. Typos are tolerated | No text filter |
+| `category` | Category slug. An unknown slug returns an empty page | All |
+| `min_price`, `max_price` | Decimals with at most 2 places, inclusive | No limit |
+| `in_stock` | `true` hides sold-out products. `false` is the same as omitting it | Includes sold out |
+| `sort` | `relevance`, `price_asc`, `price_desc`, `newest` | `relevance` with `q`, otherwise `newest` |
+| `limit` | `12`, `24`, `48` | `24` |
+| `cursor` | The `next_cursor` or `prev_cursor` of a previous response | First page |
+
+```bash
+curl -s 'localhost:8000/api/v1/products?q=runing+shoes&limit=12'
+curl -s 'localhost:8000/api/v1/products?category=footwear&min_price=20&max_price=150&in_stock=true&sort=price_asc'
+curl -s 'localhost:8000/api/v1/products?q=running+shoes&limit=12&cursor=<next_cursor>'
+```
+
+The response is `{"items", "next_cursor", "prev_cursor", "total", "total_exact"}`. A cursor is opaque and only valid with the same `q`, `category`, price, `in_stock` and `sort` it was issued for (`422` with `cursor_mismatch` otherwise); `limit` may change between pages. `total` is exact for small result sets and a planner estimate otherwise (`total_exact` is `false`). The design is recorded in [ADR 0002](docs/adr/0002-catalog-search-and-keyset-pagination.md).
+
+A search that exceeds `CATALOG_SEARCH_TIMEOUT_MS` (2000 by default) is cancelled and answers `503` Problem Details with `Retry-After: 1`.
+
+`make seed` loads synthetic products (`COUNT=200000` by default) so search and pagination can be tried at volume. It is safe to run twice: existing `SEED-` SKUs are skipped, and a larger `COUNT` only adds the missing ones.
+
 ## Commands
 
 | Command | Description |
@@ -69,6 +95,7 @@ Products carry a `version`, returned as the `ETag`. `PUT` and `DELETE` require i
 | `make down` | Stop the stack |
 | `make logs SERVICE=kafka` | Follow logs, optionally for one service |
 | `make ps` | List containers and their health |
+| `make seed COUNT=200000` | Load synthetic products into the catalog (idempotent) |
 | `make dev-token` | Print an admin JWT for the catalog API (temporary, until the auth service) |
 | `make test-backend` | Backend tests with coverage (integration tests need Docker) |
 | `make test-backend-unit` | Backend tests without Docker |
