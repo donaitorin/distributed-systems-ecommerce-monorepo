@@ -1,10 +1,11 @@
-from collections.abc import Mapping
+from collections.abc import AsyncIterator, Mapping
 
 from fastapi import Request
 from python_multipart.exceptions import FormParserError
 from python_multipart.multipart import MultipartParser, parse_options_header
 
 from catalog.application.errors import (
+    ImportTooLargeError,
     InvalidUploadError,
     UnsupportedMediaError,
     UploadTooLargeError,
@@ -26,6 +27,7 @@ class UploadCollector:
         self._signature_checked = False
         self._file_parts = 0
         self.complete = False
+        self.filename: str | None = None
 
     def callbacks(self) -> Mapping[str, object]:
         return {
@@ -64,6 +66,8 @@ class UploadCollector:
         if options.get(b"name") != FILE_FIELD:
             return
         self._file_parts += 1
+        raw_name = options.get(b"filename")
+        self.filename = raw_name.decode(errors="ignore") if raw_name else None
         if self._file_parts > 1:
             raise InvalidUploadError("multiple_files", "send exactly one 'file' part")
         self._file = bytearray()
@@ -97,12 +101,15 @@ def multipart_boundary(content_type: str | None) -> bytes:
     return bytes(boundary)
 
 
+def declared_length(content_length: str | None) -> int | None:
+    if content_length is not None and content_length.isdigit():
+        return int(content_length)
+    return None
+
+
 def reject_oversized_declaration(content_length: str | None) -> None:
-    if (
-        content_length is not None
-        and content_length.isdigit()
-        and int(content_length) > MAX_REQUEST_BYTES
-    ):
+    declared = declared_length(content_length)
+    if declared is not None and declared > MAX_REQUEST_BYTES:
         raise UploadTooLargeError(MAX_UPLOAD_BYTES)
 
 
@@ -126,3 +133,58 @@ async def read_image_upload(request: Request) -> bytes:
     if not collector.complete:
         raise InvalidUploadError("malformed_multipart", "the multipart body is incomplete")
     return collector.result()
+
+
+class StreamingCollector(UploadCollector):
+    def __init__(self) -> None:
+        super().__init__()
+        self._pending: list[bytes] = []
+
+    @property
+    def seen_file(self) -> bool:
+        return self._file is not None
+
+    def drain(self) -> list[bytes]:
+        pieces, self._pending = self._pending, []
+        return pieces
+
+    def _part_data(self, data: bytes, start: int, end: int) -> None:
+        if self._receiving:
+            self._pending.append(bytes(data[start:end]))
+
+
+class StreamedUpload:
+    def __init__(self, request: Request, limit_bytes: int) -> None:
+        self._request = request
+        self._limit = limit_bytes
+        self._collector = StreamingCollector()
+
+    @property
+    def filename(self) -> str | None:
+        return self._collector.filename
+
+    async def chunks(self) -> AsyncIterator[bytes]:
+        boundary = multipart_boundary(self._request.headers.get("content-type"))
+        budget = self._limit + MULTIPART_OVERHEAD_BYTES
+        declared = declared_length(self._request.headers.get("content-length"))
+        if declared is not None and declared > budget:
+            raise ImportTooLargeError(self._limit)
+        parser = MultipartParser(boundary, self._collector.callbacks())  # type: ignore[arg-type]
+        received = 0
+        try:
+            async for chunk in self._request.stream():
+                received += len(chunk)
+                if received > budget:
+                    raise ImportTooLargeError(self._limit)
+                parser.write(chunk)
+                for piece in self._collector.drain():
+                    yield piece
+            parser.finalize()
+        except FormParserError as error:
+            raise InvalidUploadError(
+                "malformed_multipart", "the multipart body is malformed"
+            ) from error
+        if not self._collector.complete:
+            raise InvalidUploadError("malformed_multipart", "the multipart body is incomplete")
+        if not self._collector.seen_file:
+            raise InvalidUploadError("missing_file", "the multipart field 'file' is required")

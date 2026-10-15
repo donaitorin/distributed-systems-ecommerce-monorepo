@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from sqlalchemy import make_url
 
 from catalog.application.ports import UnitOfWorkFactory
+from catalog.domain.imports import DEFAULT_IMPORT_MAX_BYTES
 from catalog.infra.memory import InMemoryStore, InMemoryUnitOfWork
 from catalog.main import create_catalog_app
 from catalog.settings import CatalogSettings, MediaSettings
@@ -54,17 +55,21 @@ def build_test_app(
     unit_of_work: UnitOfWorkFactory,
     clock: SteppingClock | None = None,
     storage: ObjectStorage | None = None,
+    imports_storage: ObjectStorage | None = None,
+    import_max_bytes: int = DEFAULT_IMPORT_MAX_BYTES,
 ) -> FastAPI:
     settings = CatalogSettings(
         database_url=make_url("postgresql+asyncpg://unused:unused@127.0.0.1:1/unused"),
         jwt=JwtSettings(jwks_url="http://auth.test/jwks.json", issuer="ecommerce-auth"),
         media=media_settings(),
+        import_max_bytes=import_max_bytes,
     )
     app = create_catalog_app(
         settings,
         unit_of_work=unit_of_work,
         clock=clock or SteppingClock(),
         storage=storage or InMemoryObjectStorage(MEDIA_BASE_URL),
+        imports_storage=imports_storage or InMemoryObjectStorage(MEDIA_BASE_URL),
     )
     app.state.token_verifier = build_stub_verifier(issuer)
     return app
@@ -75,8 +80,17 @@ def in_memory_app(
     store: InMemoryStore,
     clock: SteppingClock | None = None,
     storage: ObjectStorage | None = None,
+    imports_storage: ObjectStorage | None = None,
+    import_max_bytes: int = DEFAULT_IMPORT_MAX_BYTES,
 ) -> FastAPI:
-    return build_test_app(issuer, lambda: InMemoryUnitOfWork(store), clock, storage)
+    return build_test_app(
+        issuer,
+        lambda: InMemoryUnitOfWork(store),
+        clock,
+        storage,
+        imports_storage,
+        import_max_bytes,
+    )
 
 
 @asynccontextmanager

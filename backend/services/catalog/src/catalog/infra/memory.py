@@ -1,4 +1,5 @@
 import copy
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
@@ -12,6 +13,8 @@ from catalog.application.errors import (
     ProductNotFoundError,
     UnknownCategoryError,
 )
+from catalog.domain.csv_import import ImportableRow
+from catalog.domain.imports import ExistingProduct, Progress, classify
 from catalog.domain.listing import (
     Direction,
     ListedProduct,
@@ -24,6 +27,12 @@ from catalog.domain.listing import (
     Total,
 )
 from catalog.domain.product import Category, NewProduct, Product, ProductData
+from catalog.infra.memory_imports import (
+    ImportData,
+    InMemoryEventOutbox,
+    InMemoryImportRepository,
+    empty_import_data,
+)
 
 
 @dataclass(slots=True)
@@ -47,6 +56,7 @@ class StoredProduct:
 class InMemoryStore:
     products: dict[str, StoredProduct] = field(default_factory=dict)
     categories: dict[UUID, Category] = field(default_factory=dict)
+    import_data: ImportData = field(default_factory=empty_import_data)
 
     def seed_categories(self, *names_and_slugs: tuple[str, str]) -> list[Category]:
         created = [Category(uuid4(), name, slug) for name, slug in names_and_slugs]
@@ -175,6 +185,56 @@ class InMemoryProductRepository:
             stored.updated_at = now
             stored.version += 1
 
+    async def upsert_many(self, rows: Sequence[ImportableRow], now: datetime) -> Progress:
+        existing = await self.existing([row.product.sku for row in rows])
+        created, updated, restored, unchanged = classify(rows, existing)
+        for row in rows:
+            data = row.product.data
+            stored = self._store.products.get(row.product.sku)
+            if stored is None:
+                self._store.products[row.product.sku] = StoredProduct(
+                    id=uuid4(),
+                    sku=row.product.sku,
+                    name=data.name,
+                    description=data.description,
+                    category_id=data.category_id,
+                    price=data.price,
+                    stock=data.stock,
+                    weight_kg=data.weight_kg,
+                    version=1,
+                    created_at=now,
+                    updated_at=now,
+                )
+            elif stored.deleted_at is not None or existing[row.product.sku].data != data:
+                stored.name = data.name
+                stored.description = data.description
+                stored.category_id = data.category_id
+                stored.price = data.price
+                stored.stock = data.stock
+                stored.weight_kg = data.weight_kg
+                stored.version += 1
+                stored.updated_at = now
+                stored.deleted_at = None
+        return Progress(len(rows), created, updated, restored, unchanged)
+
+    async def existing(self, skus: Sequence[str]) -> Mapping[str, ExistingProduct]:
+        found: dict[str, ExistingProduct] = {}
+        for sku in skus:
+            stored = self._store.products.get(sku)
+            if stored is not None:
+                found[sku] = ExistingProduct(
+                    deleted=stored.deleted_at is not None,
+                    data=ProductData(
+                        stored.name,
+                        stored.description,
+                        stored.category_id,
+                        stored.price,
+                        stored.stock,
+                        stored.weight_kg,
+                    ),
+                )
+        return found
+
     async def set_image(self, sku: str, image_key: str | None, now: datetime) -> Product:
         stored = self._active(sku)
         if stored is None:
@@ -232,6 +292,8 @@ class InMemoryCategoryRepository:
 class InMemoryUnitOfWork:
     products: InMemoryProductRepository
     categories: InMemoryCategoryRepository
+    imports: InMemoryImportRepository
+    events: InMemoryEventOutbox
 
     def __init__(self, store: InMemoryStore) -> None:
         self._store = store
@@ -243,6 +305,8 @@ class InMemoryUnitOfWork:
         self._committed = False
         self.products = InMemoryProductRepository(self._store)
         self.categories = InMemoryCategoryRepository(self._store)
+        self.imports = InMemoryImportRepository(self._store.import_data)
+        self.events = InMemoryEventOutbox(self._store.import_data)
         return self
 
     async def __aexit__(
@@ -254,6 +318,7 @@ class InMemoryUnitOfWork:
         if not self._committed and self._snapshot is not None:
             self._store.products = self._snapshot.products
             self._store.categories = self._snapshot.categories
+            self._store.import_data = self._snapshot.import_data
 
     async def commit(self) -> None:
         self._committed = True

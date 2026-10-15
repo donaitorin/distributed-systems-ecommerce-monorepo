@@ -8,6 +8,9 @@ from catalog.application.cursors import InvalidCursorError
 from catalog.application.errors import (
     DuplicateCategoryError,
     DuplicateSkuError,
+    ImportNotConfirmableError,
+    ImportNotFoundError,
+    ImportTooLargeError,
     InvalidUploadError,
     PreconditionFailedError,
     ProductImageNotFoundError,
@@ -96,6 +99,36 @@ def register_catalog_errors(app: FastAPI) -> None:
             "Request validation failed",
             "The request contains invalid data",
             errors=problems,
+        )
+
+    @app.exception_handler(ImportTooLargeError)
+    async def handle_import_too_large(request: Request, error: ImportTooLargeError) -> JSONResponse:
+        return problem_response(
+            request,
+            HTTPStatus.CONTENT_TOO_LARGE,
+            "File too large",
+            f"The file must be at most {error.limit_bytes // (1024 * 1024)} MB",
+        )
+
+    @app.exception_handler(ImportNotFoundError)
+    async def handle_import_not_found(request: Request, error: ImportNotFoundError) -> JSONResponse:
+        return problem_response(
+            request,
+            HTTPStatus.NOT_FOUND,
+            "Import not found",
+            f"No import with id {error.import_id}",
+        )
+
+    @app.exception_handler(ImportNotConfirmableError)
+    async def handle_import_not_confirmable(
+        request: Request, error: ImportNotConfirmableError
+    ) -> JSONResponse:
+        return problem_response(
+            request,
+            HTTPStatus.CONFLICT,
+            "Import cannot be confirmed",
+            error.reason,
+            import_status=error.status,
         )
 
     @app.exception_handler(ProductImageNotFoundError)

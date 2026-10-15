@@ -3,6 +3,8 @@ from typing import Self
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from catalog.infra.events import SqlEventOutbox
+from catalog.infra.imports import SqlImportRepository
 from catalog.infra.repositories import SqlCategoryRepository, SqlProductRepository
 from catalog.settings import DEFAULT_SEARCH_TIMEOUT_MS
 
@@ -10,6 +12,8 @@ from catalog.settings import DEFAULT_SEARCH_TIMEOUT_MS
 class SqlAlchemyUnitOfWork:
     products: SqlProductRepository
     categories: SqlCategoryRepository
+    imports: SqlImportRepository
+    events: SqlEventOutbox
     _session: AsyncSession
 
     def __init__(
@@ -24,6 +28,8 @@ class SqlAlchemyUnitOfWork:
         self._session = self._session_factory()
         self.products = SqlProductRepository(self._session, self._search_timeout_ms)
         self.categories = SqlCategoryRepository(self._session)
+        self.imports = SqlImportRepository(self._session)
+        self.events = SqlEventOutbox(self._session)
         return self
 
     async def __aexit__(

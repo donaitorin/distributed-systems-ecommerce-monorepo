@@ -115,3 +115,25 @@ def test_the_media_variables_are_required(missing: str) -> None:
 
     with pytest.raises(KeyError):
         CatalogSettings.from_env(environ)
+
+
+def test_the_import_settings_default_to_the_imports_bucket_and_fifty_megabytes() -> None:
+    settings = CatalogSettings.from_env(ENVIRON)
+
+    assert settings.imports_bucket == "imports"
+    assert settings.import_max_bytes == 50 * 1024 * 1024
+
+
+def test_the_import_settings_can_be_configured() -> None:
+    settings = CatalogSettings.from_env(
+        ENVIRON | {"OBJECT_STORAGE_IMPORTS_BUCKET": "bulk", "IMPORT_MAX_BYTES": "1048576"}
+    )
+
+    assert settings.imports_bucket == "bulk"
+    assert settings.import_max_bytes == 1048576
+
+
+@pytest.mark.parametrize("value", ["0", "-1", "abc", ""])
+def test_an_invalid_import_size_limit_is_rejected(value: str) -> None:
+    with pytest.raises(ValueError, match="IMPORT_MAX_BYTES"):
+        CatalogSettings.from_env(ENVIRON | {"IMPORT_MAX_BYTES": value})

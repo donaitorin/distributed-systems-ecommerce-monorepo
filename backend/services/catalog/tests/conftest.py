@@ -1,6 +1,5 @@
 import asyncio
-import uuid
-from collections.abc import AsyncIterator, Callable, Iterator
+from collections.abc import AsyncIterator, Callable
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -18,8 +17,6 @@ from catalog_testing.support import (
     seeded_store,
 )
 from fastapi import FastAPI
-from sqlalchemy import make_url
-from testcontainers.community.postgres import PostgresContainer
 
 from catalog.application.ports import UnitOfWorkFactory
 from catalog.infra.database import create_engine, create_session_factory
@@ -29,9 +26,9 @@ from catalog.tools.seed import seed_products
 from ecommerce_auth import Role
 from ecommerce_auth.testing import StubTokenIssuer
 from ecommerce_storage import InMemoryObjectStorage
+from postgres_support import PostgresServer
 
 CATALOG_DIR = Path(__file__).resolve().parents[1]
-POSTGRES_IMAGE = "postgres:17.11-alpine"
 
 
 type AlembicRunner = Callable[[str, str, str], None]
@@ -43,74 +40,6 @@ def run_alembic(database_url: str, action: str, revision: str) -> None:
     config.attributes["configure_logging"] = False
     with ThreadPoolExecutor(max_workers=1) as executor:
         executor.submit(getattr(command, action), config, revision).result()
-
-
-class PostgresServer:
-    def __init__(self, container: PostgresContainer) -> None:
-        self._container = container
-
-    def create_database(self) -> str:
-        name = f"catalog_{uuid.uuid4().hex[:12]}"
-        self._container.exec(
-            [
-                "psql",
-                "--username",
-                self._container.username,
-                "--dbname",
-                self._container.dbname,
-                "-c",
-                f"CREATE DATABASE {name}",
-            ]
-        )
-        base = self._container.get_connection_url(driver="asyncpg")
-        return base.rsplit("/", 1)[0] + f"/{name}"
-
-    def create_login_role(self, database_url: str, role: str, password: str) -> None:
-        database = make_url(database_url).database or ""
-        escaped = password.replace("'", "''")
-        for statement in (
-            f"CREATE ROLE {role} LOGIN PASSWORD '{escaped}'",
-            f"GRANT ALL ON DATABASE {database} TO {role}",
-            f"GRANT ALL ON SCHEMA public TO {role}",
-        ):
-            self._container.exec(
-                [
-                    "psql",
-                    "--username",
-                    self._container.username,
-                    "--dbname",
-                    database if "SCHEMA" in statement else self._container.dbname,
-                    "-c",
-                    statement,
-                ]
-            )
-
-    def create_owned_database(self, role: str, password: str) -> str:
-        name = f"catalog_{uuid.uuid4().hex[:12]}"
-        escaped = password.replace("'", "''")
-        for statement in (
-            f"CREATE ROLE {role} LOGIN PASSWORD '{escaped}'",
-            f"CREATE DATABASE {name} OWNER {role}",
-        ):
-            self._container.exec(
-                [
-                    "psql",
-                    "--username",
-                    self._container.username,
-                    "--dbname",
-                    self._container.dbname,
-                    "-c",
-                    statement,
-                ]
-            )
-        url = make_url(self._container.get_connection_url(driver="asyncpg"))
-        return url.set(username=role, password=password, database=name).render_as_string(
-            hide_password=False
-        )
-
-    def host_and_port(self) -> tuple[str, int]:
-        url = make_url(self._container.get_connection_url(driver="asyncpg"))
-        return url.host or "localhost", url.port or 5432
 
 
 @pytest.fixture
@@ -134,13 +63,19 @@ def storage() -> InMemoryObjectStorage:
 
 
 @pytest.fixture
+def imports_storage() -> InMemoryObjectStorage:
+    return InMemoryObjectStorage(MEDIA_BASE_URL)
+
+
+@pytest.fixture
 def app(
     issuer: StubTokenIssuer,
     store: InMemoryStore,
     clock: SteppingClock,
     storage: InMemoryObjectStorage,
+    imports_storage: InMemoryObjectStorage,
 ) -> FastAPI:
-    return in_memory_app(issuer, store, clock, storage)
+    return in_memory_app(issuer, store, clock, storage, imports_storage)
 
 
 @pytest.fixture
@@ -172,12 +107,6 @@ def create_login_role(postgres_server: PostgresServer) -> Callable[[str, str, st
 @pytest.fixture(scope="session")
 def postgres_host_and_port(postgres_server: PostgresServer) -> tuple[str, int]:
     return postgres_server.host_and_port()
-
-
-@pytest.fixture(scope="session")
-def postgres_server() -> Iterator[PostgresServer]:
-    with PostgresContainer(POSTGRES_IMAGE, driver="asyncpg") as container:
-        yield PostgresServer(container)
 
 
 @pytest.fixture

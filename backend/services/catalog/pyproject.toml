@@ -6,6 +6,8 @@ dependencies = [
     "alembic>=1.14",
     "asyncpg>=0.30",
     "ecommerce-auth",
+    "ecommerce-contracts",
+    "ecommerce-messaging",
     "ecommerce-observability",
     "ecommerce-storage",
     "ecommerce-web",
@@ -17,6 +19,8 @@ dependencies = [
 
 [tool.uv.sources]
 ecommerce-auth = { workspace = true }
+ecommerce-contracts = { workspace = true }
+ecommerce-messaging = { workspace = true }
 ecommerce-observability = { workspace = true }
 ecommerce-storage = { workspace = true }
 ecommerce-web = { workspace = true }

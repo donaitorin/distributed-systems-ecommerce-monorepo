@@ -1,9 +1,10 @@
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Mapping, Sequence
 from contextlib import asynccontextmanager
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import Select, func, select, update
+from sqlalchemy import Select, func, or_, select, tuple_, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,6 +15,8 @@ from catalog.application.errors import (
     SearchTimeoutError,
     UnknownCategoryError,
 )
+from catalog.domain.csv_import import ImportableRow
+from catalog.domain.imports import ExistingProduct, Progress, classify
 from catalog.domain.listing import (
     ListedProduct,
     PageRequest,
@@ -167,6 +170,84 @@ class SqlProductRepository:
         if product is None:
             raise ProductNotFoundError(sku)
         return product
+
+    async def upsert_many(self, rows: Sequence[ImportableRow], now: datetime) -> Progress:
+        existing = await self.existing([row.product.sku for row in rows])
+        created, updated, restored, unchanged = classify(rows, existing)
+        values = [
+            {
+                "id": uuid4(),
+                "sku": row.product.sku,
+                "name": row.product.data.name,
+                "description": row.product.data.description,
+                "category_id": row.product.data.category_id,
+                "price": row.product.data.price,
+                "stock": row.product.data.stock,
+                "weight_kg": row.product.data.weight_kg,
+                "version": 1,
+                "created_at": now,
+                "updated_at": now,
+            }
+            for row in rows
+        ]
+        statement = pg_insert(ProductModel).values(values)
+        incoming = statement.excluded
+        statement = statement.on_conflict_do_update(
+            index_elements=[ProductModel.sku],
+            set_={
+                "name": incoming.name,
+                "description": incoming.description,
+                "category_id": incoming.category_id,
+                "price": incoming.price,
+                "stock": incoming.stock,
+                "weight_kg": incoming.weight_kg,
+                "version": ProductModel.version + 1,
+                "updated_at": now,
+                "deleted_at": None,
+            },
+            where=or_(
+                ProductModel.deleted_at.is_not(None),
+                tuple_(
+                    ProductModel.name,
+                    ProductModel.description,
+                    ProductModel.category_id,
+                    ProductModel.price,
+                    ProductModel.stock,
+                    ProductModel.weight_kg,
+                ).is_distinct_from(
+                    tuple_(
+                        incoming.name,
+                        incoming.description,
+                        incoming.category_id,
+                        incoming.price,
+                        incoming.stock,
+                        incoming.weight_kg,
+                    )
+                ),
+            ),
+        )
+        await self._session.execute(statement)
+        return Progress(len(rows), created, updated, restored, unchanged)
+
+    async def existing(self, skus: Sequence[str]) -> Mapping[str, ExistingProduct]:
+        statement = select(ProductModel).where(ProductModel.sku.in_(list(skus)))
+        models = (
+            await self._session.execute(statement.execution_options(populate_existing=True))
+        ).scalars()
+        return {
+            model.sku: ExistingProduct(
+                deleted=model.deleted_at is not None,
+                data=ProductData(
+                    name=model.name,
+                    description=model.description,
+                    category_id=model.category_id,
+                    price=model.price,
+                    stock=model.stock,
+                    weight_kg=model.weight_kg,
+                ),
+            )
+            for model in models
+        }
 
     @asynccontextmanager
     async def _bounded_search(self) -> AsyncIterator[None]:
