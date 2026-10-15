@@ -4,7 +4,7 @@ UV_BACKEND := uv --directory backend
 PNPM_FRONTEND := corepack pnpm --dir frontend
 LONG_RUNNING := postgres redis-cart redis-cache kafka kafka-ui object-storage gateway auth auth-worker accounts accounts-worker catalog catalog-worker
 
-.PHONY: up down logs ps dev-token seed test test-backend test-backend-unit test-frontend lint lint-backend lint-frontend format-backend install-frontend storybook build-storybook test-storybook check-comments
+.PHONY: up down logs ps dev-token seed test test-backend test-backend-unit test-frontend lint lint-backend lint-frontend format-backend openapi check-openapi install-frontend storybook build-storybook test-storybook check-comments
 
 up:
 	@test -f .env || { echo ".env not found: run 'cp .env.example .env' first"; exit 1; }
@@ -40,7 +40,17 @@ lint: lint-backend lint-frontend
 lint-backend:
 	$(UV_BACKEND) run ruff check .
 	$(UV_BACKEND) run ruff format --check .
-	$(UV_BACKEND) run mypy libs services
+	$(UV_BACKEND) run mypy libs services tools
+
+openapi:
+	$(UV_BACKEND) run python tools/dump_openapi.py ../frontend/packages/api-client/openapi
+	$(PNPM_FRONTEND) --filter @ecommerce/api-client generate
+
+check-openapi:
+	@dir=$$(mktemp -d); trap 'rm -rf $$dir' EXIT; \
+	$(UV_BACKEND) run python tools/dump_openapi.py $$dir && \
+	diff -r $$dir frontend/packages/api-client/openapi && \
+	$(PNPM_FRONTEND) --filter @ecommerce/api-client check-generated
 
 install-frontend:
 	$(PNPM_FRONTEND) install --frozen-lockfile

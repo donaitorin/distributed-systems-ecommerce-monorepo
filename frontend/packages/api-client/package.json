@@ -1,0 +1,24 @@
+{
+  "name": "@ecommerce/api-client",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "generate": "node scripts/generate.mjs",
+    "check-generated": "node scripts/generate.mjs --check",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "jest --coverage"
+  },
+  "devDependencies": {
+    "@ecommerce/config": "workspace:*",
+    "@types/jest": "30.0.0",
+    "@types/node": "24.19.2",
+    "eslint": "9.39.5",
+    "jest": "30.5.2",
+    "openapi-typescript": "7.13.0",
+    "typescript": "6.0.3"
+  }
+}

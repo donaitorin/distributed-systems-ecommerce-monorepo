@@ -15,6 +15,10 @@ DEFAULT_ROOTS = ("backend", "frontend")
 TYPESCRIPT_SUFFIXES = frozenset({".ts", ".tsx"})
 TYPESCRIPT_SCANNER = REPO_ROOT / "frontend" / "packages" / "config" / "tools" / "check-comments.cjs"
 EXCLUDED_FILE_NAMES = frozenset({"next-env.d.ts"})
+GENERATED_FILES = frozenset(
+    REPO_ROOT / "frontend" / "packages" / "api-client" / "src" / "generated" / f"{service}.ts"
+    for service in ("auth", "catalog", "accounts")
+)
 IGNORED_DIRECTORIES = frozenset(
     {
         ".venv",
@@ -126,7 +130,7 @@ def source_files(roots: Sequence[Path]) -> Iterable[Path]:
         for path in candidates:
             if not path.is_file() or path.suffix not in CHECKERS:
                 continue
-            if path.name in EXCLUDED_FILE_NAMES:
+            if path.name in EXCLUDED_FILE_NAMES or path.resolve() in GENERATED_FILES:
                 continue
             if IGNORED_DIRECTORIES.intersection(path.parts):
                 continue

@@ -8,6 +8,7 @@ import pytest
 from check_comments import (
     CHECKERS,
     DEFAULT_ROOTS,
+    GENERATED_FILES,
     TYPESCRIPT_SCANNER,
     Finding,
     ToolchainError,
@@ -293,3 +294,20 @@ def test_real_scanner_reports_real_comments(
     path = write(tmp_path, name, source)
 
     assert [(finding.path, finding.line) for finding in check([path])] == [(path, line)]
+
+
+def test_generated_api_client_files_are_excluded_one_by_one() -> None:
+    names = sorted(path.name for path in GENERATED_FILES)
+
+    assert names == ["accounts.ts", "auth.ts", "catalog.ts"]
+    assert not set(source_files(list(GENERATED_FILES))) & GENERATED_FILES
+
+
+def test_other_files_next_to_the_generated_ones_are_still_checked() -> None:
+    generated_directory = next(iter(GENERATED_FILES)).parent
+    sibling = generated_directory / "hand-written.ts"
+    sibling.write_text("export const a = 1;\n", encoding="utf-8")
+    try:
+        assert sibling in set(source_files([generated_directory]))
+    finally:
+        sibling.unlink()
