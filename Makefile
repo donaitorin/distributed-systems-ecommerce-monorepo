@@ -1,9 +1,10 @@
 COMPOSE := docker compose
 export BUILDX_NO_DEFAULT_ATTESTATIONS := 1
 UV_BACKEND := uv --directory backend
+PNPM_FRONTEND := corepack pnpm --dir frontend
 LONG_RUNNING := postgres redis-cart redis-cache kafka kafka-ui object-storage gateway auth auth-worker accounts accounts-worker catalog catalog-worker
 
-.PHONY: up down logs ps dev-token seed test-backend test-backend-unit lint-backend format-backend check-comments
+.PHONY: up down logs ps dev-token seed test test-backend test-backend-unit test-frontend lint lint-backend lint-frontend format-backend install-frontend storybook build-storybook test-storybook check-comments
 
 up:
 	@test -f .env || { echo ".env not found: run 'cp .env.example .env' first"; exit 1; }
@@ -26,16 +27,39 @@ logs:
 ps:
 	$(COMPOSE) ps -a
 
+test: test-backend test-frontend
+
 test-backend:
 	$(UV_BACKEND) run pytest
 
 test-backend-unit:
 	$(UV_BACKEND) run pytest -m "not integration"
 
+lint: lint-backend lint-frontend
+
 lint-backend:
 	$(UV_BACKEND) run ruff check .
 	$(UV_BACKEND) run ruff format --check .
 	$(UV_BACKEND) run mypy libs services
+
+install-frontend:
+	$(PNPM_FRONTEND) install --frozen-lockfile
+
+test-frontend:
+	$(PNPM_FRONTEND) test
+
+lint-frontend:
+	$(PNPM_FRONTEND) lint
+	$(PNPM_FRONTEND) typecheck
+
+storybook:
+	$(PNPM_FRONTEND) storybook
+
+build-storybook:
+	$(PNPM_FRONTEND) build-storybook
+
+test-storybook: build-storybook
+	$(PNPM_FRONTEND) test-storybook
 
 format-backend:
 	$(UV_BACKEND) run ruff check --fix .
