@@ -9,6 +9,7 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from catalog_testing.support import (
+    MEDIA_BASE_URL,
     SEEDED_CATEGORIES,
     SteppingClock,
     bearer,
@@ -27,6 +28,7 @@ from catalog.infra.unit_of_work import SqlAlchemyUnitOfWork
 from catalog.tools.seed import seed_products
 from ecommerce_auth import Role
 from ecommerce_auth.testing import StubTokenIssuer
+from ecommerce_storage import InMemoryObjectStorage
 
 CATALOG_DIR = Path(__file__).resolve().parents[1]
 POSTGRES_IMAGE = "postgres:17.11-alpine"
@@ -127,8 +129,18 @@ def store() -> InMemoryStore:
 
 
 @pytest.fixture
-def app(issuer: StubTokenIssuer, store: InMemoryStore, clock: SteppingClock) -> FastAPI:
-    return in_memory_app(issuer, store, clock)
+def storage() -> InMemoryObjectStorage:
+    return InMemoryObjectStorage(MEDIA_BASE_URL)
+
+
+@pytest.fixture
+def app(
+    issuer: StubTokenIssuer,
+    store: InMemoryStore,
+    clock: SteppingClock,
+    storage: InMemoryObjectStorage,
+) -> FastAPI:
+    return in_memory_app(issuer, store, clock, storage)
 
 
 @pytest.fixture

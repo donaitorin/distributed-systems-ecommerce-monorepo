@@ -2,7 +2,14 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Path, Response, status
 
-from catalog.api.dependencies import IfMatch, ListParams, ProductServiceDep, list_params
+from catalog.api.dependencies import (
+    IfMatch,
+    ListParams,
+    MediaUrlsDep,
+    ProductServiceDep,
+    list_params,
+)
+from catalog.api.media import MediaUrls
 from catalog.api.responses import problem_responses
 from catalog.api.schemas import ProblemOut, ProductCreate, ProductOut, ProductPage, ProductWrite
 from catalog.domain.preconditions import format_entity_tag
@@ -15,9 +22,9 @@ SkuPath = Annotated[str, Path(description="Product SKU, case insensitive")]
 ETAG_HEADERS = {"ETag": {"description": "Version of the product", "schema": {"type": "string"}}}
 
 
-def with_etag(response: Response, product: Product) -> ProductOut:
+def with_etag(response: Response, product: Product, media: MediaUrls) -> ProductOut:
     response.headers["ETag"] = format_entity_tag(product.version)
-    return ProductOut.from_domain(product)
+    return ProductOut.from_domain(product, media)
 
 
 @router.get(
@@ -35,10 +42,11 @@ def with_etag(response: Response, product: Product) -> ProductOut:
 )
 async def list_products(
     service: ProductServiceDep,
+    media: MediaUrlsDep,
     params: Annotated[ListParams, Depends(list_params)],
 ) -> ProductPage:
     listing = await service.search(params.filters, params.sort, params.limit, params.cursor)
-    return ProductPage.from_domain(listing)
+    return ProductPage.from_domain(listing, media)
 
 
 @router.get(
@@ -50,8 +58,10 @@ async def list_products(
         404: {"model": ProblemOut, "description": "Unknown or deleted SKU"},
     },
 )
-async def get_product(sku: SkuPath, response: Response, service: ProductServiceDep) -> ProductOut:
-    return with_etag(response, await service.get(sku))
+async def get_product(
+    sku: SkuPath, response: Response, service: ProductServiceDep, media: MediaUrlsDep
+) -> ProductOut:
+    return with_etag(response, await service.get(sku), media)
 
 
 @router.post(
@@ -69,6 +79,7 @@ async def create_product(
     response: Response,
     _admin: AdminUser,
     service: ProductServiceDep,
+    media: MediaUrlsDep,
 ) -> ProductOut:
     product = await service.create(
         sku=body.sku,
@@ -80,7 +91,7 @@ async def create_product(
         weight_kg=body.weight_kg,
     )
     response.headers["Location"] = f"/api/v1/products/{product.sku}"
-    return with_etag(response, product)
+    return with_etag(response, product, media)
 
 
 @router.put(
@@ -99,6 +110,7 @@ async def replace_product(
     _admin: AdminUser,
     precondition: IfMatch,
     service: ProductServiceDep,
+    media: MediaUrlsDep,
 ) -> ProductOut:
     product = await service.replace(
         sku=sku,
@@ -110,7 +122,7 @@ async def replace_product(
         weight_kg=body.weight_kg,
         precondition=precondition,
     )
-    return with_etag(response, product)
+    return with_etag(response, product, media)
 
 
 @router.delete(

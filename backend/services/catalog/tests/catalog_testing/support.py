@@ -9,9 +9,10 @@ from sqlalchemy import make_url
 from catalog.application.ports import UnitOfWorkFactory
 from catalog.infra.memory import InMemoryStore, InMemoryUnitOfWork
 from catalog.main import create_catalog_app
-from catalog.settings import CatalogSettings
+from catalog.settings import CatalogSettings, MediaSettings
 from ecommerce_auth import JwtSettings, Role
 from ecommerce_auth.testing import StubTokenIssuer, build_stub_verifier
+from ecommerce_storage import InMemoryObjectStorage, ObjectStorage, S3Settings
 
 SEEDED_CATEGORIES = (
     ("Books", "books"),
@@ -37,24 +38,45 @@ def seeded_store() -> InMemoryStore:
     return store
 
 
+MEDIA_BASE_URL = "http://media.test/media"
+
+
+def media_settings() -> MediaSettings:
+    return MediaSettings(
+        S3Settings("test-access", "test-secret", endpoint_url="http://127.0.0.1:1"),
+        "media",
+        MEDIA_BASE_URL,
+    )
+
+
 def build_test_app(
     issuer: StubTokenIssuer,
     unit_of_work: UnitOfWorkFactory,
     clock: SteppingClock | None = None,
+    storage: ObjectStorage | None = None,
 ) -> FastAPI:
     settings = CatalogSettings(
         database_url=make_url("postgresql+asyncpg://unused:unused@127.0.0.1:1/unused"),
         jwt=JwtSettings(jwks_url="http://auth.test/jwks.json", issuer="ecommerce-auth"),
+        media=media_settings(),
     )
-    app = create_catalog_app(settings, unit_of_work=unit_of_work, clock=clock or SteppingClock())
+    app = create_catalog_app(
+        settings,
+        unit_of_work=unit_of_work,
+        clock=clock or SteppingClock(),
+        storage=storage or InMemoryObjectStorage(MEDIA_BASE_URL),
+    )
     app.state.token_verifier = build_stub_verifier(issuer)
     return app
 
 
 def in_memory_app(
-    issuer: StubTokenIssuer, store: InMemoryStore, clock: SteppingClock | None = None
+    issuer: StubTokenIssuer,
+    store: InMemoryStore,
+    clock: SteppingClock | None = None,
+    storage: ObjectStorage | None = None,
 ) -> FastAPI:
-    return build_test_app(issuer, lambda: InMemoryUnitOfWork(store), clock)
+    return build_test_app(issuer, lambda: InMemoryUnitOfWork(store), clock, storage)
 
 
 @asynccontextmanager

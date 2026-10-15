@@ -7,7 +7,9 @@ from fastapi.exceptions import RequestValidationError
 from pydantic import AfterValidator
 
 from catalog.api.errors import PreconditionRequiredError
+from catalog.api.media import MediaUrls
 from catalog.application.categories import CategoryService
+from catalog.application.images import ImageService
 from catalog.application.products import ProductService
 from catalog.domain.listing import (
     CATEGORY_MAX_LENGTH,
@@ -24,6 +26,16 @@ from catalog.domain.preconditions import VersionPrecondition
 def get_product_service(request: Request) -> ProductService:
     service: ProductService = request.app.state.product_service
     return service
+
+
+def get_image_service(request: Request) -> ImageService:
+    service: ImageService = request.app.state.image_service
+    return service
+
+
+def get_media_urls(request: Request) -> MediaUrls:
+    media: MediaUrls = request.app.state.media_urls
+    return media
 
 
 def get_category_service(request: Request) -> CategoryService:
@@ -100,5 +112,7 @@ def list_params(
 
 
 ProductServiceDep = Annotated[ProductService, Depends(get_product_service)]
+ImageServiceDep = Annotated[ImageService, Depends(get_image_service)]
+MediaUrlsDep = Annotated[MediaUrls, Depends(get_media_urls)]
 CategoryServiceDep = Annotated[CategoryService, Depends(get_category_service)]
 IfMatch = Annotated[VersionPrecondition, Depends(require_if_match)]

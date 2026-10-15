@@ -4,6 +4,7 @@ import httpx
 import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
+from catalog_testing.support import media_settings
 from sqlalchemy import make_url, text
 
 from catalog.infra.database import create_engine, database_readiness_check
@@ -102,6 +103,7 @@ async def test_ready_endpoint_is_green_with_a_reachable_database(
     settings = CatalogSettings(
         database_url=make_url(migrated_database_url),
         jwt=JwtSettings(jwks_url="http://dev-auth:8080/jwks.json", issuer="ecommerce-auth"),
+        media=media_settings(),
     )
     app = create_catalog_app(settings)
 
@@ -113,3 +115,23 @@ async def test_ready_endpoint_is_green_with_a_reachable_database(
 
     assert response.status_code == 200
     assert response.json()["checks"] == {"database": "ok"}
+
+
+async def test_ready_does_not_depend_on_object_storage(migrated_database_url: str) -> None:
+    unreachable = media_settings()
+    assert unreachable.s3.endpoint_url == "http://127.0.0.1:1"
+    settings = CatalogSettings(
+        database_url=make_url(migrated_database_url),
+        jwt=JwtSettings(jwks_url="http://dev-auth:8080/jwks.json", issuer="ecommerce-auth"),
+        media=unreachable,
+    )
+    app = create_catalog_app(settings)
+
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client,
+    ):
+        response = await client.get("/ready")
+
+    assert response.status_code == 200
+    assert set(response.json()["checks"]) == {"database"}

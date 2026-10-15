@@ -85,10 +85,14 @@ async def test_get_returns_the_product_with_an_etag_and_string_decimals(
         "price",
         "stock",
         "weight_kg",
+        "image_url",
+        "thumbnail_url",
         "version",
         "created_at",
         "updated_at",
     }
+    assert body["image_url"] is None
+    assert body["thumbnail_url"] is None
 
 
 async def test_get_embeds_the_category(client: httpx.AsyncClient, admin: dict[str, str]) -> None:

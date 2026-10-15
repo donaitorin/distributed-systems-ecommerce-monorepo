@@ -40,6 +40,7 @@ class StoredProduct:
     created_at: datetime
     updated_at: datetime
     deleted_at: datetime | None = None
+    image_key: str | None = None
 
 
 @dataclass(slots=True)
@@ -174,6 +175,15 @@ class InMemoryProductRepository:
             stored.updated_at = now
             stored.version += 1
 
+    async def set_image(self, sku: str, image_key: str | None, now: datetime) -> Product:
+        stored = self._active(sku)
+        if stored is None:
+            raise ProductNotFoundError(sku)
+        stored.image_key = image_key
+        stored.version += 1
+        stored.updated_at = now
+        return self._to_product(stored)
+
     def _require_category(self, category_id: UUID | None) -> None:
         if category_id is not None and category_id not in self._store.categories:
             raise UnknownCategoryError("category does not exist")
@@ -193,7 +203,7 @@ class InMemoryProductRepository:
             price=stored.price,
             stock=stored.stock,
             weight_kg=stored.weight_kg,
-            image_key=None,
+            image_key=stored.image_key,
             version=stored.version,
             created_at=stored.created_at,
             updated_at=stored.updated_at,

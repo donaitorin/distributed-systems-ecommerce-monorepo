@@ -5,6 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
+from catalog.api.media import MediaUrls
 from catalog.domain.listing import ProductListing
 from catalog.domain.product import Category, Product
 
@@ -48,12 +49,18 @@ class ProductOut(BaseModel):
     price: Decimal
     stock: int
     weight_kg: Decimal | None
+    image_url: str | None = Field(
+        default=None, description="Public URL of the 1200 px WebP image, null without an image"
+    )
+    thumbnail_url: str | None = Field(
+        default=None, description="Public URL of the 400 px WebP thumbnail, null without an image"
+    )
     version: int
     created_at: datetime
     updated_at: datetime
 
     @classmethod
-    def from_domain(cls, product: Product) -> Self:
+    def from_domain(cls, product: Product, media: MediaUrls) -> Self:
         return cls(
             sku=product.sku,
             name=product.name,
@@ -62,6 +69,8 @@ class ProductOut(BaseModel):
             price=product.price,
             stock=product.stock,
             weight_kg=product.weight_kg,
+            image_url=media.image(product.image_key),
+            thumbnail_url=media.thumbnail(product.image_key),
             version=product.version,
             created_at=product.created_at,
             updated_at=product.updated_at,
@@ -86,9 +95,9 @@ class ProductPage(BaseModel):
     )
 
     @classmethod
-    def from_domain(cls, listing: ProductListing) -> Self:
+    def from_domain(cls, listing: ProductListing, media: MediaUrls) -> Self:
         return cls(
-            items=[ProductOut.from_domain(item) for item in listing.items],
+            items=[ProductOut.from_domain(item, media) for item in listing.items],
             next_cursor=listing.next_cursor,
             prev_cursor=listing.prev_cursor,
             total=listing.total.value,

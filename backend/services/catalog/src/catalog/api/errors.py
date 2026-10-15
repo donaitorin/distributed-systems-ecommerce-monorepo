@@ -8,11 +8,16 @@ from catalog.application.cursors import InvalidCursorError
 from catalog.application.errors import (
     DuplicateCategoryError,
     DuplicateSkuError,
+    InvalidUploadError,
     PreconditionFailedError,
+    ProductImageNotFoundError,
     ProductNotFoundError,
     SearchTimeoutError,
+    UnsupportedMediaError,
+    UploadTooLargeError,
 )
 from catalog.domain.errors import ValidationFailedError
+from ecommerce_storage import ObjectStorageError
 from ecommerce_web import problem_response
 
 logger = logging.getLogger(__name__)
@@ -62,6 +67,58 @@ def register_catalog_errors(app: FastAPI) -> None:
             "Search timed out",
             f"The search did not finish within {error.timeout_ms} ms; "
             "narrow it with filters or retry shortly",
+            headers={"Retry-After": SEARCH_RETRY_AFTER_SECONDS},
+        )
+
+    @app.exception_handler(UploadTooLargeError)
+    async def handle_upload_too_large(request: Request, error: UploadTooLargeError) -> JSONResponse:
+        return problem_response(
+            request,
+            HTTPStatus.CONTENT_TOO_LARGE,
+            "Image too large",
+            f"The image must be at most {error.limit_bytes // (1024 * 1024)} MB",
+        )
+
+    @app.exception_handler(UnsupportedMediaError)
+    async def handle_unsupported_media(
+        request: Request, error: UnsupportedMediaError
+    ) -> JSONResponse:
+        return problem_response(
+            request, HTTPStatus.UNSUPPORTED_MEDIA_TYPE, "Unsupported media type", str(error)
+        )
+
+    @app.exception_handler(InvalidUploadError)
+    async def handle_invalid_upload(request: Request, error: InvalidUploadError) -> JSONResponse:
+        problems = [{"location": "body.file", "message": error.message, "type": error.code}]
+        return problem_response(
+            request,
+            HTTPStatus.UNPROCESSABLE_ENTITY,
+            "Request validation failed",
+            "The request contains invalid data",
+            errors=problems,
+        )
+
+    @app.exception_handler(ProductImageNotFoundError)
+    async def handle_image_not_found(
+        request: Request, error: ProductImageNotFoundError
+    ) -> JSONResponse:
+        return problem_response(
+            request, HTTPStatus.NOT_FOUND, "Image not found", f"Product {error.sku} has no image"
+        )
+
+    @app.exception_handler(ObjectStorageError)
+    async def handle_storage_unavailable(
+        request: Request, error: ObjectStorageError
+    ) -> JSONResponse:
+        logger.warning(
+            "object storage unavailable",
+            extra={"path": request.url.path, "error": str(error)},
+        )
+        return problem_response(
+            request,
+            HTTPStatus.SERVICE_UNAVAILABLE,
+            "Image storage unavailable",
+            "The image could not be stored or removed right now; retry shortly",
             headers={"Retry-After": SEARCH_RETRY_AFTER_SECONDS},
         )
 
