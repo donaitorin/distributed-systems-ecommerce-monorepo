@@ -32,16 +32,36 @@ All ports are bound to `127.0.0.1` and can be changed in `.env`.
 | Kafka UI | `kafka-ui` | 8088 |
 | Object storage S3 API (SeaweedFS) | `object-storage` | 19000 |
 
-One-shot jobs `kafka-init`, `object-storage-init` and `catalog-migrate` create the topics and buckets and apply database migrations, then exit.
+One-shot jobs `kafka-init`, `object-storage-init`, `auth-migrate` and `catalog-migrate` create the topics and buckets and apply database migrations, then exit. `auth-migrate` also seeds the initial admin.
 
 ## Services
 
 | Service | Container | Reachable through the gateway |
 | --- | --- | --- |
+| Auth | `auth` | `/api/v1/auth/*`, and `/auth/docs`, `/auth/health`, `/auth/ready` |
 | Catalog | `catalog` | `/api/v1/products`, `/api/v1/categories`, and `/catalog/docs`, `/catalog/health`, `/catalog/ready` |
 | Dev auth (temporary, removed when the auth service lands) | `dev-auth` | Internal only: serves the public JWKS that catalog trusts |
 
 `dev-auth` generates an RSA key pair into a Docker volume on first start. Nothing secret is stored in the repository.
+
+## Auth API
+
+| Endpoint | Description |
+| --- | --- |
+| `POST /api/v1/auth/register` | Creates a `customer` account and returns `{id, email, role}` (no tokens). `409` if the email exists, `422` for an invalid email or password |
+| `POST /api/v1/auth/login` | Returns `{access_token, refresh_token, token_type, expires_in}`. Unknown email and wrong password give the same `401` |
+| `POST /api/v1/auth/refresh` | Body `{refresh_token}`. Rotates the pair; the old refresh token stops working |
+| `POST /api/v1/auth/logout` | Body `{refresh_token}`. Revokes the whole session; always `204` |
+| `GET /api/v1/auth/.well-known/jwks.json` | Public signing keys (cached for 5 minutes) |
+
+```bash
+curl -s -X POST localhost:8000/api/v1/auth/register -H "Content-Type: application/json" \
+  -d '{"email": "ada@example.com", "password": "correct horse battery"}'
+curl -s -X POST localhost:8000/api/v1/auth/login -H "Content-Type: application/json" \
+  -d '{"email": "ada@example.com", "password": "correct horse battery"}'
+```
+
+Access tokens are RS256 JWTs that live 15 minutes; any service validates them locally against the JWKS. Refresh tokens are opaque, live 7 days (30 days at most per session) and are stored only as a SHA-256 hash. Tokens are returned in the JSON body: the frontend keeps them in `httpOnly` cookies. Passwords are hashed with Argon2id and must have 10 to 128 characters and not be a common password; there are no composition rules. Emails are trimmed and lowercased. The initial admin comes from `AUTH_ADMIN_EMAIL` and `AUTH_ADMIN_PASSWORD` in `.env`. Reusing a rotated refresh token is rejected; after a 10 second grace window it revokes the whole session. The design, the signing key rotation procedure and the trade-offs are in [ADR 0005](docs/adr/0005-auth-tokens-and-signing-keys.md).
 
 ## Catalog API
 
