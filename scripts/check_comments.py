@@ -1,6 +1,9 @@
 import ast
 import io
+import json
 import re
+import shutil
+import subprocess
 import sys
 import tokenize
 from collections.abc import Callable, Iterable, Sequence
@@ -8,7 +11,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_ROOTS = ("backend",)
+DEFAULT_ROOTS = ("backend", "frontend")
+TYPESCRIPT_SUFFIXES = frozenset({".ts", ".tsx"})
+TYPESCRIPT_SCANNER = REPO_ROOT / "frontend" / "packages" / "config" / "tools" / "check-comments.cjs"
+EXCLUDED_FILE_NAMES = frozenset({"next-env.d.ts"})
 IGNORED_DIRECTORIES = frozenset(
     {
         ".venv",
@@ -18,12 +24,20 @@ IGNORED_DIRECTORIES = frozenset(
         "__pycache__",
         "htmlcov",
         "node_modules",
+        ".next",
+        ".turbo",
+        "storybook-static",
+        "coverage",
     }
 )
 PYTHON_PRAGMA = re.compile(
     r"#\s*(noqa\b|type:\s*ignore\b|pragma:\s*no\s+(cover|branch)\b|pyright:|mypy:|fmt:\s*(off|on|skip)\b)"
 )
 SHEBANG = re.compile(r"#!")
+
+
+class ToolchainError(Exception):
+    pass
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,8 +89,34 @@ def check_python(path: Path) -> list[Finding]:
     return sorted(comments + docstrings, key=lambda finding: finding.line)
 
 
-CHECKERS: dict[str, Callable[[Path], list[Finding]]] = {
-    ".py": check_python,
+def check_typescript(paths: Sequence[Path]) -> list[Finding]:
+    if not paths:
+        return []
+    node = shutil.which("node")
+    if node is None:
+        raise ToolchainError("node is required to check TypeScript files")
+    completed = subprocess.run(
+        [node, str(TYPESCRIPT_SCANNER)],
+        input="\n".join(str(path) for path in paths),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        raise ToolchainError(
+            f"{TYPESCRIPT_SCANNER.name} failed (run 'pnpm install' in frontend/): "
+            f"{completed.stderr.strip()}"
+        )
+    return [
+        Finding(Path(item["path"]), item["line"], "comment", item["text"])
+        for item in json.loads(completed.stdout)
+    ]
+
+
+CHECKERS: dict[str, Callable[[Sequence[Path]], list[Finding]]] = {
+    ".py": lambda paths: [finding for path in paths for finding in check_python(path)],
+    ".ts": check_typescript,
+    ".tsx": check_typescript,
 }
 
 
@@ -86,21 +126,28 @@ def source_files(roots: Sequence[Path]) -> Iterable[Path]:
         for path in candidates:
             if not path.is_file() or path.suffix not in CHECKERS:
                 continue
+            if path.name in EXCLUDED_FILE_NAMES:
+                continue
             if IGNORED_DIRECTORIES.intersection(path.parts):
                 continue
             yield path
 
 
 def check(roots: Sequence[Path]) -> list[Finding]:
-    findings: list[Finding] = []
+    typescript_paths: list[Path] = []
+    python_paths: list[Path] = []
     for path in source_files(roots):
-        findings.extend(CHECKERS[path.suffix](path))
-    return findings
+        (typescript_paths if path.suffix in TYPESCRIPT_SUFFIXES else python_paths).append(path)
+    return CHECKERS[".py"](python_paths) + check_typescript(typescript_paths)
 
 
 def main(argv: Sequence[str]) -> int:
     roots = [Path(arg) for arg in argv] or [REPO_ROOT / name for name in DEFAULT_ROOTS]
-    findings = check(roots)
+    try:
+        findings = check(roots)
+    except ToolchainError as error:
+        sys.stderr.write(f"{error}\n")
+        return 2
     for finding in findings:
         sys.stdout.write(finding.render() + "\n")
     if findings:
