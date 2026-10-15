@@ -63,7 +63,12 @@ async def test_upgrade_creates_the_tables(
         "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'",
     )
 
-    assert {name for (name,) in tables} == {"alembic_version", "profiles", "addresses"}
+    assert {name for (name,) in tables} == {
+        "alembic_version",
+        "profiles",
+        "addresses",
+        "processed_events",
+    }
 
 
 async def test_downgrade_removes_everything_and_upgrade_can_run_again(
@@ -79,6 +84,33 @@ async def test_downgrade_removes_everything_and_upgrade_can_run_again(
     assert tables == [("alembic_version",)]
 
     alembic_runner(empty_database_url, "upgrade", "head")
+
+
+async def test_processed_events_is_keyed_by_group_and_event(
+    migrated_database_url: str,
+) -> None:
+    columns = await fetch_all(
+        migrated_database_url,
+        "SELECT a.attname FROM pg_index i JOIN pg_attribute a ON a.attrelid = i.indrelid "
+        "AND a.attnum = ANY(i.indkey) WHERE i.indrelid = 'processed_events'::regclass "
+        "AND i.indisprimary ORDER BY a.attname",
+    )
+
+    assert columns == [("consumer_group",), ("event_id",)]
+
+
+async def test_the_second_migration_can_be_undone_on_its_own(
+    empty_database_url: str, alembic_runner: Callable[[str, str, str], None]
+) -> None:
+    alembic_runner(empty_database_url, "upgrade", "head")
+    alembic_runner(empty_database_url, "downgrade", "0001")
+
+    tables = await fetch_all(
+        empty_database_url,
+        "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'",
+    )
+
+    assert {name for (name,) in tables} == {"alembic_version", "profiles", "addresses"}
 
 
 async def test_the_database_rejects_an_email_with_uppercase_letters(

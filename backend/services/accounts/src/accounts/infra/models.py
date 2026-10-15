@@ -14,6 +14,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+from ecommerce_messaging import processed_events_table
+
 NAMING_CONVENTION = {
     "ix": "ix_%(column_0_label)s",
     "uq": "uq_%(table_name)s_%(column_0_name)s",
@@ -65,3 +67,6 @@ class AddressModel(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (CheckConstraint("country ~ '^[A-Z]{2}$'", name="country_alpha2"),)
+
+
+PROCESSED_EVENTS = processed_events_table(Base.metadata)
