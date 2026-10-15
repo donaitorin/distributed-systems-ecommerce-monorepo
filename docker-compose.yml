@@ -23,6 +23,21 @@ x-auth-database-environment: &auth-database-environment
   AUTH_DB_USER: auth_user
   AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD}
 
+x-accounts-image: &accounts-image
+  image: ecommerce/accounts:dev
+  pull_policy: never
+
+x-accounts-build: &accounts-build
+  context: ./backend
+  dockerfile: services/accounts/Dockerfile
+
+x-accounts-database-environment: &accounts-database-environment
+  ACCOUNTS_DB_HOST: postgres
+  ACCOUNTS_DB_PORT: "5432"
+  ACCOUNTS_DB_NAME: accounts_db
+  ACCOUNTS_DB_USER: accounts_user
+  ACCOUNTS_DB_PASSWORD: ${ACCOUNTS_DB_PASSWORD}
+
 x-jwt-environment: &jwt-environment
   JWT_ISSUER: ${JWT_ISSUER:-ecommerce-auth}
   JWT_AUDIENCE: ${JWT_AUDIENCE:-ecommerce-api}
@@ -259,6 +274,37 @@ services:
     environment:
       <<: *auth-database-environment
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+
+  accounts-migrate:
+    <<: *accounts-image
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      <<: *accounts-database-environment
+
+  accounts:
+    <<: *accounts-image
+    pull_policy: build
+    build: *accounts-build
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      accounts-migrate:
+        condition: service_completed_successfully
+    environment:
+      <<: [*jwt-environment, *accounts-database-environment]
+      JWT_JWKS_URL: http://auth:8000/api/v1/auth/.well-known/jwks.json
+      ROOT_PATH: /accounts
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready', timeout=2)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
 
   catalog-migrate:
     <<: *catalog-image
