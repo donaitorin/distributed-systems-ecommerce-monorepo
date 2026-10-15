@@ -1,0 +1,32 @@
+{
+  "name": "@ecommerce/auth",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts",
+    "./next": "./src/next/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "jest --coverage"
+  },
+  "dependencies": {
+    "@ecommerce/api-client": "workspace:*",
+    "jose": "6.2.12"
+  },
+  "peerDependencies": {
+    "next": "16.4.1"
+  },
+  "devDependencies": {
+    "@ecommerce/config": "workspace:*",
+    "@types/jest": "30.0.0",
+    "@types/node": "24.19.2",
+    "eslint": "9.39.5",
+    "jest": "30.5.2",
+    "next": "16.4.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "typescript": "6.0.3"
+  }
+}
