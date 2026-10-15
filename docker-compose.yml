@@ -207,22 +207,6 @@ services:
       retries: 5
       start_period: 5s
 
-  dev-auth:
-    <<: *catalog-image
-    restart: unless-stopped
-    command: ["python", "-m", "ecommerce_auth.dev_tokens", "serve"]
-    environment:
-      <<: *jwt-environment
-      DEV_KEYS_DIR: /keys
-    volumes:
-      - dev-auth-keys:/keys
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health', timeout=2)"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-      start_period: 5s
-
   auth-migrate:
     <<: *auth-image
     restart: "no"
@@ -259,6 +243,23 @@ services:
       retries: 10
       start_period: 15s
 
+  auth-worker:
+    <<: *auth-image
+    restart: unless-stopped
+    command: ["python", "-m", "auth.worker"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      auth-migrate:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+    environment:
+      <<: *auth-database-environment
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+
   catalog-migrate:
     <<: *catalog-image
     restart: "no"
@@ -290,7 +291,7 @@ services:
       CATALOG_DB_NAME: catalog_db
       CATALOG_DB_USER: catalog_user
       CATALOG_DB_PASSWORD: ${CATALOG_DB_PASSWORD}
-      JWT_JWKS_URL: http://dev-auth:8080/jwks.json
+      JWT_JWKS_URL: http://auth:8000/api/v1/auth/.well-known/jwks.json
       ROOT_PATH: /catalog
       CATALOG_SEARCH_TIMEOUT_MS: ${CATALOG_SEARCH_TIMEOUT_MS:-2000}
       OBJECT_STORAGE_ENDPOINT: http://object-storage:8333
@@ -332,7 +333,7 @@ services:
       CATALOG_DB_NAME: catalog_db
       CATALOG_DB_USER: catalog_user
       CATALOG_DB_PASSWORD: ${CATALOG_DB_PASSWORD}
-      JWT_JWKS_URL: http://dev-auth:8080/jwks.json
+      JWT_JWKS_URL: http://auth:8000/api/v1/auth/.well-known/jwks.json
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       OBJECT_STORAGE_ENDPOINT: http://object-storage:8333
       OBJECT_STORAGE_ACCESS_KEY: ${OBJECT_STORAGE_ACCESS_KEY}
@@ -344,7 +345,6 @@ services:
 
 volumes:
   auth-keys:
-  dev-auth-keys:
   postgres-data:
   redis-cart-data:
   kafka-data:
