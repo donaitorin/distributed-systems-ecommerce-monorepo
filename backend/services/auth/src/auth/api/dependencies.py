@@ -3,6 +3,7 @@ from typing import Annotated, Any
 from fastapi import Depends, Request
 
 from auth.application.registration import RegistrationService
+from auth.application.roles import RoleService
 from auth.application.service import AuthService
 
 
@@ -16,6 +17,11 @@ def get_registration_service(request: Request) -> RegistrationService:
     return service
 
 
+def get_role_service(request: Request) -> RoleService:
+    service: RoleService = request.app.state.role_service
+    return service
+
+
 def get_jwks(request: Request) -> dict[str, Any]:
     document: dict[str, Any] = request.app.state.jwks
     return document
@@ -23,4 +29,5 @@ def get_jwks(request: Request) -> dict[str, Any]:
 
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 RegistrationServiceDep = Annotated[RegistrationService, Depends(get_registration_service)]
+RoleServiceDep = Annotated[RoleService, Depends(get_role_service)]
 JwksDep = Annotated[dict[str, Any], Depends(get_jwks)]

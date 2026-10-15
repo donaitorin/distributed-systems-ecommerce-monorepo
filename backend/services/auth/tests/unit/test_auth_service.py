@@ -1,4 +1,5 @@
 from datetime import timedelta
+from uuid import uuid4
 
 import jwt
 import pytest
@@ -20,7 +21,7 @@ from auth.application.registration import RegistrationService
 from auth.application.service import AuthService, RefreshPolicy, TokenPair, hash_refresh_token
 from auth.domain.errors import ValidationFailedError
 from auth.domain.tokens import REUSE_GRACE, RefreshTokenRecord
-from auth.domain.user import Role
+from auth.domain.user import Role, User
 from auth.infra.keys import KeyStore
 from auth.infra.memory import InMemoryStore, InMemoryUnitOfWork
 from auth.infra.signer import JwtAccessTokenIssuer
@@ -40,11 +41,14 @@ class Harness:
         self.registration = RegistrationService(self.unit_of_work, self.hasher, self.clock)
         self.service = AuthService(self.unit_of_work, self.hasher, issuer, self.clock)
 
+    async def register(self, email: str, password: str, role: Role = Role.CUSTOMER) -> User:
+        return await self.registration.register(email, password, uuid4(), role)
+
     def unit_of_work(self) -> InMemoryUnitOfWork:
         return InMemoryUnitOfWork(self.store)
 
     async def logged_in(self, email: str = EMAIL) -> TokenPair:
-        await self.registration.register(email, STRONG_PASSWORD)
+        await self.register(email, STRONG_PASSWORD)
         return await self.service.login(email, STRONG_PASSWORD)
 
     def record_of(self, pair: TokenPair) -> RefreshTokenRecord:
@@ -61,7 +65,7 @@ def harness() -> Harness:
 
 
 async def test_registration_stores_a_customer_with_a_normalized_email(harness: Harness) -> None:
-    user = await harness.registration.register("  Ada@Example.COM ", STRONG_PASSWORD)
+    user = await harness.register("  Ada@Example.COM ", STRONG_PASSWORD)
 
     assert user.email == EMAIL
     assert user.role is Role.CUSTOMER
@@ -70,21 +74,21 @@ async def test_registration_stores_a_customer_with_a_normalized_email(harness: H
 
 
 async def test_registration_can_create_an_admin_for_the_seed(harness: Harness) -> None:
-    user = await harness.registration.register(EMAIL, STRONG_PASSWORD, Role.ADMIN)
+    user = await harness.register(EMAIL, STRONG_PASSWORD, Role.ADMIN)
 
     assert user.role is Role.ADMIN
 
 
 async def test_the_same_email_in_another_case_is_already_taken(harness: Harness) -> None:
-    await harness.registration.register(EMAIL, STRONG_PASSWORD)
+    await harness.register(EMAIL, STRONG_PASSWORD)
 
     with pytest.raises(EmailTakenError):
-        await harness.registration.register("ADA@example.com", STRONG_PASSWORD)
+        await harness.register("ADA@example.com", STRONG_PASSWORD)
 
 
 async def test_registration_validates_before_hashing(harness: Harness) -> None:
     with pytest.raises(ValidationFailedError):
-        await harness.registration.register("nope", "short")
+        await harness.register("nope", "short")
 
     assert harness.hasher.hash_calls == 0
 
@@ -92,7 +96,7 @@ async def test_registration_validates_before_hashing(harness: Harness) -> None:
 async def test_login_returns_a_verifiable_access_token_and_an_opaque_refresh_token(
     harness: Harness,
 ) -> None:
-    user = await harness.registration.register(EMAIL, STRONG_PASSWORD)
+    user = await harness.register(EMAIL, STRONG_PASSWORD)
 
     pair = await harness.service.login("ADA@example.com", STRONG_PASSWORD)
 
@@ -122,7 +126,7 @@ async def test_each_login_starts_its_own_token_family(harness: Harness) -> None:
 async def test_unknown_email_and_wrong_password_fail_with_the_same_error(
     harness: Harness,
 ) -> None:
-    await harness.registration.register(EMAIL, STRONG_PASSWORD)
+    await harness.register(EMAIL, STRONG_PASSWORD)
 
     with pytest.raises(InvalidCredentialsError) as unknown:
         await harness.service.login("nobody@example.com", STRONG_PASSWORD)
@@ -147,7 +151,7 @@ async def test_a_known_email_does_not_use_the_decoy(harness: Harness) -> None:
 
 
 async def test_a_failed_login_issues_no_tokens(harness: Harness) -> None:
-    await harness.registration.register(EMAIL, STRONG_PASSWORD)
+    await harness.register(EMAIL, STRONG_PASSWORD)
 
     with pytest.raises(InvalidCredentialsError):
         await harness.service.login(EMAIL, "not the password")
@@ -156,7 +160,7 @@ async def test_a_failed_login_issues_no_tokens(harness: Harness) -> None:
 
 
 async def test_login_upgrades_a_hash_made_with_old_parameters(harness: Harness) -> None:
-    user = await harness.registration.register(EMAIL, STRONG_PASSWORD)
+    user = await harness.register(EMAIL, STRONG_PASSWORD)
     harness.hasher.rehash_needed = True
     hashes_before = harness.hasher.hash_calls
 
@@ -167,7 +171,7 @@ async def test_login_upgrades_a_hash_made_with_old_parameters(harness: Harness) 
 
 
 async def test_login_leaves_a_current_hash_alone(harness: Harness) -> None:
-    await harness.registration.register(EMAIL, STRONG_PASSWORD)
+    await harness.register(EMAIL, STRONG_PASSWORD)
     hashes_before = harness.hasher.hash_calls
 
     await harness.service.login(EMAIL, STRONG_PASSWORD)

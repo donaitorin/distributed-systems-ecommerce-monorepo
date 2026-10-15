@@ -7,6 +7,8 @@ from auth.application.errors import (
     EmailTakenError,
     InvalidCredentialsError,
     InvalidRefreshTokenError,
+    SelfRoleChangeError,
+    UserNotFoundError,
 )
 from auth.domain.errors import ValidationFailedError
 from ecommerce_web import problem_response
@@ -56,4 +58,19 @@ def register_auth_errors(app: FastAPI) -> None:
             HTTPStatus.UNAUTHORIZED,
             "Invalid refresh token",
             "The refresh token is invalid, expired or already used; log in again",
+        )
+
+    @app.exception_handler(UserNotFoundError)
+    async def handle_user_not_found(request: Request, error: UserNotFoundError) -> JSONResponse:
+        return problem_response(
+            request, HTTPStatus.NOT_FOUND, "User not found", f"No user with id {error.user_id}"
+        )
+
+    @app.exception_handler(SelfRoleChangeError)
+    async def handle_self_role_change(request: Request, error: SelfRoleChangeError) -> JSONResponse:
+        return problem_response(
+            request,
+            HTTPStatus.CONFLICT,
+            "Cannot change your own role",
+            "Ask another admin to change this account's role",
         )

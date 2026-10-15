@@ -7,6 +7,16 @@ class EmailTakenError(DomainError):
         self.email = email
 
 
+class UserNotFoundError(DomainError):
+    def __init__(self, user_id: object) -> None:
+        super().__init__(f"user {user_id} not found")
+        self.user_id = user_id
+
+
+class SelfRoleChangeError(DomainError):
+    pass
+
+
 class InvalidCredentialsError(DomainError):
     pass
 

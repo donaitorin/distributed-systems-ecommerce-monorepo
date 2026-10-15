@@ -38,7 +38,7 @@ async def test_models_match_the_migrated_schema(migrated_database_url: str) -> N
     assert differences == []
 
 
-async def test_upgrade_creates_both_tables(
+async def test_upgrade_creates_the_tables_and_the_outbox(
     empty_database_url: str, alembic_runner: Callable[[str, str, str], None]
 ) -> None:
     alembic_runner(empty_database_url, "upgrade", "head")
@@ -48,7 +48,7 @@ async def test_upgrade_creates_both_tables(
         "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'",
     )
 
-    assert {name for (name,) in tables} == {"alembic_version", "users", "refresh_tokens"}
+    assert {name for (name,) in tables} == {"alembic_version", "users", "refresh_tokens", "outbox"}
 
 
 async def test_downgrade_removes_everything_and_upgrade_can_run_again(

@@ -1,15 +1,31 @@
 from typing import Any
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Response, status
 
-from auth.api.dependencies import AuthServiceDep, JwksDep, RegistrationServiceDep
+from auth.api.dependencies import (
+    AuthServiceDep,
+    JwksDep,
+    RegistrationServiceDep,
+    RoleServiceDep,
+)
 from auth.api.responses import problem_responses
-from auth.api.schemas import CredentialsIn, RefreshIn, TokensOut, UserOut
+from auth.api.schemas import CredentialsIn, RefreshIn, RoleChangeIn, TokensOut, UserOut
+from ecommerce_auth import AdminUser
+from ecommerce_observability import get_request_id
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
 NO_STORE = "no-store"
 JWKS_CACHE_CONTROL = "public, max-age=300"
+
+
+def correlation_id() -> UUID:
+    current = get_request_id()
+    try:
+        return UUID(current) if current else uuid4()
+    except ValueError:
+        return uuid4()
 
 
 @router.post(
@@ -20,7 +36,7 @@ JWKS_CACHE_CONTROL = "public, max-age=300"
     responses=problem_responses(409, 422),
 )
 async def register(body: CredentialsIn, service: RegistrationServiceDep) -> UserOut:
-    return UserOut.from_domain(await service.register(body.email, body.password))
+    return UserOut.from_domain(await service.register(body.email, body.password, correlation_id()))
 
 
 @router.post(
@@ -59,3 +75,16 @@ async def logout(body: RefreshIn, service: AuthServiceDep) -> Response:
 async def jwks(document: JwksDep, response: Response) -> dict[str, Any]:
     response.headers["Cache-Control"] = JWKS_CACHE_CONTROL
     return document
+
+
+@router.patch(
+    "/users/{user_id}/role",
+    response_model=UserOut,
+    summary="Change a user's role (admin)",
+    responses=problem_responses(401, 403, 404, 409, 422),
+)
+async def change_role(
+    user_id: UUID, body: RoleChangeIn, admin: AdminUser, service: RoleServiceDep
+) -> UserOut:
+    user = await service.change_role(UUID(admin.user_id), user_id, body.role, correlation_id())
+    return UserOut.from_domain(user)

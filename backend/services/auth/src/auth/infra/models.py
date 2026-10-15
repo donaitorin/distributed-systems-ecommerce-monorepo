@@ -4,6 +4,8 @@ from uuid import UUID
 from sqlalchemy import CheckConstraint, DateTime, ForeignKey, MetaData, String, Text, func, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+from ecommerce_messaging import outbox_table
+
 NAMING_CONVENTION = {
     "ix": "ix_%(column_0_label)s",
     "uq": "uq_%(table_name)s_%(column_0_name)s",
@@ -42,3 +44,6 @@ class RefreshTokenModel(Base):
     family_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+OUTBOX = outbox_table(Base.metadata)

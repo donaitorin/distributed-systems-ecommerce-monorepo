@@ -33,6 +33,10 @@ class UserOut(BaseModel):
         return cls(id=user.id, email=user.email, role=user.role)
 
 
+class RoleChangeIn(BaseModel):
+    role: Role
+
+
 class TokensOut(BaseModel):
     access_token: str
     refresh_token: str

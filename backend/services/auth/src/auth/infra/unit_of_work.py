@@ -3,12 +3,14 @@ from typing import Self
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from auth.infra.events import SqlEventOutbox
 from auth.infra.repositories import SqlRefreshTokenRepository, SqlUserRepository
 
 
 class SqlAlchemyUnitOfWork:
     users: SqlUserRepository
     refresh_tokens: SqlRefreshTokenRepository
+    events: SqlEventOutbox
     _session: AsyncSession
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
@@ -18,6 +20,7 @@ class SqlAlchemyUnitOfWork:
         self._session = self._session_factory()
         self.users = SqlUserRepository(self._session)
         self.refresh_tokens = SqlRefreshTokenRepository(self._session)
+        self.events = SqlEventOutbox(self._session)
         return self
 
     async def __aexit__(

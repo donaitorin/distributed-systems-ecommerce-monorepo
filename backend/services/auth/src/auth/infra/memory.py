@@ -4,7 +4,9 @@ from types import TracebackType
 from typing import Self
 from uuid import UUID, uuid4
 
-from auth.application.errors import EmailTakenError
+from pydantic import BaseModel
+
+from auth.application.errors import EmailTakenError, UserNotFoundError
 from auth.domain.tokens import RefreshTokenRecord
 from auth.domain.user import Role, User
 
@@ -15,10 +17,21 @@ class StoredRefreshToken:
     record: RefreshTokenRecord
 
 
+@dataclass(frozen=True, slots=True)
+class OutboxEntry:
+    event_id: UUID
+    topic: str
+    key: str
+    event_type: str
+    payload: BaseModel
+    correlation_id: UUID
+
+
 @dataclass(slots=True)
 class InMemoryStore:
     users: dict[UUID, User] = field(default_factory=dict)
     refresh_tokens: dict[str, StoredRefreshToken] = field(default_factory=dict)
+    outbox: list[OutboxEntry] = field(default_factory=list)
 
 
 class InMemoryUserRepository:
@@ -37,6 +50,16 @@ class InMemoryUserRepository:
 
     async def get(self, user_id: UUID) -> User | None:
         return self._store.users.get(user_id)
+
+    async def get_for_update(self, user_id: UUID) -> User | None:
+        return self._store.users.get(user_id)
+
+    async def update_role(self, user_id: UUID, role: Role, now: datetime) -> User:
+        if user_id not in self._store.users:
+            raise UserNotFoundError(user_id)
+        updated = replace(self._store.users[user_id], role=role)
+        self._store.users[user_id] = updated
+        return updated
 
     async def update_password_hash(self, user_id: UUID, password_hash: str, now: datetime) -> None:
         self._store.users[user_id] = replace(
@@ -84,11 +107,24 @@ class InMemoryRefreshTokenRepository:
                 stored.record = replace(stored.record, revoked_at=now)
 
 
+class InMemoryEventOutbox:
+    def __init__(self, store: InMemoryStore) -> None:
+        self._store = store
+
+    async def add(
+        self, *, topic: str, key: str, event_type: str, payload: BaseModel, correlation_id: UUID
+    ) -> None:
+        self._store.outbox.append(
+            OutboxEntry(uuid4(), topic, key, event_type, payload, correlation_id)
+        )
+
+
 class InMemoryUnitOfWork:
     def __init__(self, store: InMemoryStore) -> None:
         self._store = store
         self.users = InMemoryUserRepository(store)
         self.refresh_tokens = InMemoryRefreshTokenRepository(store)
+        self.events = InMemoryEventOutbox(store)
 
     async def __aenter__(self) -> Self:
         return self

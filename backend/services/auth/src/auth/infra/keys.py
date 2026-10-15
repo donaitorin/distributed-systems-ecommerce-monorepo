@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import jwt
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from jwt.algorithms import RSAAlgorithm
@@ -52,9 +53,23 @@ class KeyStore:
     def jwks_document(self) -> dict[str, Any]:
         return {"keys": [key.public_jwk() for key in self._keys.values()]}
 
+    def public_key(self, kid: str) -> rsa.RSAPublicKey:
+        key = self._keys.get(kid)
+        if key is None:
+            raise jwt.InvalidKeyError(f"unknown signing key: {kid}")
+        return key.private_key.public_key()
+
     @property
     def kids(self) -> list[str]:
         return list(self._keys)
+
+
+class LocalKeyProvider:
+    def __init__(self, store: KeyStore) -> None:
+        self._store = store
+
+    async def get_key(self, kid: str) -> rsa.RSAPublicKey:
+        return self._store.public_key(kid)
 
 
 def generate_key_file(directory: Path) -> SigningKey:

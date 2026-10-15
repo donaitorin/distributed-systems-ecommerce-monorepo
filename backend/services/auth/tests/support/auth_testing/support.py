@@ -111,3 +111,12 @@ async def login_user(
 
 async def refresh_with(client: httpx.AsyncClient, refresh_token: str) -> httpx.Response:
     return await client.post("/api/v1/auth/refresh", json={"refresh_token": refresh_token})
+
+
+async def patch_role(
+    client: httpx.AsyncClient, user_id: object, role: str, token: str | None = None
+) -> httpx.Response:
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    return await client.patch(
+        f"/api/v1/auth/users/{user_id}/role", json={"role": role}, headers=headers
+    )

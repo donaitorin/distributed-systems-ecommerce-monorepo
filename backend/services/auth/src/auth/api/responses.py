@@ -4,7 +4,9 @@ from auth.api.schemas import ProblemOut
 
 DESCRIPTIONS = {
     401: "Invalid credentials or refresh token",
-    409: "The email is already registered",
+    403: "The token does not carry the admin role",
+    404: "No user with that id",
+    409: "The email is already registered, or an admin tried to change their own role",
     422: "Invalid request data",
 }
 

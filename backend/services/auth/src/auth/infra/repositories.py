@@ -5,7 +5,7 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from auth.application.errors import EmailTakenError
+from auth.application.errors import EmailTakenError, UserNotFoundError
 from auth.domain.tokens import RefreshTokenRecord
 from auth.domain.user import Role, User
 from auth.infra.models import RefreshTokenModel, UserModel
@@ -54,6 +54,21 @@ class SqlUserRepository:
     async def get(self, user_id: UUID) -> User | None:
         model = await self._session.get(UserModel, user_id)
         return to_user(model) if model is not None else None
+
+    async def get_for_update(self, user_id: UUID) -> User | None:
+        model = await self._session.scalar(
+            select(UserModel).where(UserModel.id == user_id).with_for_update()
+        )
+        return to_user(model) if model is not None else None
+
+    async def update_role(self, user_id: UUID, role: Role, now: datetime) -> User:
+        model = await self._session.get(UserModel, user_id)
+        if model is None:
+            raise UserNotFoundError(user_id)
+        model.role = role.value
+        model.updated_at = now
+        await self._session.flush()
+        return to_user(model)
 
     async def update_password_hash(self, user_id: UUID, password_hash: str, now: datetime) -> None:
         await self._session.execute(

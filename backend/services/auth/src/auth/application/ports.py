@@ -5,6 +5,8 @@ from types import TracebackType
 from typing import Protocol, Self
 from uuid import UUID
 
+from pydantic import BaseModel
+
 from auth.domain.tokens import RefreshTokenRecord
 from auth.domain.user import Role, User
 
@@ -36,6 +38,10 @@ class UserRepository(Protocol):
 
     async def get(self, user_id: UUID) -> User | None: ...
 
+    async def get_for_update(self, user_id: UUID) -> User | None: ...
+
+    async def update_role(self, user_id: UUID, role: Role, now: datetime) -> User: ...
+
     async def update_password_hash(
         self, user_id: UUID, password_hash: str, now: datetime
     ) -> None: ...
@@ -60,12 +66,21 @@ class RefreshTokenRepository(Protocol):
     async def revoke_family(self, family_id: UUID, now: datetime) -> None: ...
 
 
+class EventOutbox(Protocol):
+    async def add(
+        self, *, topic: str, key: str, event_type: str, payload: BaseModel, correlation_id: UUID
+    ) -> None: ...
+
+
 class UnitOfWork(Protocol):
     @property
     def users(self) -> UserRepository: ...
 
     @property
     def refresh_tokens(self) -> RefreshTokenRepository: ...
+
+    @property
+    def events(self) -> EventOutbox: ...
 
     async def __aenter__(self) -> Self: ...
 

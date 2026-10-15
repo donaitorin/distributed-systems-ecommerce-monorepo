@@ -9,13 +9,15 @@ from auth.api import install_api
 from auth.application.clock import utc_now
 from auth.application.ports import PasswordHasher, UnitOfWorkFactory
 from auth.application.registration import RegistrationService
+from auth.application.roles import RoleService
 from auth.application.service import AuthService, RefreshPolicy
 from auth.infra.database import create_engine, create_session_factory, database_readiness_check
 from auth.infra.hashing import Argon2idHasher
-from auth.infra.keys import KeyStore, load_key_store
+from auth.infra.keys import KeyStore, LocalKeyProvider, load_key_store
 from auth.infra.signer import JwtAccessTokenIssuer
 from auth.infra.unit_of_work import SqlAlchemyUnitOfWork
 from auth.settings import AuthSettings
+from ecommerce_auth import JwtSettings, TokenVerifier
 from ecommerce_web import ServiceSettings, create_app
 
 SERVICE_NAME = "auth"
@@ -47,7 +49,12 @@ def create_auth_app(
     )
     app.state.session_factory = session_factory
     app.state.jwks = key_store.jwks_document()
+    app.state.token_verifier = TokenVerifier(
+        JwtSettings(jwks_url="local", issuer=settings.issuer, audience=settings.audience),
+        LocalKeyProvider(key_store),
+    )
     app.state.registration_service = RegistrationService(work, password_hasher, clock)
+    app.state.role_service = RoleService(work, clock)
     app.state.auth_service = AuthService(
         work,
         password_hasher,

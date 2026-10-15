@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 from collections.abc import Mapping
+from uuid import uuid4
 
 from auth.application.errors import EmailTakenError
 from auth.application.ports import PasswordHasher, UnitOfWorkFactory
@@ -24,7 +25,9 @@ async def seed_admin(
     unit_of_work: UnitOfWorkFactory, hasher: PasswordHasher, email: str, password: str
 ) -> bool:
     try:
-        await RegistrationService(unit_of_work, hasher).register(email, password, Role.ADMIN)
+        await RegistrationService(unit_of_work, hasher).register(
+            email, password, uuid4(), Role.ADMIN
+        )
     except EmailTakenError:
         return False
     return True
