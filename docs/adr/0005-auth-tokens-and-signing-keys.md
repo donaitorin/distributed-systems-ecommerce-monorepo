@@ -46,9 +46,15 @@ The auth service owns credentials, roles and tokens. Every other service must va
 - Login answers the same `401` for an unknown email and a wrong password, and for an unknown email it still verifies the password against a decoy hash with the same parameters so the response time does not give the email away. Registration does answer `409` for a taken email; the gateway rate limit is the mitigation.
 - The initial admin is created by `python -m auth.tools.seed` from `AUTH_ADMIN_EMAIL` and `AUTH_ADMIN_PASSWORD`, after the migration. It is idempotent: an existing account is never changed, so the seed cannot reset a password or role.
 
+### Events, roles and rate limits
+
+- `user.registered` (registration and the admin seed) and `user.role_changed` are written to the outbox table in the same transaction as the change, on topic `auth.events` keyed by user id (contracts in `libs/contracts`). A separate `auth-worker` container runs the relay, as `catalog-worker` does, so the API starts and answers `/ready` with only its database. The event carries the email because Accounts needs it for the backoffice list; it never carries a password or hash. The admin created before the outbox existed has no event; Accounts creates missing profiles on first use.
+- `PATCH /users/{id}/role` is admin only. The auth service validates the token with the same `libs/auth` verifier as every other service, fed by its own key store instead of an HTTP fetch. An admin cannot change their own role (`409`), so the last admin cannot lock everyone out. Repeating the current role is a `200` without an event. The target user keeps working with the old role until the next refresh (at most 15 minutes), because the role is read when a token pair is issued.
+- Traefik's `rateLimit` middleware limits `POST /login` (10 per minute, burst 10) and `POST /register` (5 per minute, burst 5) per source address. Limits: the counters live in the gateway process (not shared between gateway replicas), Docker Desktop makes every local client look like one address, the `429` is Traefik's plain-text body and not Problem Details, and nothing throttles a single account across many addresses.
+
 ## Consequences
 
 - Services keep working while auth is down, until the cached JWKS and the tokens expire.
 - A leaked refresh token is useful for at most 10 seconds after the legitimate client rotates it, and a replay later destroys the session, which is the intended signal.
 - Expired and revoked refresh tokens are not purged yet; a retention job belongs with the other cleanup work.
-- Account lockout per email is not implemented; throttling happens at the gateway.
+- Account lockout per email is not implemented; throttling happens at the gateway, per address.
