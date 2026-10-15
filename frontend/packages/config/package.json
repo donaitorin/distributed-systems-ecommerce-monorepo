@@ -1,0 +1,40 @@
+{
+  "name": "@ecommerce/config",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    "./eslint": "./eslint/index.mjs",
+    "./jest": "./jest/preset.cjs",
+    "./tsconfig/base.json": "./tsconfig/base.json",
+    "./tsconfig/react-library.json": "./tsconfig/react-library.json",
+    "./tsconfig/nextjs.json": "./tsconfig/nextjs.json",
+    "./styles/theme.css": "./styles/theme.css",
+    "./styles/base.css": "./styles/base.css",
+    "./check-comments": "./tools/check-comments.cjs"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "jest --coverage"
+  },
+  "dependencies": {
+    "@eslint/js": "9.39.5",
+    "@swc/core": "1.16.18",
+    "@swc/jest": "0.2.39",
+    "@testing-library/jest-dom": "7.0.1",
+    "eslint": "9.39.5",
+    "eslint-plugin-jsx-a11y": "6.10.2",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "eslint-plugin-storybook": "10.6.2",
+    "globals": "17.13.0",
+    "jest": "30.5.2",
+    "jest-axe": "11.0.0",
+    "jest-environment-jsdom": "30.5.2",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.2"
+  },
+  "devDependencies": {
+    "@types/jest": "30.0.0",
+    "@types/node": "24.19.2"
+  }
+}
