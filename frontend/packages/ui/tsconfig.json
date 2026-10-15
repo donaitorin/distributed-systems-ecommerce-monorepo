@@ -1,0 +1,7 @@
+{
+  "extends": "@ecommerce/config/tsconfig/react-library.json",
+  "compilerOptions": {
+    "types": ["node", "jest", "@testing-library/jest-dom"]
+  },
+  "include": ["src", ".storybook/*.ts", "scripts", "*.cjs", "*.mjs", "*.ts"]
+}
