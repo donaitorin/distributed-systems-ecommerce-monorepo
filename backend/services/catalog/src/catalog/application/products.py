@@ -108,30 +108,30 @@ class ProductService:
         precondition: VersionPrecondition,
     ) -> Product:
         data = build_product_data(name, description, category_id, price, stock, weight_kg)
-        normalized = _require_sku(sku)
+        normalized = require_sku(sku)
         async with self._unit_of_work() as uow:
-            await _lock_and_check(uow, normalized, precondition)
+            await lock_and_check(uow, normalized, precondition)
             await _require_known_category(uow, data.category_id)
             product = await uow.products.replace(normalized, data, self._clock())
             await uow.commit()
         return product
 
     async def delete(self, sku: str, precondition: VersionPrecondition) -> None:
-        normalized = _require_sku(sku)
+        normalized = require_sku(sku)
         async with self._unit_of_work() as uow:
-            await _lock_and_check(uow, normalized, precondition)
+            await lock_and_check(uow, normalized, precondition)
             await uow.products.soft_delete(normalized, self._clock())
             await uow.commit()
 
 
-def _require_sku(raw: str) -> str:
+def require_sku(raw: str) -> str:
     normalized = normalize_sku(raw)
     if normalized is None:
         raise ProductNotFoundError(raw)
     return normalized
 
 
-async def _lock_and_check(uow: UnitOfWork, sku: str, precondition: VersionPrecondition) -> Product:
+async def lock_and_check(uow: UnitOfWork, sku: str, precondition: VersionPrecondition) -> Product:
     current = await uow.products.get_for_update(sku)
     if current is None:
         raise ProductNotFoundError(sku)

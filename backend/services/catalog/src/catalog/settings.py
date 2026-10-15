@@ -5,6 +5,7 @@ from typing import Self
 from sqlalchemy import URL
 
 from ecommerce_auth import JwtSettings
+from ecommerce_storage import S3Settings
 
 DEFAULT_DATABASE_PORT = 5432
 DATABASE_DRIVER = "postgresql+asyncpg"
@@ -39,9 +40,25 @@ def search_timeout_from_env(environ: Mapping[str, str]) -> int:
 
 
 @dataclass(frozen=True, slots=True)
+class MediaSettings:
+    s3: S3Settings
+    bucket: str
+    public_base_url: str
+
+    @classmethod
+    def from_env(cls, environ: Mapping[str, str]) -> Self:
+        return cls(
+            s3=S3Settings.from_env(environ),
+            bucket=environ["OBJECT_STORAGE_MEDIA_BUCKET"],
+            public_base_url=environ["MEDIA_PUBLIC_BASE_URL"],
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class CatalogSettings:
     database_url: URL
     jwt: JwtSettings
+    media: MediaSettings
     log_level: str = "INFO"
     root_path: str = ""
     search_timeout_ms: int = DEFAULT_SEARCH_TIMEOUT_MS
@@ -51,6 +68,7 @@ class CatalogSettings:
         return cls(
             database_url=database_url_from_env(environ),
             jwt=JwtSettings.from_env(environ),
+            media=MediaSettings.from_env(environ),
             log_level=environ.get("LOG_LEVEL", "INFO"),
             root_path=environ.get("ROOT_PATH", ""),
             search_timeout_ms=search_timeout_from_env(environ),

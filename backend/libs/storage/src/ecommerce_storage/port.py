@@ -5,8 +5,14 @@ class InvalidObjectKeyError(ValueError):
     pass
 
 
+class ObjectStorageError(RuntimeError):
+    pass
+
+
 class ObjectStorage(Protocol):
-    async def put(self, key: str, data: bytes, content_type: str) -> None: ...
+    async def put(
+        self, key: str, data: bytes, content_type: str, cache_control: str | None = None
+    ) -> None: ...
 
     async def delete(self, key: str) -> None: ...
 

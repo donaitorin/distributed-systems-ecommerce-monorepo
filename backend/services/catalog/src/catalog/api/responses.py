@@ -5,9 +5,11 @@ from catalog.api.schemas import ProblemOut
 DESCRIPTIONS = {
     401: "Missing or invalid access token",
     403: "The token does not carry the admin role",
-    404: "Unknown or deleted SKU",
+    404: "Unknown or deleted SKU, or the product has no image",
     409: "Conflict with an existing resource",
     412: "If-Match does not match the current version",
+    413: "The upload exceeds the 5 MB limit",
+    415: "The upload is not multipart or not a JPEG, PNG or WebP image",
     422: "Invalid request data",
     428: "If-Match header is required",
     503: "The search exceeded its time limit; retry after the Retry-After delay",

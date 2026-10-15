@@ -68,3 +68,16 @@ async def test_invalid_keys_are_rejected(key: str) -> None:
         await storage.delete(key)
     with pytest.raises(InvalidObjectKeyError):
         storage.public_url(key)
+
+
+async def test_put_keeps_the_cache_control_when_given() -> None:
+    storage = InMemoryObjectStorage()
+
+    await storage.put("a", b"x", "image/webp", cache_control="public, max-age=60")
+    await storage.put("b", b"x", "image/webp")
+
+    first, second = storage.get("a"), storage.get("b")
+    assert first is not None
+    assert second is not None
+    assert first.cache_control == "public, max-age=60"
+    assert second.cache_control is None

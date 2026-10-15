@@ -9,6 +9,7 @@ async def test_openapi_documents_every_endpoint_and_the_problem_responses(
     assert set(spec["paths"]) == {
         "/api/v1/products",
         "/api/v1/products/{sku}",
+        "/api/v1/products/{sku}/image",
         "/api/v1/categories",
         "/health",
         "/ready",

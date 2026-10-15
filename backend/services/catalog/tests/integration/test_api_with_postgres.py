@@ -217,6 +217,10 @@ async def test_a_search_over_the_configured_time_limit_answers_503_over_http(
             "JWT_JWKS_URL": "http://dev-auth:8080/jwks.json",
             "JWT_ISSUER": "ecommerce-auth",
             "CATALOG_SEARCH_TIMEOUT_MS": "1",
+            "OBJECT_STORAGE_ACCESS_KEY": "access",
+            "OBJECT_STORAGE_SECRET_KEY": "secret",
+            "OBJECT_STORAGE_MEDIA_BUCKET": "media",
+            "MEDIA_PUBLIC_BASE_URL": "http://localhost:8000/media",
         }
     )
     settings = replace(settings, database_url=make_url(seeded_database_url))

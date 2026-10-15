@@ -33,3 +33,26 @@ class SearchTimeoutError(DomainError):
     def __init__(self, timeout_ms: int) -> None:
         super().__init__(f"search exceeded {timeout_ms} ms")
         self.timeout_ms = timeout_ms
+
+
+class UploadTooLargeError(DomainError):
+    def __init__(self, limit_bytes: int) -> None:
+        super().__init__(f"upload exceeds {limit_bytes} bytes")
+        self.limit_bytes = limit_bytes
+
+
+class UnsupportedMediaError(DomainError):
+    pass
+
+
+class InvalidUploadError(DomainError):
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code
+        self.message = message
+
+
+class ProductImageNotFoundError(DomainError):
+    def __init__(self, sku: str) -> None:
+        super().__init__(f"product {sku} has no image")
+        self.sku = sku

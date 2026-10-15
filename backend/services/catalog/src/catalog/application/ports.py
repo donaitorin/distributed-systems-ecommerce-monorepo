@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime
 from types import TracebackType
 from typing import Protocol, Self
@@ -13,6 +14,16 @@ from catalog.domain.listing import (
     Total,
 )
 from catalog.domain.product import Category, NewProduct, Product, ProductData
+
+
+@dataclass(frozen=True, slots=True)
+class ImageRenditions:
+    thumbnail: bytes
+    full: bytes
+
+
+class ImageProcessor(Protocol):
+    def render(self, data: bytes) -> ImageRenditions: ...
 
 
 class ProductRepository(Protocol):
@@ -31,6 +42,8 @@ class ProductRepository(Protocol):
     async def replace(self, sku: str, data: ProductData, now: datetime) -> Product: ...
 
     async def soft_delete(self, sku: str, now: datetime) -> None: ...
+
+    async def set_image(self, sku: str, image_key: str | None, now: datetime) -> Product: ...
 
 
 class CategoryRepository(Protocol):

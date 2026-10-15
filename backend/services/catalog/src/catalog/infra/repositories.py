@@ -156,6 +156,18 @@ class SqlProductRepository:
         )
         await self._session.execute(statement)
 
+    async def set_image(self, sku: str, image_key: str | None, now: datetime) -> Product:
+        statement = (
+            update(ProductModel)
+            .where(ProductModel.sku == sku, ProductModel.deleted_at.is_(None))
+            .values(image_key=image_key, version=ProductModel.version + 1, updated_at=now)
+        )
+        await self._session.execute(statement)
+        product = await self.get(sku)
+        if product is None:
+            raise ProductNotFoundError(sku)
+        return product
+
     @asynccontextmanager
     async def _bounded_search(self) -> AsyncIterator[None]:
         try:

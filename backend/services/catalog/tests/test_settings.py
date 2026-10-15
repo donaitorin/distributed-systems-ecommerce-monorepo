@@ -1,6 +1,6 @@
 import pytest
 
-from catalog.settings import CatalogSettings, database_url_from_env
+from catalog.settings import CatalogSettings, MediaSettings, database_url_from_env
 
 ENVIRON = {
     "CATALOG_DB_HOST": "postgres",
@@ -9,6 +9,11 @@ ENVIRON = {
     "CATALOG_DB_PASSWORD": "pw",
     "JWT_JWKS_URL": "http://dev-auth:8080/jwks.json",
     "JWT_ISSUER": "ecommerce-auth",
+    "OBJECT_STORAGE_ACCESS_KEY": "access",
+    "OBJECT_STORAGE_SECRET_KEY": "secret",
+    "OBJECT_STORAGE_ENDPOINT": "http://object-storage:8333",
+    "OBJECT_STORAGE_MEDIA_BUCKET": "media",
+    "MEDIA_PUBLIC_BASE_URL": "http://localhost:8000/media",
 }
 
 
@@ -82,3 +87,31 @@ def test_the_search_timeout_can_be_configured() -> None:
 def test_an_invalid_search_timeout_is_rejected(value: str) -> None:
     with pytest.raises(ValueError, match="CATALOG_SEARCH_TIMEOUT_MS"):
         CatalogSettings.from_env(ENVIRON | {"CATALOG_SEARCH_TIMEOUT_MS": value})
+
+
+def test_media_settings_come_from_the_object_storage_variables() -> None:
+    settings = CatalogSettings.from_env(ENVIRON)
+
+    assert settings.media == MediaSettings(
+        s3=settings.media.s3,
+        bucket="media",
+        public_base_url="http://localhost:8000/media",
+    )
+    assert settings.media.s3.endpoint_url == "http://object-storage:8333"
+    assert settings.media.s3.access_key == "access"
+
+
+@pytest.mark.parametrize(
+    "missing",
+    [
+        "OBJECT_STORAGE_ACCESS_KEY",
+        "OBJECT_STORAGE_SECRET_KEY",
+        "OBJECT_STORAGE_MEDIA_BUCKET",
+        "MEDIA_PUBLIC_BASE_URL",
+    ],
+)
+def test_the_media_variables_are_required(missing: str) -> None:
+    environ = {key: value for key, value in ENVIRON.items() if key != missing}
+
+    with pytest.raises(KeyError):
+        CatalogSettings.from_env(environ)

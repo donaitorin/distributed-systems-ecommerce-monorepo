@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import httpx
 import pytest
+from catalog_testing.support import media_settings
 from sqlalchemy import make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
@@ -21,6 +22,11 @@ UNREACHABLE_ENVIRON = {
     "CATALOG_DB_PASSWORD": "pw",
     "JWT_JWKS_URL": "http://dev-auth:8080/jwks.json",
     "JWT_ISSUER": "ecommerce-auth",
+    "OBJECT_STORAGE_ACCESS_KEY": "access",
+    "OBJECT_STORAGE_SECRET_KEY": "secret",
+    "OBJECT_STORAGE_ENDPOINT": "http://object-storage:8333",
+    "OBJECT_STORAGE_MEDIA_BUCKET": "media",
+    "MEDIA_PUBLIC_BASE_URL": "http://localhost:8000/media",
 }
 
 
@@ -28,6 +34,7 @@ def make_settings(**overrides: Any) -> CatalogSettings:
     return CatalogSettings(
         database_url=make_url(UNREACHABLE_DATABASE),
         jwt=JwtSettings(jwks_url="http://dev-auth:8080/jwks.json", issuer="ecommerce-auth"),
+        media=media_settings(),
         **overrides,
     )
 
