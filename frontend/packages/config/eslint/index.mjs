@@ -71,6 +71,34 @@ export const base = tseslint.config(
   },
 );
 
+export function withoutTypescriptPlugin(configs) {
+  return configs.map((config) => {
+    if (!config.plugins?.["@typescript-eslint"]) {
+      return config;
+    }
+    const plugins = Object.fromEntries(
+      Object.entries(config.plugins).filter(([name]) => name !== "@typescript-eslint"),
+    );
+    return { ...config, plugins };
+  });
+}
+
+export const nextRules = tseslint.config(
+  ...base,
+  {
+    files: ["**/*.{ts,tsx}"],
+    rules: {
+      ...jsxA11y.flatConfigs.strict.rules,
+      ...reactHooks.configs.flat["recommended-latest"].rules,
+    },
+  },
+  { files: ["**/*.{ts,tsx}"], languageOptions: { globals: globals.browser }, rules: stylingRules },
+  {
+    files: ["**/*.test.{ts,tsx}", "**/*.stories.{ts,tsx}"],
+    rules: { "no-restricted-syntax": "off" },
+  },
+);
+
 export const react = tseslint.config(
   ...base,
   jsxA11y.flatConfigs.strict,

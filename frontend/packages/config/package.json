@@ -11,7 +11,8 @@
     "./styles/theme.css": "./styles/theme.css",
     "./styles/base.css": "./styles/base.css",
     "./check-comments": "./tools/check-comments.cjs",
-    "./styles/fonts.css": "./styles/fonts.css"
+    "./styles/fonts.css": "./styles/fonts.css",
+    "./next": "./next/index.cjs"
   },
   "scripts": {
     "lint": "eslint .",
