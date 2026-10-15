@@ -8,6 +8,7 @@ from ecommerce_storage.urls import build_public_url
 class StoredObject:
     data: bytes
     content_type: str
+    cache_control: str | None = None
 
 
 class InMemoryObjectStorage:
@@ -15,8 +16,10 @@ class InMemoryObjectStorage:
         self._public_base_url = public_base_url
         self._objects: dict[str, StoredObject] = {}
 
-    async def put(self, key: str, data: bytes, content_type: str) -> None:
-        self._objects[validate_key(key)] = StoredObject(data=data, content_type=content_type)
+    async def put(
+        self, key: str, data: bytes, content_type: str, cache_control: str | None = None
+    ) -> None:
+        self._objects[validate_key(key)] = StoredObject(data, content_type, cache_control)
 
     async def delete(self, key: str) -> None:
         self._objects.pop(validate_key(key), None)

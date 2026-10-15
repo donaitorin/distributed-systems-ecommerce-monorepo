@@ -41,6 +41,7 @@ ecommerce-catalog = { workspace = true }
 line-length = 100
 target-version = "py313"
 src = [
+    "test_support",
     "libs/observability/src",
     "libs/contracts/src",
     "libs/auth/src",
@@ -65,13 +66,15 @@ mypy_path = [
     "libs/web/src",
     "services/catalog/src",
     "services/catalog/tests",
+    "test_support",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["libs", "services"]
-pythonpath = ["services/catalog/tests"]
+pythonpath = ["services/catalog/tests", "test_support"]
 markers = ["integration: needs Docker (Testcontainers)"]
 asyncio_mode = "auto"
+filterwarnings = ["ignore::PIL.Image.DecompressionBombWarning"]
 asyncio_default_fixture_loop_scope = "function"
 addopts = [
     "--import-mode=importlib",
