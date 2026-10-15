@@ -87,6 +87,20 @@ A search that exceeds `CATALOG_SEARCH_TIMEOUT_MS` (2000 by default) is cancelled
 
 `make seed` loads synthetic products (`COUNT=200000` by default) so search and pagination can be tried at volume. It is safe to run twice: existing `SEED-` SKUs are skipped, and a larger `COUNT` only adds the missing ones.
 
+### Product images
+
+Admins attach one image per product. Changing it changes the product, so both calls need an admin token and `If-Match`, and both return the product with its new `ETag`.
+
+```bash
+TOKEN=$(make -s dev-token)
+curl -s -X PUT localhost:8000/api/v1/products/DEMO-1/image \
+  -H "Authorization: Bearer $TOKEN" -H 'If-Match: "1"' -F "file=@photo.jpg"
+curl -s -X DELETE localhost:8000/api/v1/products/DEMO-1/image \
+  -H "Authorization: Bearer $TOKEN" -H 'If-Match: "2"'
+```
+
+The response has `image_url` (1200 px) and `thumbnail_url` (400 px), both WebP, served through the gateway under `/media/` with a one-year immutable cache header. Open `image_url` in the browser to see the result. Only JPEG, PNG and WebP are accepted, checked by content and not by file name, up to 5 MB and 25 megapixels (`413`, `415` and `422` otherwise). EXIF, GPS and ICC color profiles are removed. If object storage is down, only these two endpoints fail (`503` with `Retry-After`); catalog stays ready. The design is in [ADR 0003](docs/adr/0003-product-images.md).
+
 ## Commands
 
 | Command | Description |
