@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import pytest
 from catalog_testing.listing import BASE, Catalog, create_catalog
-from conftest import SEEDED_PRODUCT_COUNT
+from catalog_testing.support import SEEDED_PRODUCT_COUNT
 from sqlalchemy import make_url, text
 from sqlalchemy.ext.asyncio import AsyncSession
 

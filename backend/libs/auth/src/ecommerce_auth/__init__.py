@@ -7,7 +7,7 @@ from ecommerce_auth.dependencies import (
     require_role,
 )
 from ecommerce_auth.errors import AuthError, ForbiddenError, InvalidTokenError, KeysUnavailableError
-from ecommerce_auth.jwks import JwksClient
+from ecommerce_auth.jwks import JwksClient, SigningKeyProvider
 from ecommerce_auth.roles import Role
 from ecommerce_auth.settings import DEFAULT_AUDIENCE, JwtSettings
 from ecommerce_auth.verifier import (
@@ -31,6 +31,7 @@ __all__ = [
     "KeysUnavailableError",
     "ManagedTokenVerifier",
     "Role",
+    "SigningKeyProvider",
     "TokenVerifier",
     "create_token_verifier",
     "get_current_user",

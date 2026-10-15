@@ -1,0 +1,14 @@
+{
+  "event_id": "7b0f5a52-5c0e-4d8e-9a8e-1f3e6a7c9b01",
+  "event_type": "user.registered",
+  "event_version": 1,
+  "occurred_at": "2026-10-15T21:00:00Z",
+  "correlation_id": "0c5a9d86-2c8e-4d7e-a0a3-5b6c1b8f2d44",
+  "producer": "auth-service",
+  "payload": {
+    "user_id": "3f2b8c1e-6d4a-4f7e-8a21-0b9c5d7e1a02",
+    "email": "ada@example.com",
+    "role": "customer",
+    "registered_at": "2026-10-15T21:00:00Z"
+  }
+}

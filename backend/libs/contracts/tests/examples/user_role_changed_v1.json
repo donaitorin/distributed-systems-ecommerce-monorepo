@@ -1,0 +1,15 @@
+{
+  "event_id": "8c1a6b63-6d1f-4e9f-8b9f-2a4f7b8d0c02",
+  "event_type": "user.role_changed",
+  "event_version": 1,
+  "occurred_at": "2026-10-15T22:00:00Z",
+  "correlation_id": "1d6bae97-3d9f-4e8f-b1b4-6c7d2c9a3e55",
+  "producer": "auth-service",
+  "payload": {
+    "user_id": "3f2b8c1e-6d4a-4f7e-8a21-0b9c5d7e1a02",
+    "old_role": "customer",
+    "new_role": "admin",
+    "changed_by": "5a7c9e1b-2d4f-4a6c-8e0a-1b3d5f7a9c03",
+    "changed_at": "2026-10-15T22:00:00Z"
+  }
+}

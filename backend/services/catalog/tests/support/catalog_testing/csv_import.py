@@ -36,7 +36,7 @@ CATEGORY_NAMES = (
     "Stationery",
     "Tools",
 )
-SAMPLE_FILE = Path(__file__).resolve().parents[5] / "data" / "sample-products.csv"
+SAMPLE_FILE = Path(__file__).resolve().parents[6] / "data" / "sample-products.csv"
 BLANK = ["", "", "", "", "", "", ""]
 
 

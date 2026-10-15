@@ -3,7 +3,7 @@ WORKER_ENVIRON = {
     "CATALOG_DB_NAME": "catalog_db",
     "CATALOG_DB_USER": "catalog_user",
     "CATALOG_DB_PASSWORD": "pw",
-    "JWT_JWKS_URL": "http://dev-auth:8080/jwks.json",
+    "JWT_JWKS_URL": "http://auth:8000/jwks.json",
     "JWT_ISSUER": "ecommerce-auth",
     "OBJECT_STORAGE_ACCESS_KEY": "access",
     "OBJECT_STORAGE_SECRET_KEY": "secret",

@@ -32,20 +32,40 @@ All ports are bound to `127.0.0.1` and can be changed in `.env`.
 | Kafka UI | `kafka-ui` | 8088 |
 | Object storage S3 API (SeaweedFS) | `object-storage` | 19000 |
 
-One-shot jobs `kafka-init`, `object-storage-init` and `catalog-migrate` create the topics and buckets and apply database migrations, then exit.
+One-shot jobs `kafka-init`, `object-storage-init`, `auth-migrate` and `catalog-migrate` create the topics and buckets and apply database migrations, then exit. `auth-migrate` also seeds the initial admin. `auth-worker` and `catalog-worker` relay outbox events to Kafka.
 
 ## Services
 
 | Service | Container | Reachable through the gateway |
 | --- | --- | --- |
+| Auth | `auth` | `/api/v1/auth/*`, and `/auth/docs`, `/auth/health`, `/auth/ready` |
 | Catalog | `catalog` | `/api/v1/products`, `/api/v1/categories`, and `/catalog/docs`, `/catalog/health`, `/catalog/ready` |
-| Dev auth (temporary, removed when the auth service lands) | `dev-auth` | Internal only: serves the public JWKS that catalog trusts |
 
-`dev-auth` generates an RSA key pair into a Docker volume on first start. Nothing secret is stored in the repository.
+The auth service generates its RSA signing key into a Docker volume on first start, and catalog (and every other service) validates tokens against its JWKS. Nothing secret is stored in the repository.
+
+## Auth API
+
+| Endpoint | Description |
+| --- | --- |
+| `POST /api/v1/auth/register` | Creates a `customer` account and returns `{id, email, role}` (no tokens). `409` if the email exists, `422` for an invalid email or password |
+| `POST /api/v1/auth/login` | Returns `{access_token, refresh_token, token_type, expires_in}`. Unknown email and wrong password give the same `401` |
+| `POST /api/v1/auth/refresh` | Body `{refresh_token}`. Rotates the pair; the old refresh token stops working |
+| `POST /api/v1/auth/logout` | Body `{refresh_token}`. Revokes the whole session; always `204` |
+| `GET /api/v1/auth/.well-known/jwks.json` | Public signing keys (cached for 5 minutes) |
+| `PATCH /api/v1/auth/users/{id}/role` | Admin only. Body `{role}` (`customer` or `admin`). `409` when an admin changes their own role, `404` for an unknown user, `200` without an event when the role is already that value |
+
+```bash
+curl -s -X POST localhost:8000/api/v1/auth/register -H "Content-Type: application/json" \
+  -d '{"email": "ada@example.com", "password": "correct horse battery"}'
+curl -s -X POST localhost:8000/api/v1/auth/login -H "Content-Type: application/json" \
+  -d '{"email": "ada@example.com", "password": "correct horse battery"}'
+```
+
+Access tokens are RS256 JWTs that live 15 minutes; any service validates them locally against the JWKS. Refresh tokens are opaque, live 7 days (30 days at most per session) and are stored only as a SHA-256 hash. Tokens are returned in the JSON body: the frontend keeps them in `httpOnly` cookies. Passwords are hashed with Argon2id and must have 10 to 128 characters and not be a common password; there are no composition rules. Emails are trimmed and lowercased. The initial admin comes from `AUTH_ADMIN_EMAIL` and `AUTH_ADMIN_PASSWORD` in `.env`. Reusing a rotated refresh token is rejected; after a 10 second grace window it revokes the whole session. `POST /register` publishes `user.registered` and a role change publishes `user.role_changed` on the `auth.events` topic (key: user id) through the transactional outbox; the `auth-worker` container relays them to Kafka, so registration works while Kafka is down and the events leave when it is back. The gateway limits `POST /login` to 10 requests per minute and `POST /register` to 5 per minute per client address (`429`, with a burst equal to the rate). The design, the signing key rotation procedure and the trade-offs are in [ADR 0005](docs/adr/0005-auth-tokens-and-signing-keys.md).
 
 ## Catalog API
 
-Reads are public. Creating, replacing and deleting products and creating categories need an admin token. Until the auth service exists, `make dev-token` prints one signed by the `dev-auth` container (`ROLE=customer make dev-token` prints a customer token).
+Reads are public. Creating, replacing and deleting products and creating categories need an admin token. `make dev-token` logs in as the seeded admin and prints the access token (`ROLE=customer make dev-token` logs in as a dev customer, registering `dev-customer@example.com` the first time).
 
 ```bash
 TOKEN=$(make -s dev-token)
@@ -171,7 +191,7 @@ Uploading the same file twice returns the existing import (`200`). Rows are upse
 | `make logs SERVICE=kafka` | Follow logs, optionally for one service |
 | `make ps` | List containers and their health |
 | `make seed COUNT=200000` | Load synthetic products into the catalog (idempotent) |
-| `make dev-token` | Print an admin JWT for the catalog API (temporary, until the auth service) |
+| `make dev-token` | Log in through the gateway and print an access token (`ROLE=customer` for a customer) |
 | `make test-backend` | Backend tests with coverage (integration tests need Docker) |
 | `make test-backend-unit` | Backend tests without Docker |
 | `make lint-backend` | Ruff, format check and mypy |

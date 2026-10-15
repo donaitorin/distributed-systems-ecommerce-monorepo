@@ -214,7 +214,7 @@ async def test_a_search_over_the_configured_time_limit_answers_503_over_http(
             "CATALOG_DB_NAME": "unused",
             "CATALOG_DB_USER": "unused",
             "CATALOG_DB_PASSWORD": "unused",
-            "JWT_JWKS_URL": "http://dev-auth:8080/jwks.json",
+            "JWT_JWKS_URL": "http://auth:8000/jwks.json",
             "JWT_ISSUER": "ecommerce-auth",
             "CATALOG_SEARCH_TIMEOUT_MS": "1",
             "OBJECT_STORAGE_ACCESS_KEY": "access",

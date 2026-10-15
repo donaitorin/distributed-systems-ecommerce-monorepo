@@ -3,6 +3,7 @@ import time
 import httpx
 import jwt
 import pytest
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
 from ecommerce_auth import (
     DEFAULT_AUDIENCE,
@@ -196,3 +197,28 @@ async def test_managed_verifier_closes_its_http_client() -> None:
     await managed.aclose()
 
     assert managed.http_client.is_closed
+
+
+class InMemoryKeys:
+    def __init__(self, issuer: StubTokenIssuer) -> None:
+        self._issuer = issuer
+
+    async def get_key(self, kid: str) -> RSAPublicKey:
+        if kid != self._issuer.kid:
+            raise jwt.InvalidKeyError(f"unknown signing key: {kid}")
+        return self._issuer.private_key.public_key()
+
+
+async def test_any_key_provider_can_back_the_verifier(issuer: StubTokenIssuer) -> None:
+    verifier = TokenVerifier(stub_settings(), InMemoryKeys(issuer))
+
+    user = await verifier.verify(issuer.issue(subject="user-1", role=Role.ADMIN))
+
+    assert user == AuthenticatedUser(user_id="user-1", role=Role.ADMIN)
+
+
+async def test_a_key_provider_that_does_not_know_the_kid_rejects_the_token() -> None:
+    verifier = TokenVerifier(stub_settings(), InMemoryKeys(StubTokenIssuer(kid="other")))
+
+    with pytest.raises(InvalidTokenError):
+        await verifier.verify(StubTokenIssuer().issue())
