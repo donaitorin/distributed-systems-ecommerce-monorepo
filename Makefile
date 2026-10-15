@@ -1,6 +1,6 @@
 COMPOSE := docker compose
 UV_BACKEND := uv --directory backend
-LONG_RUNNING := postgres redis-cart redis-cache kafka kafka-ui object-storage gateway auth auth-worker accounts catalog catalog-worker
+LONG_RUNNING := postgres redis-cart redis-cache kafka kafka-ui object-storage gateway auth auth-worker accounts accounts-worker catalog catalog-worker
 
 .PHONY: up down logs ps dev-token seed test-backend test-backend-unit lint-backend format-backend check-comments
 
