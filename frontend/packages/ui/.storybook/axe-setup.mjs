@@ -8,16 +8,40 @@ const AXE_OPTIONS = {
   },
 };
 
+const watched = new WeakSet();
+const unexpected = new WeakMap();
+
 function describeViolation(violation) {
   const targets = violation.nodes.map((node) => node.target.join(" ")).join(", ");
   return `${violation.id} (${violation.impact}): ${violation.help}\n  ${targets}`;
 }
 
+function watch(page) {
+  if (watched.has(page)) {
+    return;
+  }
+  watched.add(page);
+  unexpected.set(page, []);
+  const record = (message) => {
+    process.stderr.write(`test-storybook: ${message}\n`);
+    unexpected.get(page)?.push(message);
+  };
+  page.on("pageerror", (error) => {
+    record(`uncaught error in the page: ${error.message}`);
+  });
+}
+
 setPreVisit(async (page) => {
+  watch(page);
+  unexpected.set(page, []);
   await injectAxe(page);
 });
 
-setPostVisit(async (page) => {
+setPostVisit(async (page, context) => {
+  const problems = unexpected.get(page) ?? [];
+  if (problems.length > 0) {
+    throw new Error(`${context.id}: ${problems.join("\n")}`);
+  }
   const violations = await getViolations(page, "body", AXE_OPTIONS);
   if (violations.length > 0) {
     throw new Error(`Accessibility violations:\n${violations.map(describeViolation).join("\n")}`);
