@@ -99,6 +99,10 @@ describe("token usage in component sources", () => {
     expect(files.length).toBeGreaterThan(10);
   });
 
+  it.each(["apps/store/src", "apps/backoffice/src"])("scans %s", (directory) => {
+    expect(files.some((file) => relative(FRONTEND, file).startsWith(directory))).toBe(true);
+  });
+
   it.each(files.map((file) => [relative(FRONTEND, file), file]))("%s uses only valid tokens", (_name, file) => {
     expect(violations(readFileSync(file, "utf8"))).toEqual([]);
   });

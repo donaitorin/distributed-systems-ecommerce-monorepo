@@ -38,3 +38,5 @@ coverage/
 *.tfstate
 *.tfstate.*
 .terraform/
+
+next-env.d.ts
