@@ -103,7 +103,7 @@ The response has `image_url` (1200 px) and `thumbnail_url` (400 px), both WebP, 
 
 ### CSV import rules
 
-`data/sample-products.csv` (downloaded Thursday 15 October 2026) is committed on purpose: it is seeded with edge cases and the tests run the whole file. The parsing and validation core is pure code in `catalog.domain.csv_import` (no I/O); the upload, confirmation and worker flow is built on top of it.
+`data/sample-products.csv` (downloaded Thursday 15 October 2026) is committed on purpose: it is seeded with edge cases and the tests run the whole file. The parsing and validation core is pure code in `catalog.domain.csv_import` (no I/O); the upload, confirmation and worker flow is built on top of it (see below).
 
 Required columns are `name`, `sku`, `price` and `stock`; `description`, `category` and `weight_kg` are optional. Column names ignore case and spaces, order does not matter, and unknown or repeated columns reject the file. Row numbers are spreadsheet rows: the header is row 1, and a quoted cell with line breaks is still one row.
 
@@ -134,6 +134,33 @@ Every problem carries the row, the column, the received value and the reason, se
 | 56 | sku | warning | `BS-021` | replaced by row 89, the last row with this SKU |
 
 97 rows = 2 blank + 4 with errors + 3 skipped (rows 2 and 56 replaced by later rows, row 11 identical to the winning row 89) + 88 importable products.
+
+### Importing a CSV
+
+Nothing is written to the catalog until an admin confirms. The file is validated in the background by the `catalog-worker` container, which talks to Kafka; the API itself only needs Postgres and the object store.
+
+```bash
+TOKEN=$(make -s dev-token)
+curl -s -X POST localhost:8000/api/v1/imports -H "Authorization: Bearer $TOKEN" \
+  -F "file=@data/sample-products.csv"                         # 202, status "uploaded"
+curl -s localhost:8000/api/v1/imports/<id> -H "Authorization: Bearer $TOKEN"
+                                                               # wait for status "validated": counts + first problems
+curl -s localhost:8000/api/v1/imports/<id>/problems.csv -H "Authorization: Bearer $TOKEN"
+curl -s -X POST localhost:8000/api/v1/imports/<id>/confirm -H "Authorization: Bearer $TOKEN"
+                                                               # 202, status "queued" -> "processing" -> "completed"
+curl -s 'localhost:8000/api/v1/products?q=yoga+block'
+```
+
+| Status | Meaning |
+| --- | --- |
+| `uploaded`, `validating` | Stored and hashed; the worker is checking every row |
+| `validated` | The report is ready; the admin can fix the file and upload it again, or confirm to import only the valid rows |
+| `rejected` | The whole file is unusable (not UTF-8 text, missing columns, ...); every document problem is listed |
+| `queued`, `processing` | Confirmed; the worker upserts in batches of 1000 and `progress` grows |
+| `completed` | `progress` has the created, updated, restored and unchanged counts |
+| `failed` | A worker error survived its retries (the message is in the dead letter topic); `failure_reason` says why |
+
+Uploading the same file twice returns the existing import (`200`). Rows are upserted by SKU: existing products are updated (and their version bumped only if something changed), soft-deleted ones are restored, and images are never touched. Files are limited by `IMPORT_MAX_BYTES` (50 MB by default). The design, including the reusable messaging library, is in [ADR 0004](docs/adr/0004-csv-import-and-messaging-core.md).
 
 ## Commands
 
