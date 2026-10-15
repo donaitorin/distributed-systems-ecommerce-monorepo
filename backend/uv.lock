@@ -4,6 +4,7 @@ requires-python = "==3.13.*"
 
 [manifest]
 members = [
+    "ecommerce-accounts-service",
     "ecommerce-auth",
     "ecommerce-auth-service",
     "ecommerce-backend",
@@ -425,6 +426,35 @@ wheels = [
 ]
 
 [[package]]
+name = "ecommerce-accounts-service"
+version = "0.1.0"
+source = { editable = "services/accounts" }
+dependencies = [
+    { name = "alembic" },
+    { name = "asyncpg" },
+    { name = "ecommerce-auth" },
+    { name = "ecommerce-contracts" },
+    { name = "ecommerce-messaging" },
+    { name = "ecommerce-observability" },
+    { name = "ecommerce-web" },
+    { name = "sqlalchemy", extra = ["asyncio"] },
+    { name = "uvicorn" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "alembic", specifier = ">=1.14" },
+    { name = "asyncpg", specifier = ">=0.30" },
+    { name = "ecommerce-auth", editable = "libs/auth" },
+    { name = "ecommerce-contracts", editable = "libs/contracts" },
+    { name = "ecommerce-messaging", editable = "libs/messaging" },
+    { name = "ecommerce-observability", editable = "libs/observability" },
+    { name = "ecommerce-web", editable = "libs/web" },
+    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0" },
+    { name = "uvicorn", specifier = ">=0.32" },
+]
+
+[[package]]
 name = "ecommerce-auth"
 version = "0.1.0"
 source = { editable = "libs/auth" }
@@ -479,6 +509,7 @@ name = "ecommerce-backend"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "ecommerce-accounts-service" },
     { name = "ecommerce-auth" },
     { name = "ecommerce-auth-service" },
     { name = "ecommerce-catalog" },
@@ -503,6 +534,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "ecommerce-accounts-service", editable = "services/accounts" },
     { name = "ecommerce-auth", editable = "libs/auth" },
     { name = "ecommerce-auth-service", editable = "services/auth" },
     { name = "ecommerce-catalog", editable = "services/catalog" },

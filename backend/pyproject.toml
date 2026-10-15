@@ -11,6 +11,7 @@ dependencies = [
     "ecommerce-web",
     "ecommerce-catalog",
     "ecommerce-auth-service",
+    "ecommerce-accounts-service",
 ]
 
 [dependency-groups]
@@ -40,6 +41,7 @@ ecommerce-storage = { workspace = true }
 ecommerce-web = { workspace = true }
 ecommerce-catalog = { workspace = true }
 ecommerce-auth-service = { workspace = true }
+ecommerce-accounts-service = { workspace = true }
 
 [tool.ruff]
 line-length = 100
@@ -54,6 +56,7 @@ src = [
     "libs/web/src",
     "services/catalog/src",
     "services/auth/src",
+    "services/accounts/src",
 ]
 
 [tool.ruff.lint]
@@ -73,14 +76,22 @@ mypy_path = [
     "libs/web/src",
     "services/catalog/src",
     "services/auth/src",
+    "services/accounts/src",
     "services/catalog/tests/support",
     "services/auth/tests/support",
+    "services/accounts/tests/support",
     "test_support",
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["libs", "services"]
-pythonpath = ["services/catalog/tests/support", "services/auth/tests/support", "test_support"]
+testpaths = ["libs", "services", "../scripts/tests"]
+pythonpath = [
+    "services/catalog/tests/support",
+    "services/auth/tests/support",
+    "services/accounts/tests/support",
+    "test_support",
+    "../scripts",
+]
 markers = ["integration: needs Docker (Testcontainers)"]
 asyncio_mode = "auto"
 filterwarnings = ["ignore::PIL.Image.DecompressionBombWarning"]
