@@ -10,6 +10,7 @@ DESCRIPTIONS = {
     412: "If-Match does not match the current version",
     422: "Invalid request data",
     428: "If-Match header is required",
+    503: "The search exceeded its time limit; retry after the Retry-After delay",
 }
 
 

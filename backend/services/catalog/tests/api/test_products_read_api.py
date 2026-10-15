@@ -2,7 +2,7 @@ from urllib.parse import unquote
 
 import httpx
 import pytest
-from catalog_testing.support import valid_product
+from catalog_testing.support import SteppingClock, valid_product
 
 
 async def create(client: httpx.AsyncClient, admin: dict[str, str], **overrides: object) -> None:
@@ -14,14 +14,21 @@ async def test_list_is_public_and_empty_at_first(client: httpx.AsyncClient) -> N
     response = await client.get("/api/v1/products")
 
     assert response.status_code == 200
-    assert response.json() == {"items": [], "next_cursor": None}
+    assert response.json() == {
+        "items": [],
+        "next_cursor": None,
+        "prev_cursor": None,
+        "total": 0,
+        "total_exact": True,
+    }
 
 
-async def test_list_is_sorted_by_sku_and_hides_deleted_products(
-    client: httpx.AsyncClient, admin: dict[str, str]
+async def test_list_shows_the_newest_first_and_hides_deleted_products(
+    client: httpx.AsyncClient, admin: dict[str, str], clock: SteppingClock
 ) -> None:
     for sku in ("C-1", "A-1", "B-1"):
         await create(client, admin, sku=sku)
+        clock.advance()
     await client.delete("/api/v1/products/B-1", headers=admin | {"If-Match": "*"})
 
     response = await client.get("/api/v1/products")
@@ -29,17 +36,25 @@ async def test_list_is_sorted_by_sku_and_hides_deleted_products(
     assert [item["sku"] for item in response.json()["items"]] == ["A-1", "C-1"]
 
 
-async def test_list_respects_the_limit(client: httpx.AsyncClient, admin: dict[str, str]) -> None:
-    for sku in ("A-1", "B-1", "C-1"):
-        await create(client, admin, sku=sku)
+async def test_list_respects_the_limit(
+    client: httpx.AsyncClient, admin: dict[str, str], clock: SteppingClock
+) -> None:
+    for index in range(13):
+        await create(client, admin, sku=f"P-{index:02d}")
+        clock.advance()
 
-    response = await client.get("/api/v1/products", params={"limit": 2})
+    response = await client.get("/api/v1/products", params={"limit": 12})
 
-    assert [item["sku"] for item in response.json()["items"]] == ["A-1", "B-1"]
+    body = response.json()
+    assert len(body["items"]) == 12
+    assert body["next_cursor"] is not None
+    assert body["total"] == 13
 
 
-@pytest.mark.parametrize("limit", ["0", "101", "-1", "abc"])
-async def test_list_rejects_an_invalid_limit(client: httpx.AsyncClient, limit: str) -> None:
+@pytest.mark.parametrize("limit", ["0", "2", "100", "-1", "abc"])
+async def test_list_rejects_a_limit_outside_the_allowed_page_sizes(
+    client: httpx.AsyncClient, limit: str
+) -> None:
     response = await client.get("/api/v1/products", params={"limit": limit})
 
     assert response.status_code == 422

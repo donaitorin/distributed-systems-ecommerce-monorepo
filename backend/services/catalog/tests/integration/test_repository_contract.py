@@ -1,10 +1,8 @@
-from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import uuid4
 
 import pytest
-from catalog_testing.support import SEEDED_CATEGORIES
 
 from catalog.application.errors import (
     DuplicateCategoryError,
@@ -12,28 +10,10 @@ from catalog.application.errors import (
     UnknownCategoryError,
 )
 from catalog.application.ports import UnitOfWorkFactory
+from catalog.domain.listing import PageRequest, ProductFilters, Sort
 from catalog.domain.product import NewProduct, ProductData
-from catalog.infra.database import create_engine, create_session_factory
-from catalog.infra.memory import InMemoryStore, InMemoryUnitOfWork
-from catalog.infra.unit_of_work import SqlAlchemyUnitOfWork
 
 NOW = datetime(2026, 10, 14, 12, 0, tzinfo=UTC)
-
-
-@pytest.fixture(
-    params=["memory", pytest.param("sql", marks=pytest.mark.integration)],
-)
-async def unit_of_work(request: pytest.FixtureRequest) -> AsyncIterator[UnitOfWorkFactory]:
-    if request.param == "memory":
-        store = InMemoryStore()
-        store.seed_categories(*SEEDED_CATEGORIES)
-        yield lambda: InMemoryUnitOfWork(store)
-        return
-    url: str = request.getfixturevalue("migrated_database_url")
-    engine = create_engine(url)
-    session_factory = create_session_factory(engine)
-    yield lambda: SqlAlchemyUnitOfWork(session_factory)
-    await engine.dispose()
 
 
 def unique_sku() -> str:
@@ -168,25 +148,10 @@ async def test_soft_deleted_products_disappear_but_keep_their_sku(
     async with unit_of_work() as uow:
         assert await uow.products.get(candidate.sku) is None
         assert await uow.products.get_for_update(candidate.sku) is None
-        assert candidate.sku not in [item.sku for item in await uow.products.list(1000)]
+        listed = await uow.products.search(ProductFilters(), Sort.NEWEST, PageRequest(1000))
+        assert candidate.sku not in [row.product.sku for row in listed.rows]
         with pytest.raises(DuplicateSkuError):
             await uow.products.add(new_product(candidate.sku), NOW)
-
-
-async def test_list_is_ordered_by_sku_and_limited(unit_of_work: UnitOfWorkFactory) -> None:
-    prefix = unique_sku()
-    skus = [f"{prefix}-{letter}" for letter in "CAB"]
-    async with unit_of_work() as uow:
-        for sku in skus:
-            await uow.products.add(new_product(sku), NOW)
-        await uow.commit()
-
-    async with unit_of_work() as uow:
-        listed = [item.sku for item in await uow.products.list(1000) if item.sku.startswith(prefix)]
-        first_page = await uow.products.list(1)
-
-    assert listed == sorted(skus)
-    assert len(first_page) == 1
 
 
 async def test_categories_are_listed_added_and_unique(unit_of_work: UnitOfWorkFactory) -> None:

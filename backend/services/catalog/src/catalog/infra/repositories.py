@@ -1,19 +1,41 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import Select, func, select, update
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from catalog.application.errors import (
     DuplicateCategoryError,
     DuplicateSkuError,
     ProductNotFoundError,
+    SearchTimeoutError,
     UnknownCategoryError,
 )
+from catalog.domain.listing import (
+    ListedProduct,
+    PageRequest,
+    ProductFilters,
+    SearchResult,
+    Sort,
+    TextMode,
+    Total,
+)
 from catalog.domain.product import Category, NewProduct, Product, ProductData
+from catalog.infra.explain import ExplainJson, parse_plan
 from catalog.infra.models import CategoryModel, ProductModel
+from catalog.infra.search import (
+    COUNT_CAP,
+    build_matching_ids,
+    build_search_statement,
+    build_text_probe,
+    statement_timeout_statement,
+    trigram_threshold_statement,
+)
 
+QUERY_CANCELED = "57014"
 SKU_CONSTRAINT = "uq_products_sku"
 CATEGORY_FOREIGN_KEY = "fk_products_category_id_categories"
 
@@ -40,8 +62,10 @@ def to_product(model: ProductModel, category: CategoryModel | None) -> Product:
 
 
 class SqlProductRepository:
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, search_timeout_ms: int) -> None:
         self._session = session
+        self._search_timeout_ms = search_timeout_ms
+        self._timeout_applied = False
 
     async def get(self, sku: str) -> Product | None:
         return await self._fetch_one(sku, lock=False)
@@ -49,15 +73,31 @@ class SqlProductRepository:
     async def get_for_update(self, sku: str) -> Product | None:
         return await self._fetch_one(sku, lock=True)
 
-    async def list(self, limit: int) -> list[Product]:
-        statement = (
-            self._select_active()
-            .order_by(ProductModel.sku)
-            .limit(limit)
-            .execution_options(populate_existing=True)
-        )
-        rows = (await self._session.execute(statement)).all()
-        return [to_product(product, category) for product, category in rows]
+    async def search(self, filters: ProductFilters, sort: Sort, page: PageRequest) -> SearchResult:
+        async with self._bounded_search():
+            mode = await self._prepare_text_search(filters, page.mode)
+            statement = build_search_statement(filters, sort, page, mode)
+            rows = (
+                await self._session.execute(statement.execution_options(populate_existing=True))
+            ).all()
+        listed = [
+            ListedProduct(to_product(product, category), score) for product, category, score in rows
+        ]
+        return SearchResult(listed, mode)
+
+    async def count(self, filters: ProductFilters, mode: TextMode | None) -> Total:
+        async with self._bounded_search():
+            resolved = await self._prepare_text_search(filters, mode)
+            matching = build_matching_ids(filters, resolved)
+            plan = parse_plan(await self._session.scalar(ExplainJson(matching)))
+            estimate = int(plan["Plan Rows"])
+            if estimate > COUNT_CAP:
+                return Total(estimate, exact=False)
+            capped = select(func.count()).select_from(matching.limit(COUNT_CAP + 1).subquery())
+            counted = int(await self._session.scalar(capped) or 0)
+        if counted > COUNT_CAP:
+            return Total(max(estimate, counted), exact=False)
+        return Total(counted, exact=True)
 
     async def add(self, new_product: NewProduct, now: datetime) -> Product:
         data = new_product.data
@@ -115,6 +155,31 @@ class SqlProductRepository:
             .values(deleted_at=now, updated_at=now, version=ProductModel.version + 1)
         )
         await self._session.execute(statement)
+
+    @asynccontextmanager
+    async def _bounded_search(self) -> AsyncIterator[None]:
+        try:
+            if not self._timeout_applied:
+                await self._session.execute(statement_timeout_statement(self._search_timeout_ms))
+                self._timeout_applied = True
+            yield
+        except DBAPIError as error:
+            if getattr(error.orig, "sqlstate", None) == QUERY_CANCELED:
+                raise SearchTimeoutError(self._search_timeout_ms) from error
+            raise
+
+    async def _prepare_text_search(
+        self, filters: ProductFilters, requested: TextMode | None
+    ) -> TextMode | None:
+        if filters.query is None:
+            return None
+        mode = requested
+        if mode is None:
+            found = await self._session.scalar(build_text_probe(filters))
+            mode = TextMode.FULL_TEXT if found else TextMode.TRIGRAM
+        if mode is TextMode.TRIGRAM:
+            await self._session.execute(trigram_threshold_statement())
+        return mode
 
     def _select_active(self) -> Select[ProductModel, CategoryModel]:
         return (

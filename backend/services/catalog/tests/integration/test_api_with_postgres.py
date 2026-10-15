@@ -1,14 +1,17 @@
 import asyncio
 from collections.abc import AsyncIterator
+from dataclasses import replace
 from typing import Any
 
 import httpx
 import pytest
 from catalog_testing.support import bearer, build_test_app, http_client, valid_product
-from sqlalchemy import text
+from sqlalchemy import make_url, text
 
 from catalog.infra.database import create_engine, create_session_factory
 from catalog.infra.unit_of_work import SqlAlchemyUnitOfWork
+from catalog.main import create_catalog_app
+from catalog.settings import CatalogSettings
 from ecommerce_auth import Role
 from ecommerce_auth.testing import StubTokenIssuer
 
@@ -155,6 +158,73 @@ async def test_the_listing_reflects_what_was_written(
     sku = sku_for("listing")
     await client.post("/api/v1/products", json=valid_product(sku=sku), headers=admin)
 
-    listing = (await client.get("/api/v1/products", params={"limit": 100})).json()
+    listing = (await client.get("/api/v1/products", params={"limit": 12})).json()
 
     assert sku in [item["sku"] for item in listing["items"]]
+
+
+async def test_every_page_of_a_search_over_http_is_complete_and_free_of_duplicates(
+    real_client: tuple[httpx.AsyncClient, str], issuer: StubTokenIssuer
+) -> None:
+    client, _ = real_client
+    admin = bearer(issuer, Role.ADMIN)
+    categories = (await client.get("/api/v1/categories")).json()
+    toys = next(item for item in categories if item["slug"] == "games")
+    prefix = f"WALK{abs(hash('walk')) % 10**6}"
+    for index in range(40):
+        body = valid_product(
+            sku=f"{prefix}-{index:02d}",
+            name="Walking Boots",
+            description="Waterproof boots",
+            category_id=toys["id"],
+            price=str(20 + index % 3),
+        )
+        assert (await client.post("/api/v1/products", json=body, headers=admin)).status_code == 201
+
+    for sort in ("newest", "price_asc", "price_desc", "relevance"):
+        seen: list[str] = []
+        params: dict[str, str] = {
+            "category": "games",
+            "q": "walking boots",
+            "sort": sort,
+            "limit": "12",
+        }
+        while True:
+            page = (await client.get("/api/v1/products", params=params)).json()
+            seen += [item["sku"] for item in page["items"] if item["sku"].startswith(prefix)]
+            if page["next_cursor"] is None:
+                break
+            params["cursor"] = page["next_cursor"]
+
+        assert len(seen) == len(set(seen)) == 40, sort
+
+    mismatch = await client.get(
+        "/api/v1/products", params={**params, "category": "books", "cursor": params["cursor"]}
+    )
+    assert mismatch.status_code == 422
+    assert mismatch.json()["errors"][0]["type"] == "cursor_mismatch"
+
+
+async def test_a_search_over_the_configured_time_limit_answers_503_over_http(
+    seeded_database_url: str,
+) -> None:
+    settings = CatalogSettings.from_env(
+        {
+            "CATALOG_DB_HOST": "unused",
+            "CATALOG_DB_NAME": "unused",
+            "CATALOG_DB_USER": "unused",
+            "CATALOG_DB_PASSWORD": "unused",
+            "JWT_JWKS_URL": "http://dev-auth:8080/jwks.json",
+            "JWT_ISSUER": "ecommerce-auth",
+            "CATALOG_SEARCH_TIMEOUT_MS": "1",
+        }
+    )
+    settings = replace(settings, database_url=make_url(seeded_database_url))
+    app = create_catalog_app(settings)
+
+    async with app.router.lifespan_context(app), http_client(app) as client:
+        slow = await client.get("/api/v1/products", params={"q": "refrigerator freezer"})
+
+    assert slow.status_code == 503
+    assert slow.headers["Retry-After"] == "1"
+    assert slow.json()["title"] == "Search timed out"

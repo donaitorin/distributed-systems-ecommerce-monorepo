@@ -12,6 +12,7 @@ from catalog.application.errors import (
 )
 from catalog.application.products import ProductService, utc_now
 from catalog.domain.errors import ValidationFailedError
+from catalog.domain.listing import ProductFilters
 from catalog.domain.preconditions import VersionPrecondition
 from catalog.infra.memory import InMemoryStore, InMemoryUnitOfWork
 
@@ -95,7 +96,7 @@ async def test_same_name_with_different_skus_is_allowed(service: ProductService)
     await service.create(**create_kwargs(sku="RS-001"))
     await service.create(**create_kwargs(sku="RS-050"))
 
-    assert len(await service.list(10)) == 2
+    assert (await service.search(ProductFilters(), None, 10, None)).total.value == 2
 
 
 async def test_get_finds_a_product_by_any_casing(service: ProductService) -> None:
@@ -110,20 +111,30 @@ async def test_get_unknown_or_malformed_sku_is_not_found(service: ProductService
         await service.get(sku)
 
 
-async def test_list_is_ordered_by_sku_and_limited(service: ProductService) -> None:
+async def test_search_lists_the_newest_products_first_and_honours_the_limit(
+    service: ProductService, clock: SteppingClock
+) -> None:
     for sku in ("C-1", "A-1", "B-1"):
         await service.create(**create_kwargs(sku=sku))
+        clock.advance()
 
-    assert [item.sku for item in await service.list(10)] == ["A-1", "B-1", "C-1"]
-    assert [item.sku for item in await service.list(2)] == ["A-1", "B-1"]
+    everything = await service.search(ProductFilters(), None, 10, None)
+    first_page = await service.search(ProductFilters(), None, 2, None)
+
+    assert [item.sku for item in everything.items] == ["B-1", "A-1", "C-1"]
+    assert [item.sku for item in first_page.items] == ["B-1", "A-1"]
+    assert first_page.next_cursor is not None
+    assert everything.next_cursor is None
 
 
-async def test_list_hides_deleted_products(service: ProductService) -> None:
+async def test_search_hides_deleted_products(service: ProductService) -> None:
     await service.create(**create_kwargs(sku="A-1"))
     await service.create(**create_kwargs(sku="B-1"))
     await service.delete("A-1", ANY)
 
-    assert [item.sku for item in await service.list(10)] == ["B-1"]
+    listing = await service.search(ProductFilters(), None, 10, None)
+
+    assert [item.sku for item in listing.items] == ["B-1"]
 
 
 async def test_replace_updates_every_field_and_bumps_the_version(

@@ -3,8 +3,9 @@ from decimal import Decimal
 from typing import Self
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, StrictInt
+from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
+from catalog.domain.listing import ProductListing
 from catalog.domain.product import Category, Product
 
 
@@ -69,7 +70,30 @@ class ProductOut(BaseModel):
 
 class ProductPage(BaseModel):
     items: list[ProductOut]
-    next_cursor: str | None = None
+    next_cursor: str | None = Field(
+        default=None, description="Opaque cursor for the next page, null on the last page"
+    )
+    prev_cursor: str | None = Field(
+        default=None, description="Opaque cursor for the previous page, null on the first page"
+    )
+    total: int = Field(
+        default=0,
+        description="Number of matching products; an estimate unless total_exact is true",
+    )
+    total_exact: bool = Field(
+        default=True,
+        description="True when total is an exact count, false when it is a planner estimate",
+    )
+
+    @classmethod
+    def from_domain(cls, listing: ProductListing) -> Self:
+        return cls(
+            items=[ProductOut.from_domain(item) for item in listing.items],
+            next_cursor=listing.next_cursor,
+            prev_cursor=listing.prev_cursor,
+            total=listing.total.value,
+            total_exact=listing.total.exact,
+        )
 
 
 class FieldProblem(BaseModel):
