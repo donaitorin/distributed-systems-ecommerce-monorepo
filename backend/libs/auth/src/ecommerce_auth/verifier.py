@@ -1,4 +1,6 @@
 from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 import jwt
@@ -15,6 +17,18 @@ ALGORITHM = "RS256"
 class AuthenticatedUser:
     user_id: str
     role: Role
+    email: str | None = None
+    issued_at: datetime | None = None
+
+
+def _optional_text(value: object) -> str | None:
+    return value if isinstance(value, str) and value else None
+
+
+def _issued_at(value: object) -> datetime | None:
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return None
+    return datetime.fromtimestamp(value, UTC)
 
 
 class TokenVerifier:
@@ -25,16 +39,21 @@ class TokenVerifier:
     async def verify(self, token: str) -> AuthenticatedUser:
         try:
             claims = await self._decode(token)
-            return AuthenticatedUser(user_id=claims["sub"], role=Role(claims["role"]))
+            return AuthenticatedUser(
+                user_id=claims["sub"],
+                role=Role(claims["role"]),
+                email=_optional_text(claims.get("email")),
+                issued_at=_issued_at(claims.get("iat")),
+            )
         except (jwt.PyJWTError, ValueError, KeyError) as error:
             raise InvalidTokenError("The access token is invalid or expired") from error
 
-    async def _decode(self, token: str) -> dict[str, str]:
+    async def _decode(self, token: str) -> dict[str, Any]:
         header = jwt.get_unverified_header(token)
         if header.get("alg") != ALGORITHM:
             raise jwt.InvalidAlgorithmError("unsupported algorithm")
         key = await self._jwks_client.get_key(header["kid"])
-        claims: dict[str, str] = jwt.decode(
+        claims: dict[str, Any] = jwt.decode(
             token,
             key,
             algorithms=[ALGORITHM],
