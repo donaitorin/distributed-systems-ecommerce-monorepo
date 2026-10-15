@@ -39,6 +39,7 @@ def seeded_store() -> InMemoryStore:
     return store
 
 
+SEEDED_PRODUCT_COUNT = 200_000
 MEDIA_BASE_URL = "http://media.test/media"
 
 

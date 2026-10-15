@@ -10,6 +10,7 @@ from alembic.config import Config
 from catalog_testing.support import (
     MEDIA_BASE_URL,
     SEEDED_CATEGORIES,
+    SEEDED_PRODUCT_COUNT,
     SteppingClock,
     bearer,
     http_client,
@@ -124,9 +125,6 @@ def migrated_database_url(postgres_server: PostgresServer) -> str:
 @pytest.fixture(scope="session")
 def create_owned_database(postgres_server: PostgresServer) -> Callable[[str, str], str]:
     return postgres_server.create_owned_database
-
-
-SEEDED_PRODUCT_COUNT = 200_000
 
 
 async def seed_database(url: str, count: int) -> None:
