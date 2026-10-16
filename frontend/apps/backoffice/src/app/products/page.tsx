@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import { createLoader } from "nuqs/server";
 import { ButtonLink } from "@ecommerce/ui";
 import { ProductsView } from "../../components/products/products-view";
 import { PRODUCTS_PATH, ZONE_PATH } from "../../lib/paths";
-import { productSearchParsers } from "@ecommerce/web-core";
+import { loadProductSearch } from "@ecommerce/web-core";
 import { isFailure, loadCategories, loadProductPage } from "../../server/products";
 import { deleteProductAction } from "./actions";
 
@@ -13,20 +12,8 @@ type ProductsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-const loadSearch = createLoader(productSearchParsers);
-
-function toSearchParams(record: Record<string, string | string[] | undefined>): URLSearchParams {
-  const search = new URLSearchParams();
-  for (const [name, value] of Object.entries(record)) {
-    for (const item of Array.isArray(value) ? value : value === undefined ? [] : [value]) {
-      search.append(name, item);
-    }
-  }
-  return search;
-}
-
 export default async function ProductsPage({ searchParams }: ProductsPageProps) {
-  const state = loadSearch(toSearchParams(await searchParams));
+  const state = loadProductSearch(await searchParams);
   const [page, categories] = await Promise.all([loadProductPage(state), loadCategories()]);
   return (
     <section aria-labelledby="products-heading" className="flex flex-col gap-6">

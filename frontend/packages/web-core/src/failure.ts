@@ -55,3 +55,15 @@ export async function failureFromResponse(response: Response): Promise<Failure> 
 export function isSessionFailure(failure: Failure): boolean {
   return failure.status === 401 || failure.status === 403;
 }
+
+export function isFailure(result: unknown): result is Failure {
+  return typeof result === "object" && result !== null && (result as { ok?: unknown }).ok === false;
+}
+
+export async function settle<Value>(work: () => Promise<Value>): Promise<Value | Failure> {
+  try {
+    return await work();
+  } catch (error) {
+    return failureFromError(error);
+  }
+}
