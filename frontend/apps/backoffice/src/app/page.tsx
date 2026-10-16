@@ -1,4 +1,5 @@
 import { getSession } from "@ecommerce/auth/next";
+import { ButtonLink } from "@ecommerce/ui";
 
 export default async function DashboardPage() {
   const session = await getSession();
@@ -8,9 +9,12 @@ export default async function DashboardPage() {
         Backoffice
       </h1>
       <p className="max-w-prose text-base text-secondary">
-        Signed in as {session?.email ?? session?.userId ?? "an administrator"}. Product and import
-        tools will appear here.
+        Signed in as {session?.email ?? session?.userId ?? "an administrator"}. Manage the catalog from
+        the products page.
       </p>
+      <div>
+        <ButtonLink href="/admin/products">Go to products</ButtonLink>
+      </div>
     </section>
   );
 }
