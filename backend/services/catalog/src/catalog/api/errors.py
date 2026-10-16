@@ -10,6 +10,7 @@ from catalog.application.errors import (
     DuplicateSkuError,
     ImportNotConfirmableError,
     ImportNotFoundError,
+    ImportNotRevalidatableError,
     ImportTooLargeError,
     InvalidUploadError,
     PreconditionFailedError,
@@ -127,6 +128,18 @@ def register_catalog_errors(app: FastAPI) -> None:
             request,
             HTTPStatus.CONFLICT,
             "Import cannot be confirmed",
+            error.reason,
+            import_status=error.status,
+        )
+
+    @app.exception_handler(ImportNotRevalidatableError)
+    async def handle_import_not_revalidatable(
+        request: Request, error: ImportNotRevalidatableError
+    ) -> JSONResponse:
+        return problem_response(
+            request,
+            HTTPStatus.CONFLICT,
+            "Import cannot be validated again",
             error.reason,
             import_status=error.status,
         )

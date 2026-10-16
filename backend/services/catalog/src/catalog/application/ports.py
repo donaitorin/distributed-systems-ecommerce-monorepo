@@ -99,6 +99,10 @@ class ImportRepository(Protocol):
         now: datetime,
     ) -> bool: ...
 
+    async def restart_validation(
+        self, import_id: UUID, expected: Collection[ImportStatus], now: datetime
+    ) -> bool: ...
+
     async def category_snapshot(self, import_id: UUID) -> list[CategoryRef]: ...
 
     async def problems(

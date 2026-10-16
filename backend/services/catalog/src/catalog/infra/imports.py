@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import delete, insert, select, update
+from sqlalchemy import delete, insert, null, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -167,6 +167,30 @@ class SqlImportRepository:
             await self._session.execute(
                 insert(ImportProblemModel), rows[start : start + INSERT_CHUNK]
             )
+        return True
+
+    async def restart_validation(
+        self, import_id: UUID, expected: Collection[ImportStatus], now: datetime
+    ) -> bool:
+        statement = (
+            update(ImportModel)
+            .where(
+                ImportModel.id == import_id,
+                ImportModel.status.in_([item.value for item in expected]),
+            )
+            .values(
+                status=ImportStatus.UPLOADED.value,
+                report=null(),
+                category_snapshot=null(),
+                validated_at=null(),
+                updated_at=now,
+            )
+        )
+        if not (await self._session.execute(statement)).rowcount:  # type: ignore[attr-defined]
+            return False
+        await self._session.execute(
+            delete(ImportProblemModel).where(ImportProblemModel.import_id == import_id)
+        )
         return True
 
     async def category_snapshot(self, import_id: UUID) -> list[CategoryRef]:

@@ -108,6 +108,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/imports/{import_id}/revalidate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Validate the same file again against the current categories (admin)
+         * @description Allowed for a rejected or validated import, for example after creating a category the file refers to. The previous report, problems and category snapshot are discarded together with the status change and the file is validated again in the background; poll the import for the result. Repeating the call while it is pending is harmless.
+         */
+        post: operations["revalidate_import_api_v1_imports__import_id__revalidate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/products": {
         parameters: {
             query?: never;
@@ -926,6 +946,74 @@ export interface operations {
             };
             /** @description Unknown or deleted SKU, or the product has no image */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["catalog__api__schemas__ProblemOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revalidate_import_api_v1_imports__import_id__revalidate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Import id */
+                import_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportOut"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["catalog__api__schemas__ProblemOut"];
+                };
+            };
+            /** @description The token does not carry the admin role */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["catalog__api__schemas__ProblemOut"];
+                };
+            };
+            /** @description Unknown or deleted SKU, or the product has no image */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["catalog__api__schemas__ProblemOut"];
+                };
+            };
+            /** @description Conflict with an existing resource */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

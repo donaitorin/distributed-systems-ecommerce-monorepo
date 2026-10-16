@@ -131,6 +131,19 @@ class InMemoryImportRepository:
         self._data.problems[import_id] = stored
         return True
 
+    async def restart_validation(
+        self, import_id: UUID, expected: Collection[ImportStatus], now: datetime
+    ) -> bool:
+        record = self._data.records.get(import_id)
+        if record is None or record.status not in expected:
+            return False
+        self._data.records[import_id] = replace(
+            record, status=ImportStatus.UPLOADED, summary=None, validated_at=None, updated_at=now
+        )
+        self._data.snapshots.pop(import_id, None)
+        self._data.problems.pop(import_id, None)
+        return True
+
     async def category_snapshot(self, import_id: UUID) -> list[CategoryRef]:
         return list(self._data.snapshots.get(import_id, []))
 

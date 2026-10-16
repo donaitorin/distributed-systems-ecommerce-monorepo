@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncIterator, Callable
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -387,3 +388,99 @@ async def test_the_database_refuses_an_unknown_status(factory: Factory) -> None:
                 ),
                 {"sha": "b" * 64},
             )
+
+
+async def saved_validation(factory: Factory) -> UUID:
+    async with factory() as uow:
+        added = await uow.imports.add(new_import(), NOW)
+        await uow.imports.transition(
+            added.id, {ImportStatus.UPLOADED}, ImportStatus.VALIDATING, NOW
+        )
+        await uow.imports.save_validation(
+            added.id,
+            ImportStatus.VALIDATED,
+            ImportSummary(rejected=False, rows_read=3, error_rows=2),
+            [problem(2), problem(3), problem(4, Severity.WARNING)],
+            [CategoryRef(uuid4(), "Footwear")],
+            NOW,
+        )
+        await uow.commit()
+    return added.id
+
+
+async def test_restarting_the_validation_discards_the_report_problems_and_snapshot_together(
+    factory: Factory,
+) -> None:
+    import_id = await saved_validation(factory)
+
+    async with factory() as uow:
+        restarted = await uow.imports.restart_validation(
+            import_id, {ImportStatus.REJECTED, ImportStatus.VALIDATED}, LATER
+        )
+        await uow.commit()
+
+    assert restarted
+    assert await scalar(factory, "SELECT count(*) FROM import_problems") == 0
+    row = await scalar(
+        factory,
+        "SELECT status || '|' || (report IS NULL)::text || '|' || (category_snapshot IS NULL)::text"
+        " || '|' || (validated_at IS NULL)::text FROM imports WHERE id = :id",
+        id=import_id,
+    )
+    assert row == "uploaded|true|true|true"
+    assert (
+        await scalar(factory, "SELECT updated_at FROM imports WHERE id = :id", id=import_id)
+        == LATER
+    )
+
+
+async def test_restarting_the_validation_is_all_or_nothing(factory: Factory) -> None:
+    import_id = await saved_validation(factory)
+
+    async with factory() as uow:
+        assert await uow.imports.restart_validation(import_id, {ImportStatus.VALIDATED}, LATER)
+
+    async with factory() as uow:
+        record = await uow.imports.get(import_id)
+        stored = await uow.imports.problems(import_id, None, None, 10)
+        snapshot = await uow.imports.category_snapshot(import_id)
+
+    assert record is not None
+    assert record.status is ImportStatus.VALIDATED
+    assert record.summary is not None
+    assert len(stored) == 3
+    assert len(snapshot) == 1
+
+
+async def test_restarting_the_validation_only_applies_from_the_expected_states(
+    factory: Factory,
+) -> None:
+    import_id = await saved_validation(factory)
+    async with factory() as uow:
+        await uow.imports.transition(import_id, {ImportStatus.VALIDATED}, ImportStatus.QUEUED, NOW)
+        refused = await uow.imports.restart_validation(
+            import_id, {ImportStatus.REJECTED, ImportStatus.VALIDATED}, LATER
+        )
+        await uow.commit()
+
+    assert not refused
+    assert await scalar(factory, "SELECT count(*) FROM import_problems") == 3
+    assert await scalar(
+        factory, "SELECT report IS NOT NULL FROM imports WHERE id = :id", id=import_id
+    )
+
+
+async def test_only_one_of_two_concurrent_restarts_wins(factory: Factory) -> None:
+    import_id = await saved_validation(factory)
+    expected = {ImportStatus.REJECTED, ImportStatus.VALIDATED}
+
+    async def restart() -> bool:
+        async with factory() as uow:
+            won = await uow.imports.restart_validation(import_id, expected, LATER)
+            await uow.commit()
+            return won
+
+    results = await asyncio.gather(restart(), restart())
+
+    assert sorted(results) == [False, True]
+    assert await scalar(factory, "SELECT count(*) FROM import_problems") == 0

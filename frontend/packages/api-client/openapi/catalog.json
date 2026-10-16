@@ -1487,6 +1487,97 @@
         ]
       }
     },
+    "/api/v1/imports/{import_id}/revalidate": {
+      "post": {
+        "description": "Allowed for a rejected or validated import, for example after creating a category the file refers to. The previous report, problems and category snapshot are discarded together with the status change and the file is validated again in the background; poll the import for the result. Repeating the call while it is pending is harmless.",
+        "operationId": "revalidate_import_api_v1_imports__import_id__revalidate_post",
+        "parameters": [
+          {
+            "description": "Import id",
+            "in": "path",
+            "name": "import_id",
+            "required": true,
+            "schema": {
+              "description": "Import id",
+              "format": "uuid",
+              "title": "Import Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "Missing or invalid access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "The token does not carry the admin role"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "Unknown or deleted SKU, or the product has no image"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "Conflict with an existing resource"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Validate the same file again against the current categories (admin)",
+        "tags": [
+          "imports"
+        ]
+      }
+    },
     "/api/v1/products": {
       "get": {
         "description": "Keyset-paginated listing. Without q the default order is newest first; with q it is relevance, and typos in q still match. sort=relevance without q falls back to newest. in_stock=true hides sold-out products; in_stock=false is the same as omitting it. An unknown category slug returns an empty page. A cursor is only valid with the q, category, price, in_stock and sort values it was issued for.",
