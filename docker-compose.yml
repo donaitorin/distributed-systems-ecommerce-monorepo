@@ -447,7 +447,9 @@ services:
       context: ./frontend
       dockerfile: apps/backoffice/Dockerfile
     restart: unless-stopped
-    environment: *frontend-environment
+    environment:
+      <<: *frontend-environment
+      IMPORT_MAX_BYTES: ${IMPORT_MAX_BYTES:-52428800}
     networks:
       frontend:
         ipv4_address: 10.250.10.3
