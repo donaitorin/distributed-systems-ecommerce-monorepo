@@ -14,7 +14,13 @@ from catalog.application.errors import (
     UnknownCategoryError,
 )
 from catalog.domain.csv_import import ImportableRow
-from catalog.domain.imports import ExistingProduct, Progress, classify
+from catalog.domain.imports import (
+    ChangedProduct,
+    ExistingProduct,
+    Progress,
+    UpsertResult,
+    classify,
+)
 from catalog.domain.listing import (
     Direction,
     ListedProduct,
@@ -98,6 +104,12 @@ def _order_key(row: ListedProduct, sort: Sort) -> tuple[SortKey, UUID]:
     return position.key, position.id
 
 
+def _changed(stored: StoredProduct) -> ChangedProduct:
+    return ChangedProduct(
+        stored.sku, stored.name, stored.price, stored.stock, stored.image_key, stored.version
+    )
+
+
 class InMemoryProductRepository:
     def __init__(self, store: InMemoryStore) -> None:
         self._store = store
@@ -178,16 +190,19 @@ class InMemoryProductRepository:
         stored.updated_at = now
         return self._to_product(stored)
 
-    async def soft_delete(self, sku: str, now: datetime) -> None:
+    async def soft_delete(self, sku: str, now: datetime) -> int:
         stored = self._active(sku)
-        if stored is not None:
-            stored.deleted_at = now
-            stored.updated_at = now
-            stored.version += 1
+        if stored is None:
+            raise ProductNotFoundError(sku)
+        stored.deleted_at = now
+        stored.updated_at = now
+        stored.version += 1
+        return stored.version
 
-    async def upsert_many(self, rows: Sequence[ImportableRow], now: datetime) -> Progress:
+    async def upsert_many(self, rows: Sequence[ImportableRow], now: datetime) -> UpsertResult:
         existing = await self.existing([row.product.sku for row in rows])
         created, updated, restored, unchanged = classify(rows, existing)
+        changed: list[ChangedProduct] = []
         for row in rows:
             data = row.product.data
             stored = self._store.products.get(row.product.sku)
@@ -205,6 +220,8 @@ class InMemoryProductRepository:
                     created_at=now,
                     updated_at=now,
                 )
+                stored = self._store.products[row.product.sku]
+                changed.append(_changed(stored))
             elif stored.deleted_at is not None or existing[row.product.sku].data != data:
                 stored.name = data.name
                 stored.description = data.description
@@ -215,7 +232,9 @@ class InMemoryProductRepository:
                 stored.version += 1
                 stored.updated_at = now
                 stored.deleted_at = None
-        return Progress(len(rows), created, updated, restored, unchanged)
+                changed.append(_changed(stored))
+        progress = Progress(len(rows), created, updated, restored, unchanged)
+        return UpsertResult(progress, tuple(changed))
 
     async def existing(self, skus: Sequence[str]) -> Mapping[str, ExistingProduct]:
         found: dict[str, ExistingProduct] = {}

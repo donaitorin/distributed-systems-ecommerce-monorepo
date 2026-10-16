@@ -4,6 +4,7 @@ from collections.abc import Callable
 from datetime import datetime
 from uuid import UUID, uuid4
 
+from catalog.application.correlation import current_correlation_id
 from catalog.application.errors import (
     InvalidUploadError,
     PreconditionFailedError,
@@ -12,6 +13,7 @@ from catalog.application.errors import (
     UnsupportedMediaError,
 )
 from catalog.application.ports import ImageProcessor, ImageRenditions, UnitOfWorkFactory
+from catalog.application.product_events import publish_product_updated
 from catalog.application.products import lock_and_check, require_sku, utc_now
 from catalog.domain.image import (
     IMMUTABLE_CACHE_CONTROL,
@@ -41,12 +43,14 @@ class ImageService:
         clock: Callable[[], datetime] = utc_now,
         new_id: Callable[[], UUID] = uuid4,
         max_parallel_renders: int = MAX_PARALLEL_RENDERS,
+        correlation_id: Callable[[], UUID] = current_correlation_id,
     ) -> None:
         self._unit_of_work = unit_of_work
         self._processor = processor
         self._storage = storage
         self._clock = clock
         self._new_id = new_id
+        self._correlation_id = correlation_id
         self._renders = asyncio.Semaphore(max_parallel_renders)
 
     async def verify(self, sku: str, precondition: VersionPrecondition) -> None:
@@ -72,7 +76,9 @@ class ImageService:
             await self._store(image_key, renditions)
             async with self._unit_of_work() as uow:
                 current = await lock_and_check(uow, normalized, precondition)
-                product = await uow.products.set_image(normalized, image_key, self._clock())
+                now = self._clock()
+                product = await uow.products.set_image(normalized, image_key, now)
+                await publish_product_updated(uow, product, now, self._correlation_id())
                 await uow.commit()
         except BaseException:
             await asyncio.shield(self._discard(new_keys))
@@ -86,7 +92,9 @@ class ImageService:
             current = await lock_and_check(uow, normalized, precondition)
             if current.image_key is None:
                 raise ProductImageNotFoundError(normalized)
-            product = await uow.products.set_image(normalized, None, self._clock())
+            now = self._clock()
+            product = await uow.products.set_image(normalized, None, now)
+            await publish_product_updated(uow, product, now, self._correlation_id())
             await uow.commit()
         await self._discard(_keys_of(current.image_key))
         return product

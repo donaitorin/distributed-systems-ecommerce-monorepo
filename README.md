@@ -191,6 +191,10 @@ Every problem carries the row, the column, the received value and the reason, se
 
 97 rows = 2 blank + 4 with errors + 3 skipped (rows 2 and 56 replaced by later rows, row 11 identical to the winning row 89) + 88 importable products.
 
+### Product events
+
+Every catalog write publishes an event on the `catalog.events` topic (key: SKU) through the transactional outbox, in the same transaction as the write; the `catalog-worker` relays them. Creating, replacing, changing or removing the image of a product, and every product that a CSV import creates, updates or restores, publish `product.updated` with `sku`, `name`, `price`, `stock`, `image_key` (an object key, never a URL), `version` and `occurred_at`. Soft deleting publishes `product.deleted` with `sku`, `version` and `occurred_at`. Rows of an import that change nothing publish nothing. The version grows with every change of a product, so a consumer applies an event only if its version is newer than the one it holds, which makes redelivery and reordering harmless. The payloads live in `backend/libs/contracts` with stored examples. A large import writes one outbox row per changed product: measured on a laptop with Testcontainers (Postgres and Kafka, relay batch of 100), a 100,000 row import that created every product took 39 s including the outbox rows, and the relay then needed 36 s (about 2,800 events per second) to publish the 100,000 events. Publishing takes roughly 4 s per 10,000 changed products after the import finishes; no optimization was needed.
+
 ### Importing a CSV
 
 Nothing is written to the catalog until an admin confirms. The file is validated in the background by the `catalog-worker` container, which talks to Kafka; the API itself only needs Postgres and the object store.

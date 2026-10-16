@@ -16,7 +16,13 @@ from catalog.application.errors import (
     UnknownCategoryError,
 )
 from catalog.domain.csv_import import ImportableRow
-from catalog.domain.imports import ExistingProduct, Progress, classify
+from catalog.domain.imports import (
+    ChangedProduct,
+    ExistingProduct,
+    Progress,
+    UpsertResult,
+    classify,
+)
 from catalog.domain.listing import (
     ListedProduct,
     PageRequest,
@@ -151,13 +157,17 @@ class SqlProductRepository:
             raise ProductNotFoundError(sku)
         return product
 
-    async def soft_delete(self, sku: str, now: datetime) -> None:
+    async def soft_delete(self, sku: str, now: datetime) -> int:
         statement = (
             update(ProductModel)
             .where(ProductModel.sku == sku, ProductModel.deleted_at.is_(None))
             .values(deleted_at=now, updated_at=now, version=ProductModel.version + 1)
+            .returning(ProductModel.version)
         )
-        await self._session.execute(statement)
+        version = (await self._session.execute(statement)).scalar_one_or_none()
+        if version is None:
+            raise ProductNotFoundError(sku)
+        return int(version)
 
     async def set_image(self, sku: str, image_key: str | None, now: datetime) -> Product:
         statement = (
@@ -171,7 +181,7 @@ class SqlProductRepository:
             raise ProductNotFoundError(sku)
         return product
 
-    async def upsert_many(self, rows: Sequence[ImportableRow], now: datetime) -> Progress:
+    async def upsert_many(self, rows: Sequence[ImportableRow], now: datetime) -> UpsertResult:
         existing = await self.existing([row.product.sku for row in rows])
         created, updated, restored, unchanged = classify(rows, existing)
         values = [
@@ -226,8 +236,19 @@ class SqlProductRepository:
                 ),
             ),
         )
-        await self._session.execute(statement)
-        return Progress(len(rows), created, updated, restored, unchanged)
+        returning = statement.returning(
+            ProductModel.sku,
+            ProductModel.name,
+            ProductModel.price,
+            ProductModel.stock,
+            ProductModel.image_key,
+            ProductModel.version,
+        )
+        changed = tuple(
+            ChangedProduct(*row) for row in (await self._session.execute(returning)).all()
+        )
+        progress = Progress(len(rows), created, updated, restored, unchanged)
+        return UpsertResult(progress, changed)
 
     async def existing(self, skus: Sequence[str]) -> Mapping[str, ExistingProduct]:
         statement = select(ProductModel).where(ProductModel.sku.in_(list(skus)))

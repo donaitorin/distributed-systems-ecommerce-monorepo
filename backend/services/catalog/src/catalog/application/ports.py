@@ -17,6 +17,7 @@ from catalog.domain.imports import (
     NewImport,
     Progress,
     StoredProblem,
+    UpsertResult,
 )
 from catalog.domain.listing import (
     PageRequest,
@@ -54,13 +55,13 @@ class ProductRepository(Protocol):
 
     async def replace(self, sku: str, data: ProductData, now: datetime) -> Product: ...
 
-    async def soft_delete(self, sku: str, now: datetime) -> None: ...
+    async def soft_delete(self, sku: str, now: datetime) -> int: ...
 
     async def set_image(self, sku: str, image_key: str | None, now: datetime) -> Product: ...
 
     async def existing(self, skus: Sequence[str]) -> Mapping[str, ExistingProduct]: ...
 
-    async def upsert_many(self, rows: Sequence[ImportableRow], now: datetime) -> Progress: ...
+    async def upsert_many(self, rows: Sequence[ImportableRow], now: datetime) -> UpsertResult: ...
 
 
 class CategoryRepository(Protocol):
