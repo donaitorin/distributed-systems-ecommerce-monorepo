@@ -1,14 +1,16 @@
 import { ApiError, type ProblemDetails } from "@ecommerce/api-client";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { clientIpFrom } from "../client-ip";
+import { clientIpFrom, forwardingHeaders } from "../client-ip";
 import { loadAuthConfig } from "../config";
 import { clearedCookies, sessionCookies, type CookieSpec } from "../cookies";
 import type { Credentials, RegisteredUser } from "../auth-api";
 import { createAuthRuntime, type AuthRuntime } from "../runtime";
 import { SessionUnavailableError, type Session } from "../verify";
 
-export type SignInResult = { ok: true; session: Session } | { ok: false; problem: ProblemDetails };
+export type SignInResult =
+  | { ok: true; session: Session }
+  | { ok: false; problem: ProblemDetails; retryAfterSeconds?: number };
 export type RegisterResult =
   | { ok: true; user: RegisteredUser }
   | { ok: false; problem: ProblemDetails };
@@ -51,6 +53,14 @@ export async function getSession(): Promise<Session | null> {
   }
 }
 
+export async function authorizationHeaders(): Promise<Record<string, string>> {
+  const token = (await cookies()).get(authRuntime().config.accessCookieName)?.value;
+  return {
+    ...(token ? { authorization: `Bearer ${token}` } : {}),
+    ...forwardingHeaders(await currentClientIp()),
+  };
+}
+
 export type RequireSessionOptions = {
   loginPath: string;
   role?: string;
@@ -76,7 +86,11 @@ export async function signIn(credentials: Credentials): Promise<SignInResult> {
     return { ok: true, session };
   } catch (error) {
     if (error instanceof ApiError) {
-      return { ok: false, problem: error.problem };
+      return {
+        ok: false,
+        problem: error.problem,
+        ...(error.retryAfterSeconds !== undefined ? { retryAfterSeconds: error.retryAfterSeconds } : {}),
+      };
     }
     throw error;
   }
