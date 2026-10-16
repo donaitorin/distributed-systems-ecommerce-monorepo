@@ -57,6 +57,12 @@ def test_public_url_joins_base_url_and_key() -> None:
     )
 
 
+def test_public_url_keeps_a_relative_base_relative() -> None:
+    storage = InMemoryObjectStorage("/media")
+
+    assert storage.public_url("products/sku-1/img.webp") == "/media/products/sku-1/img.webp"
+
+
 def test_public_url_escapes_unsafe_characters() -> None:
     storage = InMemoryObjectStorage("https://cdn.example.com")
 

@@ -107,7 +107,6 @@ def test_media_settings_come_from_the_object_storage_variables() -> None:
         "OBJECT_STORAGE_ACCESS_KEY",
         "OBJECT_STORAGE_SECRET_KEY",
         "OBJECT_STORAGE_MEDIA_BUCKET",
-        "MEDIA_PUBLIC_BASE_URL",
     ],
 )
 def test_the_media_variables_are_required(missing: str) -> None:
@@ -115,6 +114,20 @@ def test_the_media_variables_are_required(missing: str) -> None:
 
     with pytest.raises(KeyError):
         CatalogSettings.from_env(environ)
+
+
+def test_the_public_media_url_defaults_to_the_same_origin_path() -> None:
+    environ = {key: value for key, value in ENVIRON.items() if key != "MEDIA_PUBLIC_BASE_URL"}
+
+    assert CatalogSettings.from_env(environ).media.public_base_url == "/media"
+
+
+def test_the_public_media_url_accepts_an_absolute_cdn_address() -> None:
+    settings = CatalogSettings.from_env(
+        ENVIRON | {"MEDIA_PUBLIC_BASE_URL": "https://cdn.example.com/media"}
+    )
+
+    assert settings.media.public_base_url == "https://cdn.example.com/media"
 
 
 def test_the_import_settings_default_to_the_imports_bucket_and_fifty_megabytes() -> None:

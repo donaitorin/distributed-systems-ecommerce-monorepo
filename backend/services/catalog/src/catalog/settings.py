@@ -12,6 +12,7 @@ DEFAULT_DATABASE_PORT = 5432
 DATABASE_DRIVER = "postgresql+asyncpg"
 DEFAULT_SEARCH_TIMEOUT_MS = 2000
 DEFAULT_IMPORTS_BUCKET = "imports"
+DEFAULT_MEDIA_PUBLIC_BASE_URL = "/media"
 MAX_SEARCH_TIMEOUT_MS = 60_000
 
 
@@ -65,7 +66,7 @@ class MediaSettings:
         return cls(
             s3=S3Settings.from_env(environ),
             bucket=environ["OBJECT_STORAGE_MEDIA_BUCKET"],
-            public_base_url=environ["MEDIA_PUBLIC_BASE_URL"],
+            public_base_url=environ.get("MEDIA_PUBLIC_BASE_URL", DEFAULT_MEDIA_PUBLIC_BASE_URL),
         )
 
 
