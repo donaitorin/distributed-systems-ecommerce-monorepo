@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Decorator } from "@storybook/nextjs-vite";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { NavigationContext } from "./navigation";
@@ -41,3 +42,56 @@ export const STORY_PRODUCT = {
   updated_at: "2026-10-15T10:00:00Z",
 };
 
+
+export const withQueries: Decorator = function WithQueries(Story) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
+  return (
+    <QueryClientProvider client={client}>
+      <Story />
+    </QueryClientProvider>
+  );
+};
+
+export const STORY_IMPORT = {
+  id: "9f0c1d2e-3a4b-4c5d-8e6f-7a8b9c0d1e2f",
+  filename: "sample-products.csv",
+  sha256: "a".repeat(64),
+  size_bytes: 14_336,
+  status: "validated",
+  created_by: "admin",
+  created_at: "2026-10-16T10:00:00Z",
+  updated_at: "2026-10-16T10:00:05Z",
+  validated_at: "2026-10-16T10:00:05Z",
+  confirmed_at: null,
+  finished_at: null,
+  failure_reason: null,
+  problems: [],
+  progress: { processed_rows: 0, created_rows: 0, updated_rows: 0, restored_rows: 0, unchanged_rows: 0 },
+  links: { self: "", problems: "", problems_csv: "", confirm: "x" },
+  summary: {
+    rejected: false,
+    rows_read: 97,
+    blank_rows: 2,
+    error_rows: 4,
+    error_count: 4,
+    warning_count: 3,
+    duplicate_rows: 1,
+    superseded_rows: 2,
+    importable_rows: 88,
+    to_create: 88,
+    to_update: 0,
+    to_restore: 0,
+    unchanged: 0,
+    truncated: false,
+    unknown_categories: [{ value: "Gardening", rows: 2, suggestion: "Garden" }],
+  },
+};
+
+export const STORY_PROBLEMS = {
+  items: [
+    { severity: "error", row: 7, column: "category", value: "Gardening", code: "unknown_category", reason: "unknown category Gardening" },
+    { severity: "error", row: 16, column: "price", value: "free", code: "not_a_number", reason: "price must be a number" },
+    { severity: "warning", row: 2, column: "sku", value: "RS-001", code: "superseded", reason: "superseded by row 36" },
+  ],
+  next_cursor: null,
+};
