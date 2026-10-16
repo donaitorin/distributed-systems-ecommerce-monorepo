@@ -14,7 +14,7 @@ The backoffice manages the catalog: product list with filters, product create an
 - A `401` from the API sends the administrator to the login page with `reason=expired`; a `403` with `reason=forbidden`. Every other failure becomes a plain `Failure` value (status, title, field errors keyed by API field name, `Retry-After`), so forms show the backend's Problem Details in their own words.
 - The backend is the authority on validation. The Zod schema in the form mirrors its rules only to give early feedback and to focus the first invalid field. Money and weights stay decimal strings from the input to the request body; they are parsed for display only.
 - Client components never import `next/navigation`. They use a small `NavigationContext` (`push`, `refresh`) wired to the real router in the root layout. This keeps them testable and lets Storybook render them: Storybook 10.6's Next mock does not provide the layout context Next 16.4's `useRouter` reads.
-- The product images are rendered from the same origin (`/media/...`). The API builds absolute URLs from `MEDIA_PUBLIC_BASE_URL` (`http://127.0.0.1:8000/media` by default), and the CSP only allows `img-src 'self'`, so opening the backoffice as `localhost` would otherwise block every image.
+- The product images are rendered from the same origin (`/media/...`). `MEDIA_PUBLIC_BASE_URL` defaults to the relative `/media`, so the catalog API returns same-origin image URLs and the CSP's `img-src 'self'` allows them on any host name (`localhost` or `127.0.0.1`). An absolute value still works for a CDN, and then `img-src` has to allow that origin. Before the default changed the API returned `http://127.0.0.1:8000/media/...` and the backoffice rewrote it to a relative path; that rewrite is gone.
 
 ### Concurrency
 

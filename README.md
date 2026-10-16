@@ -222,7 +222,7 @@ Uploading the same file twice returns the existing import (`200`), also when it 
 
 ## Frontend
 
-`frontend/` is a pnpm and Turborepo workspace with two Next.js apps joined with [Multi-Zones](docs/adr/0007-frontend-zones-session-and-csp.md): `apps/store` at `/` and `apps/backoffice` at `/admin`. Shared code is in `packages/`: `config` (ESLint, tsconfig, Jest preset, the Tailwind theme and the Next.js configuration), `ui` (components with Storybook), `api-client` (types generated from the services' OpenAPI documents and a small typed fetch wrapper that understands `application/problem+json`) and `auth` (server-side session handling).
+`frontend/` is a pnpm and Turborepo workspace with two Next.js apps joined with [Multi-Zones](docs/adr/0007-frontend-zones-session-and-csp.md): `apps/store` at `/` and `apps/backoffice` at `/admin`. Shared code is in `packages/`: `config` (ESLint, tsconfig, Jest preset, the Tailwind theme and the Next.js configuration), `ui` (components with Storybook), `api-client` (types generated from the services' OpenAPI documents and a small typed fetch wrapper that understands `application/problem+json`) `auth` (server-side session handling) and `web-core` (logic and hooks both apps share: URL search parsers, failure handling and the navigation context; no visual components).
 
 ```bash
 nvm install && nvm use         # in frontend/, installs the version in .nvmrc
