@@ -1,0 +1,41 @@
+# 0010. Store: catalog search, product pages and shared search logic
+
+Status: accepted (2026-10-16)
+
+## Context
+
+The storefront needs a searchable catalog with shareable links, a product page that search engines can read, and an accessible filter experience on phones. The backoffice already solved URL state, server-side data access and the CSP nonce for its own product list (ADR 0007 and 0009), and both apps must keep one behavior for the same search parameters.
+
+## Decision
+
+### Routes
+
+- `/products` is the search page and `/products/{sku}` the product page. `/` redirects to `/products` with a temporary redirect (307) that keeps the query string, so it can become a landing page later without anything cached as permanent.
+- Both are server components. They read the search parameters, call the catalog through the gateway (public endpoints; the visitor's address is still forwarded for rate limiting) and render the first page of results in the HTML. Because every response carries a nonce (ADR 0007), they are rendered per request.
+- Unknown and retired SKUs call `notFound()`. The page has no `loading.tsx` above it on purpose: a streamed shell would be sent before the page can decide, and the response would be `200` with a "not found" body. Without it the answer is a real `404` (checked by `make check-routes`).
+- The SKU is case-insensitive in the API. A request in another case is redirected (307) to the canonical SKU, and the page declares a canonical link, so a product has one address.
+- A temporary failure (503, network) is not a 404: the page shows an alert with a retry link and is marked `noindex`.
+
+### Search state
+
+- The parsers, the URL loader, the sort and category choices, the filter chips and the failure messages live in `packages/web-core` and are used by both apps. The backoffice was switched to them, so the two search pages cannot drift apart.
+- History entries, the 300 ms debounce, cleared cursors and unwritten defaults are the same as in ADR 0009. The store adds: best match is only offered (and shown) while there is a search text, because the API falls back to newest without one; pagination scrolls to the top; results pages with a search text, filters or a cursor are `noindex, follow`, the plain listing is indexable.
+- The search box is not part of the filters. It stays visible, and the filters (category, price, availability) live in a sidebar from `lg` and in a drawer below. Both render the same fields component. The drawer content only exists while it is open, the sidebar is hidden with CSS on small screens, and both read and write the same URL, so they can never disagree.
+- Removing a chip, or clearing all filters, moves focus to the search box: the chip that had focus is about to disappear when the page re-renders.
+
+### Accessibility choices
+
+- The drawer is the existing `Modal` with `variant="drawer"` (Radix Dialog): focus trap, Escape, and focus returned to the opener are Radix's, plus the opener bookkeeping the modal already had.
+- There is one live region for the result count: the one in `Pagination`. A second `role="status"` for the same number would be announced twice, so the count above the grid is plain text.
+- A chip's accessible name is "Remove filter: " plus its visible text, so the visible label is contained in the name (WCAG 2.5.3).
+- `ProductImage` checks `complete` and `naturalWidth` when it mounts, because an image that fails while the page is still hydrating fires `error` before React listens.
+
+### Add to cart
+
+`AddToCartSlot` renders a notice for out of stock products (visible, not purchasable) and an empty element with the id `add-to-cart-slot` otherwise. The cart stage replaces the body of that component; nothing else in the page has to change.
+
+## Consequences
+
+- Moving between `/products` and a product page is a full page load (plain links, as in the backoffice), which the dynamic rendering of ADR 0007 already implies.
+- The store has the same dependencies as the backoffice for URL state (`nuqs`) and none for forms yet; `react-hook-form`, `zod` resolvers and the session UI arrive with the customer authentication stage.
+- Test files that render these components need `globalThis.Request`, which jsdom lacks and nuqs's server loader checks for; the store's Jest setup defines it once.
