@@ -1,6 +1,6 @@
 import { ApiError } from "@ecommerce/api-client";
 import { entityTag } from "../lib/entity-tag";
-import { failureFromError, type Failure } from "../lib/failure";
+import { failureFromError, type Failure } from "@ecommerce/web-core";
 import { apiFieldName, productFormSchema, toCreateBody, toWriteBody, type ProductField, type ProductFormValues } from "../lib/product-form";
 import type { Product, WithEtag } from "../lib/types";
 import { catalogApi } from "./catalog";

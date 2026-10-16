@@ -1,4 +1,4 @@
-import type { Failure } from "../lib/failure";
+import type { Failure } from "@ecommerce/web-core";
 import type { ImportView } from "../lib/types";
 import { gatewayApi } from "./gateway";
 import { guarded } from "./guarded";

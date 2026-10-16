@@ -5,12 +5,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Button, Input, Table, type TableColumn } from "@ecommerce/ui";
 import { CATEGORY_NAME_FIELD_ID, categoryFormSchema, type CategoryFormValues } from "../../lib/category-form";
-import { isSessionFailure, type Failure } from "../../lib/failure";
+import { isSessionFailure, type Failure } from "@ecommerce/web-core";
 import { categoryFailureMessage } from "../../lib/messages";
 import { LOGIN_PATH } from "../../lib/paths";
 import type { Category } from "../../lib/types";
 import type { CategoryCreated } from "../../server/category-actions";
-import { useNavigation } from "../navigation";
+import { useNavigation } from "@ecommerce/web-core/client";
 import { useNotify } from "../notifications";
 
 export type CategoriesViewProps = {

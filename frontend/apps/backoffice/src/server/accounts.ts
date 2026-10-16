@@ -1,4 +1,4 @@
-import type { Failure } from "../lib/failure";
+import type { Failure } from "@ecommerce/web-core";
 import type { Role, UserPage } from "../lib/types";
 import { toAccountsQuery, type UserSearchState } from "../lib/user-search";
 import { gatewayApi } from "./gateway";

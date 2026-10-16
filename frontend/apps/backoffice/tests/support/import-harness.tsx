@@ -2,7 +2,7 @@ import { act, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import type { ImportActions, ImportApi } from "../../src/components/imports/import-api";
-import type { Failure } from "../../src/lib/failure";
+import type { Failure } from "@ecommerce/web-core";
 import type { ImportProblemsPage, ImportView } from "../../src/lib/types";
 import { importView } from "./api";
 import { renderApp, type RenderOptions } from "./render";

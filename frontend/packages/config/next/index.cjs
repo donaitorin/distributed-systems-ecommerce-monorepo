@@ -1,6 +1,6 @@
 const { join } = require("node:path");
 
-const SHARED_PACKAGES = ["@ecommerce/ui", "@ecommerce/auth", "@ecommerce/api-client"];
+const SHARED_PACKAGES = ["@ecommerce/ui", "@ecommerce/auth", "@ecommerce/api-client", "@ecommerce/web-core"];
 
 const STATIC_SECURITY_HEADERS = [
   { key: "X-Content-Type-Options", value: "nosniff" },

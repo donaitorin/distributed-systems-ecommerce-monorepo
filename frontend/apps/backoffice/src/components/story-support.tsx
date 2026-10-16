@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Decorator } from "@storybook/nextjs-vite";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
-import { NavigationContext } from "./navigation";
+import { NavigationContext } from "@ecommerce/web-core/client";
 import { NotificationsProvider } from "./notifications";
 
 export function withAppProviders(searchParams = ""): Decorator {

@@ -2,7 +2,7 @@ import { act, screen, waitFor, within } from "@testing-library/react";
 import { axe } from "jest-axe";
 import type { UrlUpdateEvent } from "nuqs/adapters/testing";
 import { UsersView, type UsersViewProps } from "../src/components/users/users-view";
-import type { Failure } from "../src/lib/failure";
+import type { Failure } from "@ecommerce/web-core";
 import { profile } from "./support/api";
 import { resetRouter, router } from "./support/navigation-mock";
 import { renderApp } from "./support/render";

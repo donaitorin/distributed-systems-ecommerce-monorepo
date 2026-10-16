@@ -1,6 +1,6 @@
 "use server";
 
-import type { Failure } from "../../lib/failure";
+import type { Failure } from "@ecommerce/web-core";
 import type { Role } from "../../lib/types";
 import { changeUserRole, type RoleChanged } from "../../server/accounts";
 

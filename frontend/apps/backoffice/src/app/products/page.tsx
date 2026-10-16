@@ -3,7 +3,7 @@ import { createLoader } from "nuqs/server";
 import { ButtonLink } from "@ecommerce/ui";
 import { ProductsView } from "../../components/products/products-view";
 import { PRODUCTS_PATH, ZONE_PATH } from "../../lib/paths";
-import { productSearchParsers } from "../../lib/product-search";
+import { productSearchParsers } from "@ecommerce/web-core";
 import { isFailure, loadCategories, loadProductPage } from "../../server/products";
 import { deleteProductAction } from "./actions";
 

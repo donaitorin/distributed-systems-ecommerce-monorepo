@@ -3,14 +3,13 @@
 import { useState, useTransition } from "react";
 import { useQueryStates } from "nuqs";
 import { Button, ConfirmDialog, Input, Select, Table, type SelectOption, type TableColumn } from "@ecommerce/ui";
-import { isSessionFailure, type Failure } from "../../lib/failure";
+import { isSessionFailure, type Failure } from "@ecommerce/web-core";
 import { roleChangeFailureMessage } from "../../lib/messages";
 import { LOGIN_PATH } from "../../lib/paths";
 import type { Role, UserPage, UserProfile } from "../../lib/types";
-import { useUrlText } from "../../lib/use-url-text";
+import { useNavigation, useUrlText } from "@ecommerce/web-core/client";
 import { hasUserFilters, ROLES, USER_PAGE_SIZES, userSearchParsers } from "../../lib/user-search";
 import type { RoleChanged } from "../../server/accounts";
-import { useNavigation } from "../navigation";
 import { useNotify } from "../notifications";
 
 export type UsersViewProps = {

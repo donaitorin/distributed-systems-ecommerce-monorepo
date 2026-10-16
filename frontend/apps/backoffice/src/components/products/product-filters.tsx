@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, Input, Select, type SelectOption } from "@ecommerce/ui";
-import { useUrlText } from "../../lib/use-url-text";
+import { useUrlText } from "@ecommerce/web-core/client";
 import {
   hasActiveFilters,
   impliedSort,
@@ -10,7 +10,7 @@ import {
   sortToStore,
   type ProductSearchState,
   type SortValue,
-} from "../../lib/product-search";
+} from "@ecommerce/web-core";
 import type { Category } from "../../lib/types";
 
 const ALL = "all";

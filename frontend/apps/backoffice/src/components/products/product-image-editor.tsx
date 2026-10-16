@@ -2,15 +2,14 @@
 
 import { useEffect, useId, useState } from "react";
 import { Button, ConfirmDialog, ProductImage } from "@ecommerce/ui";
-import { isSessionFailure } from "../../lib/failure";
-import { sameOriginMedia } from "../../lib/media";
+import { isSessionFailure } from "@ecommerce/web-core";
 import { imageFailureMessage, validateImageFile, ACCEPTED_IMAGE_TYPES, MAX_IMAGE_BYTES } from "../../lib/messages";
 import { LOGIN_PATH } from "../../lib/paths";
 import type { Product } from "../../lib/types";
 import type { UploadResult } from "../../lib/upload-client";
 import type { SaveResult } from "../../server/product-actions";
 import { useNotify } from "../notifications";
-import { useNavigation } from "../navigation";
+import { useNavigation } from "@ecommerce/web-core/client";
 
 export type ProductImageEditorProps = {
   product: Pick<Product, "sku" | "name" | "image_url" | "thumbnail_url">;
@@ -103,8 +102,8 @@ export function ProductImageEditor({ product, etag, uploadImage, removeImage, on
     notify({ title: "The image was not removed", description: message, variant: "error" });
   };
 
-  const current = sameOriginMedia(product.image_url);
-  const currentThumbnail = sameOriginMedia(product.thumbnail_url);
+  const current = product.image_url ?? null;
+  const currentThumbnail = product.thumbnail_url ?? null;
 
   return (
     <section aria-labelledby={`${inputId}-heading`} className="flex max-w-xl flex-col gap-4">

@@ -11,14 +11,14 @@ import {
   type ReportProblem,
   type SeverityFilter,
 } from "@ecommerce/ui";
-import { isSessionFailure } from "../../lib/failure";
+import { isSessionFailure } from "@ecommerce/web-core";
 import type { ImportRequestError} from "../../lib/import-client";
 import { problemsCsvUrl, unwrap } from "../../lib/import-client";
 import { announcementFor, nextPollDelay, progressFraction, reportable, withPollCount, type PolledImport } from "../../lib/import-status";
 import { importActionFailureMessage, importLoadFailureMessage } from "../../lib/messages";
 import { LOGIN_PATH, PRODUCTS_PATH, ZONE_PATH } from "../../lib/paths";
 import type { ImportView } from "../../lib/types";
-import { useNavigation } from "../navigation";
+import { useNavigation } from "@ecommerce/web-core/client";
 import { useNotify } from "../notifications";
 import type { ImportActions, ImportApi } from "./import-api";
 import { UnknownCategoryAction } from "./unknown-category-action";

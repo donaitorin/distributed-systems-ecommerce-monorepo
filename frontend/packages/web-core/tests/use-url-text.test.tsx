@@ -1,6 +1,6 @@
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useUrlText } from "../src/lib/use-url-text";
+import { useUrlText } from "../src/client";
 
 function Field({
   value,

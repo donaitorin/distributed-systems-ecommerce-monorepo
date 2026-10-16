@@ -1,5 +1,5 @@
 import { entityTag } from "./entity-tag";
-import { failureFromResponse, type Failure } from "./failure";
+import { failureFromResponse, type Failure } from "@ecommerce/web-core";
 import { STREAM_PATH, ZONE_PATH } from "./paths";
 import type { Product } from "./types";
 

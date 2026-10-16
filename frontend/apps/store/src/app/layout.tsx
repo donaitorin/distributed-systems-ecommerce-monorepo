@@ -3,6 +3,8 @@ import { headers } from "next/headers";
 import { connection } from "next/server";
 import type { ReactNode } from "react";
 import { NONCE_HEADER } from "@ecommerce/auth/next";
+import { NavigationProvider } from "@ecommerce/web-core/client";
+import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { AppShell, StyleNonceProvider } from "@ecommerce/ui";
 import "./globals.css";
 
@@ -23,13 +25,17 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     <html lang="en">
       <body>
         <StyleNonceProvider nonce={nonce}>
-          <AppShell
-            brand={{ label: "Store", href: "/" }}
-            navigation={NAVIGATION}
-            footer="Distributed systems e-commerce challenge"
-          >
-            {children}
-          </AppShell>
+          <NuqsAdapter>
+            <NavigationProvider>
+              <AppShell
+                brand={{ label: "Store", href: "/" }}
+                navigation={NAVIGATION}
+                footer="Distributed systems e-commerce challenge"
+              >
+                {children}
+              </AppShell>
+            </NavigationProvider>
+          </NuqsAdapter>
         </StyleNonceProvider>
       </body>
     </html>

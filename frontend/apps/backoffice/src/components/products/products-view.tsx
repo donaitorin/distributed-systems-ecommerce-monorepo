@@ -3,15 +3,13 @@
 import { useState, useTransition } from "react";
 import { useQueryStates } from "nuqs";
 import { ButtonLink, Button, Pagination, PriceTag, ProductImage, StockBadge, Table, type TableColumn } from "@ecommerce/ui";
-import type { Failure } from "../../lib/failure";
-import { sameOriginMedia } from "../../lib/media";
+import { productSearchParsers, type Failure, type ProductSearchState } from "@ecommerce/web-core";
 import { PRODUCTS_PATH, ZONE_PATH } from "../../lib/paths";
-import { productSearchParsers, type ProductSearchState } from "../../lib/product-search";
 import type { Category, Product, ProductPage } from "../../lib/types";
 import type { DeleteResult } from "../../server/product-actions";
 import { DeleteProductDialog } from "../delete-product-dialog";
 import { ProductFilters } from "./product-filters";
-import { useNavigation } from "../navigation";
+import { useNavigation } from "@ecommerce/web-core/client";
 
 export type ProductsViewProps = {
   categories: readonly Category[];
@@ -38,8 +36,8 @@ function Thumbnail({ product }: { product: Product }) {
   return (
     <div className="size-12 shrink-0 overflow-hidden rounded-md">
       <ProductImage
-        thumbnailUrl={sameOriginMedia(product.thumbnail_url)}
-        imageUrl={sameOriginMedia(product.image_url)}
+        thumbnailUrl={product.thumbnail_url ?? null}
+        imageUrl={product.image_url ?? null}
         alt={product.image_url ? `Image of ${product.name}` : `${product.name} has no image`}
         sizes="48px"
       />

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { failureFromError, type Failure } from "../lib/failure";
+import { failureFromError, type Failure } from "@ecommerce/web-core";
 import { LOGIN_PATH } from "../lib/paths";
 
 export async function guarded<Value>(work: () => Promise<Value>): Promise<Value | Failure> {

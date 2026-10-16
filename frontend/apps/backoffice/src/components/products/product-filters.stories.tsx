@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, userEvent, within } from "storybook/test";
 import { useState } from "react";
-import type { ProductSearchState } from "../../lib/product-search";
+import type { ProductSearchState } from "@ecommerce/web-core";
 import { ProductFilters, type ProductFiltersProps } from "./product-filters";
 import { STORY_CATEGORIES } from "../story-support";
 

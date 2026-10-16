@@ -1,4 +1,4 @@
-import "./zod-config";
+import "@ecommerce/web-core/zod-config";
 import { z } from "zod";
 
 export const CATEGORY_NAME_MAX_LENGTH = 100;

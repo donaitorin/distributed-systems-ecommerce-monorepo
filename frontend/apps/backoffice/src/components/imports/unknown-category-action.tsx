@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { Button, type ReportUnknownCategory } from "@ecommerce/ui";
 import type { CategoryFormValues } from "../../lib/category-form";
-import { isSessionFailure, type Failure } from "../../lib/failure";
+import { isSessionFailure, type Failure } from "@ecommerce/web-core";
 import { categoryFailureMessage } from "../../lib/messages";
 import { LOGIN_PATH } from "../../lib/paths";
 import type { CategoryCreated } from "../../server/category-actions";
-import { useNavigation } from "../navigation";
+import { useNavigation } from "@ecommerce/web-core/client";
 import { useNotify } from "../notifications";
 
 export type UnknownCategoryActionProps = {

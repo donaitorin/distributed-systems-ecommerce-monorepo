@@ -9,7 +9,7 @@ import {
   sortToStore,
   toCatalogQuery,
   type ProductSearchState,
-} from "../src/lib/product-search";
+} from "../src";
 
 const load = createLoader(productSearchParsers);
 

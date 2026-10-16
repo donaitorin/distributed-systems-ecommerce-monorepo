@@ -3,12 +3,12 @@
 import { useState } from "react";
 import { FileDropzone } from "@ecommerce/ui";
 import { formatBytes } from "@ecommerce/ui";
-import { isSessionFailure } from "../../lib/failure";
+import { isSessionFailure } from "@ecommerce/web-core";
 import { importUploadFailureMessage } from "../../lib/messages";
 import { LOGIN_PATH } from "../../lib/paths";
 import type { ImportView } from "../../lib/types";
 import type { ImportApi } from "./import-api";
-import { useNavigation } from "../navigation";
+import { useNavigation } from "@ecommerce/web-core/client";
 
 export type UploadStepProps = {
   maxBytes: number;

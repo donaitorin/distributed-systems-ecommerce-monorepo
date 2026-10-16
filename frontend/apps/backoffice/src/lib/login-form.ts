@@ -1,4 +1,4 @@
-import { describeRetry } from "./messages";
+import { describeRetry } from "@ecommerce/web-core";
 
 export type LoginState = {
   email?: string;

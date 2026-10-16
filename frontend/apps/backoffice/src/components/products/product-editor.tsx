@@ -10,7 +10,7 @@ import type { ProductFormValues } from "../../lib/product-form";
 import { DeleteProductDialog } from "../delete-product-dialog";
 import { ProductForm } from "./product-form";
 import { ProductImageEditor } from "./product-image-editor";
-import { useNavigation } from "../navigation";
+import { useNavigation } from "@ecommerce/web-core/client";
 
 export type ProductEditorProps = {
   categories: readonly Category[];

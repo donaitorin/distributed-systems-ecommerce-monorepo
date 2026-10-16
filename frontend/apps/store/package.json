@@ -14,7 +14,9 @@
     "@ecommerce/api-client": "workspace:*",
     "@ecommerce/auth": "workspace:*",
     "@ecommerce/ui": "workspace:*",
+    "@ecommerce/web-core": "workspace:*",
     "next": "16.4.1",
+    "nuqs": "2.10.2",
     "react": "19.3.1",
     "react-dom": "19.3.1"
   },

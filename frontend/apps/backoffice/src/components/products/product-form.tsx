@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { Button, ButtonLink, Input, Select, Textarea, type SelectOption } from "@ecommerce/ui";
-import { isSessionFailure } from "../../lib/failure";
+import { isSessionFailure } from "@ecommerce/web-core";
 import { saveFailureMessage } from "../../lib/messages";
 import { LOGIN_PATH, PRODUCTS_PATH, ZONE_PATH } from "../../lib/paths";
 import {
@@ -22,7 +22,7 @@ import type { Category, Product, WithEtag } from "../../lib/types";
 import type { UpdateResult } from "../../server/product-actions";
 import { useNotify } from "../notifications";
 import { ConflictDialog, type Difference } from "./conflict-dialog";
-import { useNavigation } from "../navigation";
+import { useNavigation } from "@ecommerce/web-core/client";
 
 const NO_CATEGORY = "none";
 const FIELD_LABELS: Record<ProductField, string> = {

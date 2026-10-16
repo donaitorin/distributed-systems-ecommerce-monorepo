@@ -1,7 +1,6 @@
 /**
  * @jest-environment node
  */
-import { sameOriginMedia } from "../src/lib/media";
 import { entityTag } from "../src/lib/entity-tag";
 import {
   apiFieldName,
@@ -144,19 +143,7 @@ describe("product form mapping", () => {
 });
 
 
-describe("media and etags", () => {
-  it("keeps media on the page's own origin", () => {
-    expect(sameOriginMedia("http://127.0.0.1:8000/media/media/products/X/a-400.webp")).toBe(
-      "/media/media/products/X/a-400.webp",
-    );
-    expect(sameOriginMedia("https://cdn.example/media/a.webp?v=2")).toBe("/media/a.webp?v=2");
-    expect(sameOriginMedia("https://cdn.example/other/a.webp")).toBe("https://cdn.example/other/a.webp");
-    expect(sameOriginMedia("/media/a.webp")).toBe("/media/a.webp");
-    expect(sameOriginMedia(null)).toBeNull();
-    expect(sameOriginMedia(undefined)).toBeNull();
-    expect(sameOriginMedia("http://[bad")).toBe("http://[bad");
-  });
-
+describe("entity tags", () => {
   it("formats an entity tag from a version", () => {
     expect(entityTag(3)).toBe('"3"');
   });

@@ -1,6 +1,5 @@
 import { entityTag } from "../lib/entity-tag";
-import type { Failure } from "../lib/failure";
-import { toCatalogQuery, type ProductSearchState } from "../lib/product-search";
+import { toCatalogQuery, type Failure, type ProductSearchState } from "@ecommerce/web-core";
 import type { Category, Product, ProductPage, WithEtag } from "../lib/types";
 import { catalogApi } from "./catalog";
 import { guarded } from "./guarded";

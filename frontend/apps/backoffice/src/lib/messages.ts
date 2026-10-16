@@ -1,16 +1,8 @@
-import type { Failure } from "./failure";
+import { describeRetry, type Failure } from "@ecommerce/web-core";
 
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 export const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
 const MEGABYTES = 1024 * 1024;
-
-export function describeRetry(seconds: number): string {
-  if (seconds < 90) {
-    return `${seconds} ${seconds === 1 ? "second" : "seconds"}`;
-  }
-  const minutes = Math.ceil(seconds / 60);
-  return `${minutes} minutes`;
-}
 
 function retrySuffix(failure: Failure): string {
   return failure.retryAfterSeconds === undefined ? "" : ` Try again in ${describeRetry(failure.retryAfterSeconds)}.`;

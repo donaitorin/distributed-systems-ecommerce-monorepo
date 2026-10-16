@@ -16,6 +16,7 @@ describe("createNextConfig", () => {
       "@ecommerce/ui",
       "@ecommerce/auth",
       "@ecommerce/api-client",
+      "@ecommerce/web-core",
     ]);
   });
 
