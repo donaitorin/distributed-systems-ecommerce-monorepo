@@ -5,6 +5,9 @@ import { ApiError, ApiNetworkError } from "@ecommerce/api-client";
 import { failureFromError, failureFromProblem, failureFromResponse, isSessionFailure } from "../src/lib/failure";
 import { LOGIN_REASON_MESSAGES, rateLimitedMessage, validateCredentials } from "../src/lib/login-form";
 import {
+  importActionFailureMessage,
+  importLoadFailureMessage,
+  importUploadFailureMessage,
   categoryFailureMessage,
   roleChangeFailureMessage,
   deleteFailureMessage,
@@ -205,5 +208,58 @@ describe("category and role change messages", () => {
     );
     expect(roleChangeFailureMessage(failure(409))).toContain("Ask another administrator");
     expect(roleChangeFailureMessage(failure(400))).toBe("Title");
+  });
+});
+
+describe("import messages", () => {
+  const failure = (status: number | null, extra: object = {}) => ({
+    ok: false as const,
+    status,
+    title: "Title",
+    fieldErrors: {},
+    ...extra,
+  });
+  const LIMIT = 50 * 1024 * 1024;
+
+  it.each([
+    [413, "larger than the 50 MB limit"],
+    [401, "session expired"],
+    [403, "session expired"],
+    [503, "file storage is not available"],
+    [502, "not available"],
+    [null, "not available"],
+    [400, "Detail"],
+  ])("explains an upload failure %s", (status, text) => {
+    expect(importUploadFailureMessage(failure(status, { detail: "Detail" }), LIMIT)).toContain(text);
+  });
+
+  it("uses the server's words for an unreadable upload and the retry time for storage", () => {
+    expect(importUploadFailureMessage(failure(422, { detail: "the multipart field 'file' is required" }), LIMIT)).toBe(
+      "the multipart field 'file' is required",
+    );
+    expect(importUploadFailureMessage(failure(415), LIMIT)).toContain("Choose the file again");
+    expect(importUploadFailureMessage(failure(503, { retryAfterSeconds: 3 }), LIMIT)).toContain("Try again in 3 seconds");
+    expect(importUploadFailureMessage(failure(400), LIMIT)).toBe("Title");
+  });
+
+  it.each([
+    [404, "no longer exists"],
+    [409, "Detail"],
+    [503, "not available"],
+    [null, "not available"],
+    [400, "Detail"],
+  ])("explains an import action failure %s", (status, text) => {
+    expect(importActionFailureMessage(failure(status, { detail: "Detail" }))).toContain(text);
+  });
+
+  it("has defaults for a 409 and a 400 without detail", () => {
+    expect(importActionFailureMessage(failure(409))).toContain("no longer in a state");
+    expect(importActionFailureMessage(failure(400))).toBe("Title");
+  });
+
+  it("tells a missing import from a load problem", () => {
+    expect(importLoadFailureMessage(failure(404))).toContain("was not found");
+    expect(importLoadFailureMessage(failure(500))).toContain("could not be loaded");
+    expect(importLoadFailureMessage(failure(null))).toContain("could not be loaded");
   });
 });

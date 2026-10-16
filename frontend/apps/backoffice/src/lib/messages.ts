@@ -115,3 +115,41 @@ export function roleChangeFailureMessage(failure: Failure): string {
         : (failure.detail ?? failure.title);
   }
 }
+
+export function importUploadFailureMessage(failure: Failure, maxBytes: number): string {
+  switch (failure.status) {
+    case 413:
+      return `The file is larger than the ${Math.round(maxBytes / MEGABYTES)} MB limit.`;
+    case 415:
+    case 422:
+      return failure.detail ?? "The server could not read that upload. Choose the file again.";
+    case 401:
+    case 403:
+      return "Your session expired. Sign in again.";
+    case 503:
+      return `The file storage is not available right now.${retrySuffix(failure) || " Try again in a moment."}`;
+    default:
+      return failure.status === null || failure.status >= 500
+        ? unavailable(failure)
+        : (failure.detail ?? failure.title);
+  }
+}
+
+export function importActionFailureMessage(failure: Failure): string {
+  switch (failure.status) {
+    case 404:
+      return "This import no longer exists.";
+    case 409:
+      return failure.detail ?? "The import is no longer in a state that allows this.";
+    default:
+      return failure.status === null || failure.status >= 500
+        ? unavailable(failure)
+        : (failure.detail ?? failure.title);
+  }
+}
+
+export function importLoadFailureMessage(failure: Failure): string {
+  return failure.status === 404
+    ? "This import was not found. Upload the file again."
+    : "The import status could not be loaded. Check your connection and try again.";
+}

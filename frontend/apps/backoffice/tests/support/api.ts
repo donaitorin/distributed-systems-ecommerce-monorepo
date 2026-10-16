@@ -1,4 +1,4 @@
-import type { Category, Product, UserProfile } from "../../src/lib/types";
+import type { Category, ImportView, Product, UserProfile } from "../../src/lib/types";
 
 export function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), {
@@ -77,6 +77,53 @@ export function profile(overrides: Partial<UserProfile> = {}): UserProfile {
     role: "customer",
     created_at: "2026-10-10T12:00:00Z",
     updated_at: "2026-10-11T12:00:00Z",
+    ...overrides,
+  };
+}
+
+export function importView(overrides: Record<string, unknown> = {}, summary: Record<string, unknown> | null = {}): ImportView {
+  return {
+    id: "9f0c1d2e-3a4b-4c5d-8e6f-7a8b9c0d1e2f",
+    filename: "products.csv",
+    sha256: "a".repeat(64),
+    size_bytes: 12_345,
+    status: "validated",
+    created_by: "admin",
+    created_at: "2026-10-16T10:00:00Z",
+    updated_at: "2026-10-16T10:00:05Z",
+    validated_at: "2026-10-16T10:00:05Z",
+    confirmed_at: null,
+    finished_at: null,
+    failure_reason: null,
+    problems: [],
+    progress: { processed_rows: 0, created_rows: 0, updated_rows: 0, restored_rows: 0, unchanged_rows: 0 },
+    links: {
+      self: "/api/v1/imports/x",
+      problems: "/api/v1/imports/x/problems",
+      problems_csv: "/api/v1/imports/x/problems.csv",
+      confirm: "/api/v1/imports/x/confirm",
+    },
+    summary:
+      summary === null
+        ? null
+        : {
+            rejected: false,
+            rows_read: 97,
+            blank_rows: 2,
+            error_rows: 4,
+            error_count: 4,
+            warning_count: 3,
+            duplicate_rows: 1,
+            superseded_rows: 2,
+            importable_rows: 88,
+            to_create: 88,
+            to_update: 0,
+            to_restore: 0,
+            unchanged: 0,
+            truncated: false,
+            unknown_categories: [],
+            ...summary,
+          },
     ...overrides,
   };
 }
