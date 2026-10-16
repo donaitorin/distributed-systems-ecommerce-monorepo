@@ -15,13 +15,14 @@ export type PaginationProps = {
 
 const NUMBER_FORMAT = new Intl.NumberFormat("en-US");
 
-function totalMessage(total: number | undefined, totalExact: boolean): string {
-  if (total === undefined) {
-    return "";
-  }
+export function formatResultCount(total: number, totalExact: boolean): string {
   const formatted = NUMBER_FORMAT.format(total);
   const noun = total === 1 ? "result" : "results";
   return totalExact ? `${formatted} ${noun}` : `About ${formatted} ${noun}`;
+}
+
+function totalMessage(total: number | undefined, totalExact: boolean): string {
+  return total === undefined ? "" : formatResultCount(total, totalExact);
 }
 
 export function Pagination({

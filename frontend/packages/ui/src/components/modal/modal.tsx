@@ -12,7 +12,15 @@ export type ModalProps = {
   description?: string;
   children?: ReactNode;
   footer?: ReactNode;
+  variant?: "dialog" | "drawer";
 };
+
+const CONTENT_CLASSES = {
+  dialog:
+    "fixed inset-x-4 top-1/2 z-50 mx-auto flex max-h-dvh max-w-lg -translate-y-1/2 flex-col gap-4 overflow-y-auto rounded-lg border border-border bg-surface p-6 text-primary",
+  drawer:
+    "fixed inset-y-0 left-0 z-50 flex w-full max-w-sm flex-col gap-4 overflow-y-auto border-r border-border bg-surface p-6 text-primary",
+} as const;
 
 export function Modal({
   open,
@@ -22,6 +30,7 @@ export function Modal({
   description,
   children,
   footer,
+  variant = "dialog",
 }: ModalProps) {
   const openedFrom = useRef<HTMLElement | null>(null);
   return (
@@ -41,7 +50,7 @@ export function Modal({
               origin.focus();
             }
           }}
-          className="fixed inset-x-4 top-1/2 z-50 mx-auto flex max-h-dvh max-w-lg -translate-y-1/2 flex-col gap-4 overflow-y-auto rounded-lg border border-border bg-surface p-6 text-primary"
+          className={CONTENT_CLASSES[variant]}
         >
           <div className="flex items-start justify-between gap-4">
             <Dialog.Title className="text-xl font-semibold">{title}</Dialog.Title>

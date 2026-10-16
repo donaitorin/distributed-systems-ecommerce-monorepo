@@ -37,3 +37,23 @@ export const Default: Story = {
 export const Open: Story = { args: { open: true } };
 
 export const WithoutDescription: Story = { args: { open: true, description: undefined } };
+
+export const Drawer: Story = {
+  args: {
+    variant: "drawer",
+    title: "Filters",
+    description: undefined,
+    trigger: <Button variant="secondary">Filters</Button>,
+    children: <p className="text-sm">Filter controls go here.</p>,
+    footer: <Button>Show results</Button>,
+  },
+  play: async ({ canvasElement }) => {
+    const trigger = within(canvasElement).getByRole("button", { name: "Filters" });
+    await userEvent.click(trigger);
+    await expect(await screen.findByRole("dialog", { name: "Filters" })).toBeVisible();
+    await userEvent.keyboard("{Escape}");
+    await expect(trigger).toHaveFocus();
+  },
+};
+
+export const DrawerOpen: Story = { args: { ...Drawer.args, open: true } };
