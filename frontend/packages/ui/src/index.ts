@@ -1,6 +1,11 @@
 export { cn } from "./lib/cn";
-export { Button, type ButtonProps, type ButtonVariant } from "./components/button/button";
+export { StyleNonceProvider, useStyleNonce } from "./lib/style-nonce";
+export { Button, type ButtonProps } from "./components/button/button";
+export { buttonClasses, type ButtonVariant } from "./components/button/button-classes";
+export { ButtonLink, type ButtonLinkProps } from "./components/button-link/button-link";
+export { ConfirmDialog, type ConfirmDialogProps } from "./components/confirm-dialog/confirm-dialog";
 export { Input, type InputProps } from "./components/input/input";
+export { Textarea, type TextareaProps } from "./components/textarea/textarea";
 export { Select, type SelectOption, type SelectProps } from "./components/select/select";
 export { Table, type TableColumn, type TableProps } from "./components/table/table";
 export { Pagination, type PaginationProps } from "./components/pagination/pagination";

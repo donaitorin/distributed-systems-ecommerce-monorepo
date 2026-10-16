@@ -4,6 +4,7 @@ import { useId } from "react";
 import { Select as RadixSelect } from "radix-ui";
 import { cn } from "../../lib/cn";
 import { CheckIcon, ChevronDownIcon } from "../../lib/icons";
+import { useStyleNonce } from "../../lib/style-nonce";
 
 export type SelectOption = {
   value: string;
@@ -35,6 +36,7 @@ export function Select({
   id,
   ...rootProps
 }: SelectProps) {
+  const nonce = useStyleNonce();
   const generatedId = useId();
   const triggerId = id ?? generatedId;
   const hintId = `${triggerId}-hint`;
@@ -69,7 +71,7 @@ export function Select({
             sideOffset={4}
             className="z-50 max-h-80 min-w-(--radix-select-trigger-width) overflow-hidden rounded-md border border-border-strong bg-surface text-primary"
           >
-            <RadixSelect.Viewport className="p-1">
+            <RadixSelect.Viewport className="p-1" nonce={nonce}>
               {options.map((option) => (
                 <RadixSelect.Item
                   key={option.value}

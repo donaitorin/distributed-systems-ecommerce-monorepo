@@ -9,6 +9,7 @@ export type AppShellProps = {
   brand: NavigationLink;
   navigation?: readonly NavigationLink[];
   navigationLabel?: string;
+  actions?: ReactNode;
   footer?: ReactNode;
   children: ReactNode;
 };
@@ -19,6 +20,7 @@ export function AppShell({
   brand,
   navigation = [],
   navigationLabel = "Main",
+  actions,
   footer,
   children,
 }: AppShellProps) {
@@ -51,6 +53,7 @@ export function AppShell({
               </ul>
             </nav>
           ) : null}
+          {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
         </div>
       </header>
       <main id={MAIN_CONTENT_ID} tabIndex={-1} className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">

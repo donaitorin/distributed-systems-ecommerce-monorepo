@@ -44,3 +44,34 @@ export const Error: Story = { args: { rows: [], error: "Could not load products.
 export const Mobile: Story = {
   globals: { viewport: { value: "mobile", isRotated: false } },
 };
+
+const renderCard = (product: Product) => (
+  <div className="flex flex-col gap-2">
+    <p className="font-semibold">{product.name}</p>
+    <p className="text-sm text-secondary">{product.sku}</p>
+    <div className="flex items-center justify-between">
+      <PriceTag amount={product.price} />
+      <StockBadge stock={product.stock} />
+    </div>
+  </div>
+);
+
+export const CardsOnMobile: Story = {
+  args: { renderCard },
+  globals: { viewport: { value: "mobile", isRotated: false } },
+};
+
+export const CardsLoading: Story = {
+  args: { renderCard, loading: true, rows: [] },
+  globals: { viewport: { value: "mobile", isRotated: false } },
+};
+
+export const CardsEmpty: Story = {
+  args: { renderCard, rows: [], emptyMessage: "No products match your filters." },
+  globals: { viewport: { value: "mobile", isRotated: false } },
+};
+
+export const CardsError: Story = {
+  args: { renderCard, rows: [], error: "Could not load products. Try again." },
+  globals: { viewport: { value: "mobile", isRotated: false } },
+};
