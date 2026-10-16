@@ -284,6 +284,9 @@ describe("ProductsView pagination", () => {
       expect(lastUrl(onUrlUpdate).get("cursor")).toBe("NEXT");
     });
     expect(lastUrl(onUrlUpdate).get("q")).toBe("shoes");
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Previous" })).toBeEnabled();
+    });
 
     await user.click(screen.getByRole("button", { name: "Previous" }));
     await waitFor(() => {

@@ -1,4 +1,4 @@
-import { act, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { axe } from "jest-axe";
 import type { UrlUpdateEvent } from "nuqs/adapters/testing";
 import type { Failure } from "@ecommerce/web-core";
@@ -352,6 +352,9 @@ describe("ProductSearch pagination", () => {
     await waitFor(() => {
       expect(lastUrl(onUrlUpdate).get("cursor")).toBe("NEXT");
     });
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Previous" })).toBeEnabled();
+    });
     await user.click(screen.getByRole("button", { name: "Previous" }));
     await waitFor(() => {
       expect(lastUrl(onUrlUpdate).get("cursor")).toBe("PREV");
@@ -359,6 +362,42 @@ describe("ProductSearch pagination", () => {
 
     expect(lastUrl(onUrlUpdate).get("q")).toBe("shoes");
     expect(onUrlUpdate.mock.lastCall?.[0].options.scroll).toBe(true);
+  });
+
+  it("ignores a quick Previous while the next page is loading, so it cannot use the cursors of the old page", async () => {
+    const onUrlUpdate = jest.fn<void, [UrlUpdateEvent]>();
+    const { user } = renderApp(<ProductSearch {...props({ page: PAGE })} />, { searchParams: "?q=shoes", onUrlUpdate });
+    const results = screen.getByRole("region", { name: "Results" });
+    const previous = screen.getByRole("button", { name: "Previous" });
+    const states: string[] = [];
+    let clickedWhileLoading = false;
+    const observer = new MutationObserver(() => {
+      states.push(`${results.getAttribute("aria-busy")}/${(previous as HTMLButtonElement).disabled ? "disabled" : "enabled"}`);
+      if (results.getAttribute("aria-busy") === "true" && !clickedWhileLoading) {
+        clickedWhileLoading = true;
+        fireEvent.click(previous);
+      }
+    });
+    observer.observe(results, { attributes: true });
+    observer.observe(previous, { attributes: true });
+
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await waitFor(() => {
+      expect(previous).toBeEnabled();
+    });
+    observer.disconnect();
+
+    expect(clickedWhileLoading).toBe(true);
+    expect(states[0]).toBe("true/disabled");
+    expect(states.at(-1)).toBe("false/enabled");
+    expect(onUrlUpdate).toHaveBeenCalledTimes(1);
+    expect(lastUrl(onUrlUpdate).get("cursor")).toBe("NEXT");
+
+    await user.click(previous);
+    await waitFor(() => {
+      expect(lastUrl(onUrlUpdate).get("cursor")).toBe("PREV");
+    });
+    expect(onUrlUpdate).toHaveBeenCalledTimes(2);
   });
 
   it("disables the buttons that have no cursor", () => {
