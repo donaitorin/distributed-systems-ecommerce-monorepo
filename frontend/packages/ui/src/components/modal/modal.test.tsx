@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 import { Button } from "../button/button";
@@ -80,5 +80,71 @@ describe("Modal", () => {
     render(<Modal open onOpenChange={jest.fn()} title="Controlled" />);
 
     expect(screen.getByRole("dialog", { name: "Controlled" })).toBeInTheDocument();
+  });
+
+  describe("focus after closing", () => {
+    function Controlled({ removeOrigin = false }: { removeOrigin?: boolean }) {
+      const [open, setOpen] = useState(false);
+      const [present, setPresent] = useState(true);
+      return (
+        <>
+          {present ? (
+            <button type="button" onClick={() => { setOpen(true); }}>
+              Opener
+            </button>
+          ) : null}
+          <button type="button">Elsewhere</button>
+          <Modal
+            open={open}
+            onOpenChange={(next) => {
+              setOpen(next);
+              if (!next && removeOrigin) {
+                setPresent(false);
+              }
+            }}
+            title="Controlled"
+          />
+        </>
+      );
+    }
+
+    it("returns to the element that opened a dialog that has no trigger", async () => {
+      render(<Controlled />);
+      screen.getByRole("button", { name: "Opener" }).focus();
+      await userEvent.keyboard("{Enter}");
+      await screen.findByRole("dialog");
+
+      await userEvent.keyboard("{Escape}");
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: "Opener" })).toHaveFocus();
+      });
+    });
+
+    it("does not fail when the element that opened it is gone", async () => {
+      render(<Controlled removeOrigin />);
+      screen.getByRole("button", { name: "Opener" }).focus();
+      await userEvent.keyboard("{Enter}");
+      await screen.findByRole("dialog");
+
+      await userEvent.keyboard("{Escape}");
+
+      await waitFor(() => {
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      });
+      expect(screen.queryByRole("button", { name: "Opener" })).not.toBeInTheDocument();
+    });
+
+    it("still returns to its own trigger when it has one", async () => {
+      render(<Harness />);
+      await userEvent.click(screen.getByRole("button", { name: "Open modal" }));
+      await screen.findByRole("dialog");
+
+      await userEvent.keyboard("{Escape}");
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: "Open modal" })).toHaveFocus();
+      });
+    });
   });
 });

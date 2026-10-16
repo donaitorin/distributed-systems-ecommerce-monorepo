@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import { Dialog } from "radix-ui";
 import { CloseIcon } from "../../lib/icons";
 
@@ -23,6 +23,7 @@ export function Modal({
   children,
   footer,
 }: ModalProps) {
+  const openedFrom = useRef<HTMLElement | null>(null);
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       {trigger ? <Dialog.Trigger asChild>{trigger}</Dialog.Trigger> : null}
@@ -30,6 +31,16 @@ export function Modal({
         <Dialog.Overlay className="fixed inset-0 z-40 bg-overlay" />
         <Dialog.Content
           {...(description ? {} : { "aria-describedby": undefined })}
+          onOpenAutoFocus={() => {
+            openedFrom.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+          }}
+          onCloseAutoFocus={(event) => {
+            const origin = openedFrom.current;
+            if (!trigger && origin?.isConnected) {
+              event.preventDefault();
+              origin.focus();
+            }
+          }}
           className="fixed inset-x-4 top-1/2 z-50 mx-auto flex max-h-dvh max-w-lg -translate-y-1/2 flex-col gap-4 overflow-y-auto rounded-lg border border-border bg-surface p-6 text-primary"
         >
           <div className="flex items-start justify-between gap-4">
