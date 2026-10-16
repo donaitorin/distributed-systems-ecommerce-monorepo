@@ -1,0 +1,61 @@
+name: ratelimit-check
+
+x-client: &client
+  image: curlimages/curl:8.17.0
+  entrypoint: ["sleep", "infinity"]
+  stop_grace_period: 1s
+
+services:
+  gateway:
+    image: traefik:v3.7.14
+    volumes:
+      - ${PROOF_CONFIG_DIR:?run infra/gateway/tests/check_rate_limit.sh}/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ${PROOF_CONFIG_DIR}/dynamic:/etc/traefik/dynamic:ro
+    networks:
+      edge: {}
+      frontend: {}
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  auth:
+    image: traefik/whoami:v1.11.0
+    command: ["--port", "8000"]
+    networks:
+      edge: {}
+
+  store-standin:
+    <<: *client
+    networks:
+      frontend:
+        ipv4_address: 10.250.20.2
+
+  frontend-intruder:
+    <<: *client
+    networks:
+      frontend:
+        ipv4_address: 10.250.20.9
+
+  client-a:
+    <<: *client
+    networks:
+      edge: {}
+
+  client-b:
+    <<: *client
+    networks:
+      edge: {}
+
+  client-c:
+    <<: *client
+    networks:
+      edge: {}
+
+networks:
+  edge: {}
+  frontend:
+    ipam:
+      config:
+        - subnet: 10.250.20.0/28
