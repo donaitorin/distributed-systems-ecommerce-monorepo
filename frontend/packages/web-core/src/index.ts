@@ -9,6 +9,18 @@ export {
   type Failure,
 } from "./failure";
 export { describeRetry } from "./retry";
+export { nextPath, type NextPathOptions } from "./next-path";
+export {
+  EMAIL_TAKEN,
+  INCORRECT_CREDENTIALS,
+  INVALID_EMAIL,
+  passwordProblemMessage,
+  rateLimitedMessage,
+  registrationFieldErrors,
+  SIGN_IN_UNAVAILABLE,
+  validateCredentials,
+  type CredentialsState,
+} from "./auth-messages";
 export type { Category, Product, ProductPage } from "./catalog-types";
 export {
   DEFAULT_PAGE_SIZE,

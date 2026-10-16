@@ -112,3 +112,83 @@ describe("useUrlText", () => {
     expect(screen.getByLabelText("field")).toHaveValue("abc");
   });
 });
+
+function FormField({
+  value,
+  commit,
+  accept,
+}: {
+  value: string | null;
+  commit: (next: string | null) => void;
+  accept?: (text: string) => boolean;
+}) {
+  const [draft, setDraft, commitNow] = useUrlText({ value, commit, accept });
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        commitNow();
+      }}
+    >
+      <input
+        aria-label="field"
+        value={draft}
+        onChange={(event) => {
+          setDraft(event.target.value);
+        }}
+      />
+    </form>
+  );
+}
+
+describe("useUrlText commitNow", () => {
+  it("commits what is typed when Enter is pressed, without waiting for the debounce", async () => {
+    const commit = jest.fn();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    render(<FormField value={null} commit={commit} />);
+
+    await user.type(screen.getByLabelText("field"), "shoes{Enter}");
+
+    expect(commit).toHaveBeenCalledTimes(1);
+    expect(commit).toHaveBeenCalledWith("shoes");
+  });
+
+  it("cancels the pending debounce so the same text is not committed twice", async () => {
+    const commit = jest.fn();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    render(<FormField value={null} commit={commit} />);
+
+    await user.type(screen.getByLabelText("field"), "shoes{Enter}");
+    act(() => {
+      jest.advanceTimersByTime(1000);
+    });
+
+    expect(commit).toHaveBeenCalledTimes(1);
+  });
+
+  it("commits null when Enter is pressed on an emptied field", async () => {
+    const commit = jest.fn();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    render(<FormField value="old" commit={commit} />);
+
+    await user.clear(screen.getByLabelText("field"));
+    await user.type(screen.getByLabelText("field"), "{Enter}");
+
+    expect(commit).toHaveBeenCalledTimes(1);
+    expect(commit).toHaveBeenCalledWith(null);
+  });
+
+  it("does nothing for an unchanged value or one that is not acceptable", async () => {
+    const commit = jest.fn();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    render(<FormField value="12" commit={commit} accept={(text) => /^\d+$/.test(text)} />);
+
+    await user.type(screen.getByLabelText("field"), "{Enter}");
+    await user.type(screen.getByLabelText("field"), "x{Enter}");
+    act(() => {
+      jest.advanceTimersByTime(1000);
+    });
+
+    expect(commit).not.toHaveBeenCalled();
+  });
+});
