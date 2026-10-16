@@ -65,7 +65,7 @@ export function ProductSearch({ categories, page, failure }: ProductSearchProps)
     searchInput.current?.focus();
   };
 
-  const [queryDraft, setQueryDraft] = useUrlText({
+  const [queryDraft, setQueryDraft, applyQueryNow] = useUrlText({
     value: state.q,
     commit: (q) => {
       change({ q });
@@ -87,6 +87,7 @@ export function ProductSearch({ categories, page, failure }: ProductSearchProps)
           className="flex-1"
           onSubmit={(event) => {
             event.preventDefault();
+            applyQueryNow();
           }}
         >
           <Input
@@ -99,7 +100,7 @@ export function ProductSearch({ categories, page, failure }: ProductSearchProps)
             onChange={(event) => {
               setQueryDraft(event.target.value);
             }}
-            hint="Name, description or SKU. Results update as you type; small typos are tolerated."
+            hint="Name, description or SKU. Results update as you type or when you press Enter; small typos are tolerated."
           />
         </form>
         <Button

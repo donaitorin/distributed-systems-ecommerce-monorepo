@@ -224,6 +224,48 @@ describe("ProductSearch filters", () => {
       expect(lastUrl(onUrlUpdate).toString()).toBe("q=runing");
     });
 
+    it("applies the search at once when Enter is pressed and does not repeat it after the debounce", async () => {
+      const onUrlUpdate = jest.fn<void, [UrlUpdateEvent]>();
+      const { user } = renderApp(<ProductSearch {...props()} />, { searchParams: "?cursor=OLD", onUrlUpdate, fakeTimers: true });
+
+      await user.type(screen.getByRole("searchbox", { name: "Search products" }), "runing shoes{Enter}");
+
+      await waitFor(() => {
+        expect(onUrlUpdate).toHaveBeenCalledTimes(1);
+      });
+      expect(lastUrl(onUrlUpdate).toString()).toBe("q=runing+shoes");
+      act(() => {
+        jest.advanceTimersByTime(1000);
+      });
+      expect(onUrlUpdate).toHaveBeenCalledTimes(1);
+    });
+
+    it("does nothing when Enter is pressed on an unchanged search", async () => {
+      const onUrlUpdate = jest.fn<void, [UrlUpdateEvent]>();
+      const { user } = renderApp(<ProductSearch {...props()} />, { searchParams: "?q=shoes", onUrlUpdate, fakeTimers: true });
+
+      await user.type(screen.getByRole("searchbox", { name: "Search products" }), "{Enter}");
+      act(() => {
+        jest.advanceTimersByTime(1000);
+      });
+
+      expect(onUrlUpdate).not.toHaveBeenCalled();
+    });
+
+    it("applies a maximum price after the debounce", async () => {
+      const onUrlUpdate = jest.fn<void, [UrlUpdateEvent]>();
+      const { user } = renderApp(<ProductSearch {...props()} />, { searchParams: "?cursor=OLD", onUrlUpdate, fakeTimers: true });
+
+      await user.type(screen.getByLabelText("Maximum"), "150");
+      act(() => {
+        jest.advanceTimersByTime(300);
+      });
+
+      await waitFor(() => {
+        expect(lastUrl(onUrlUpdate).toString()).toBe("max_price=150");
+      });
+    });
+
     it("validates prices before they reach the URL", async () => {
       const onUrlUpdate = jest.fn<void, [UrlUpdateEvent]>();
       const { user } = renderApp(<ProductSearch {...props()} />, { onUrlUpdate, fakeTimers: true });
