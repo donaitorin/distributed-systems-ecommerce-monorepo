@@ -230,8 +230,7 @@ services:
       - default
       - frontend
     volumes:
-      - ./infra/gateway/traefik.yml:/etc/traefik/traefik.yml:ro
-      - ./infra/gateway/dynamic:/etc/traefik/dynamic:ro
+      - ./infra/gateway:/etc/traefik:ro
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--ping"]
       interval: 10s

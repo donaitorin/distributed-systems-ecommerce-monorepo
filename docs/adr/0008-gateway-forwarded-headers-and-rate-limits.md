@@ -39,4 +39,5 @@ If the store or backoffice has no address to forward, the hop shares one bucket 
 ## Consequences
 
 - The two trusted addresses are written in three files that must change together: `infra/gateway/traefik.yml`, `infra/gateway/dynamic/auth.yml` (rules and limiters) and the static addresses in `docker-compose.yml`. Scaling a zone to replicas means giving the zone a small fixed range and trusting that range.
+- The gateway mounts the whole `infra/gateway` directory at `/etc/traefik`, not `traefik.yml` as a single file. A single-file bind mount keeps pointing at the old inode when git rewrites the file (a branch switch, a pull), so the container saw an empty `traefik.yml` and `traefik healthcheck` failed while routing still worked from the configuration it had already loaded; `make up` then waited on a gateway that never became healthy.
 - Changing a limit means editing the two limiters of an endpoint.
