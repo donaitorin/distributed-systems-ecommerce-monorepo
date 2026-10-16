@@ -1,8 +1,11 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useRef } from "react";
 import { Button, Input } from "@ecommerce/ui";
+import { useFocusOnErrors } from "@ecommerce/web-core/client";
 import type { LoginState } from "../lib/login-form";
+
+const FIELD_ORDER = ["email", "password"] as const;
 
 export type LoginAction = (previous: LoginState, formData: FormData) => Promise<LoginState>;
 
@@ -16,15 +19,7 @@ export function LoginForm({ action, next }: LoginFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const errorRef = useRef<HTMLParagraphElement>(null);
 
-  useEffect(() => {
-    if (state.fieldErrors?.email) {
-      formRef.current?.querySelector<HTMLInputElement>("input[name='email']")?.focus();
-    } else if (state.fieldErrors?.password) {
-      formRef.current?.querySelector<HTMLInputElement>("input[name='password']")?.focus();
-    } else if (state.error) {
-      errorRef.current?.focus();
-    }
-  }, [state]);
+  useFocusOnErrors({ formRef, errorRef, state, order: FIELD_ORDER });
 
   return (
     <form ref={formRef} action={formAction} noValidate className="flex max-w-md flex-col gap-4">
