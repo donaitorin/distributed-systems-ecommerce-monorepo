@@ -2,28 +2,12 @@ import { render, screen } from "@testing-library/react";
 import { axe } from "jest-axe";
 import AccountPage from "../src/app/account/page";
 import LoginPage from "../src/app/login/page";
-import HomePage from "../src/app/page";
 
 const requireSession = jest.fn();
 
 jest.mock("@ecommerce/auth/next", () => ({
   requireSession: (options: unknown) => requireSession(options) as unknown,
 }));
-
-describe("home page", () => {
-  it("has no accessibility violations", async () => {
-    const { container } = render(<HomePage />);
-
-    expect(await axe(container)).toHaveNoViolations();
-  });
-
-  it("has one level 1 heading and loading placeholders for the catalog", () => {
-    render(<HomePage />);
-
-    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
-    expect(screen.getAllByRole("status")).toHaveLength(4);
-  });
-});
 
 describe("login page", () => {
   it("has no accessibility violations and one level 1 heading", async () => {

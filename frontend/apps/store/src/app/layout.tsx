@@ -14,6 +14,7 @@ export const metadata: Metadata = {
 };
 
 const NAVIGATION = [
+  { label: "Products", href: "/products" },
   { label: "Account", href: "/account" },
   { label: "Sign in", href: "/login" },
 ];
