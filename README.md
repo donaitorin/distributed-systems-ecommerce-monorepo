@@ -234,7 +234,7 @@ make test-storybook            # builds Storybook and runs axe on every story
 make lint                      # backend and frontend linters and typechecks
 ```
 
-If `pnpm -v` does not print the version pinned in `frontend/package.json`, another pnpm (for example a Homebrew one) comes first in your `PATH`; the make targets call `corepack pnpm` and are not affected.
+If `pnpm -v` does not print the version pinned in `frontend/package.json`, another pnpm (for example a Homebrew one) comes first in your `PATH`; the make targets run `corepack pnpm` from inside `frontend/`, where Corepack reads the pinned `packageManager` (Corepack looks at the package.json of the current directory, not at `--dir`), so they use the pinned version on a machine that has never run Corepack.
 
 - **Styling.** Tailwind v4 is the only styling approach. `packages/config/styles/theme.css` is the single source of design tokens (warm palette, Inter and Playfair Display self-hosted through Fontsource, radii, breakpoints). A test checks every text and control colour pair for WCAG 2.2 AA contrast, and another one fails on removed or misused tokens in component sources.
 - **API types.** `backend/tools/dump_openapi.py` writes each service's OpenAPI document to `frontend/packages/api-client/openapi/` and openapi-typescript generates the types. `make openapi` regenerates both; `make check-openapi` (a CI job and a backend test) fails when they are stale.

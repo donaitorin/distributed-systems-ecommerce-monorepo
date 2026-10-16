@@ -86,7 +86,8 @@ jobs:
         run: make install-frontend
 
       - name: Install the browser for the Storybook test runner
-        run: corepack pnpm --dir frontend --filter @ecommerce/ui exec playwright install --with-deps chromium
+        working-directory: frontend
+        run: corepack pnpm --filter @ecommerce/ui exec playwright install --with-deps chromium
 
       - name: Build Storybook and run every story with axe
         run: make test-storybook
