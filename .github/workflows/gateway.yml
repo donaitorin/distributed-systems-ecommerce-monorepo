@@ -1,0 +1,29 @@
+name: gateway
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "infra/gateway/**"
+      - ".github/workflows/gateway.yml"
+  pull_request:
+    paths:
+      - "infra/gateway/**"
+      - ".github/workflows/gateway.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gateway-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rate-limit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Prove the rate limit buckets and the forwarded header trust
+        run: make check-rate-limit

@@ -38,6 +38,20 @@ x-accounts-database-environment: &accounts-database-environment
   ACCOUNTS_DB_USER: accounts_user
   ACCOUNTS_DB_PASSWORD: ${ACCOUNTS_DB_PASSWORD}
 
+x-store-image: &store-image
+  image: ecommerce/store:dev
+  pull_policy: never
+
+x-backoffice-image: &backoffice-image
+  image: ecommerce/backoffice:dev
+  pull_policy: never
+
+x-frontend-environment: &frontend-environment
+  API_BASE_URL: http://gateway:80
+  AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-false}
+  JWT_ISSUER: ${JWT_ISSUER:-ecommerce-auth}
+  JWT_AUDIENCE: ${JWT_AUDIENCE:-ecommerce-api}
+
 x-jwt-environment: &jwt-environment
   JWT_ISSUER: ${JWT_ISSUER:-ecommerce-auth}
   JWT_AUDIENCE: ${JWT_AUDIENCE:-ecommerce-api}
@@ -212,6 +226,9 @@ services:
     ports:
       - "127.0.0.1:${GATEWAY_HTTP_PORT}:80"
       - "127.0.0.1:${GATEWAY_DASHBOARD_PORT}:8080"
+    networks:
+      - default
+      - frontend
     volumes:
       - ./infra/gateway/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./infra/gateway/dynamic:/etc/traefik/dynamic:ro
@@ -405,6 +422,48 @@ services:
       OBJECT_STORAGE_MEDIA_BUCKET: ${OBJECT_STORAGE_MEDIA_BUCKET:-media}
       OBJECT_STORAGE_IMPORTS_BUCKET: ${OBJECT_STORAGE_IMPORTS_BUCKET:-imports}
       MEDIA_PUBLIC_BASE_URL: ${MEDIA_PUBLIC_BASE_URL:-http://127.0.0.1:${GATEWAY_HTTP_PORT:-8000}/media}
+
+  store:
+    <<: *store-image
+    pull_policy: build
+    build:
+      context: ./frontend
+      dockerfile: apps/store/Dockerfile
+    restart: unless-stopped
+    environment: *frontend-environment
+    networks:
+      frontend:
+        ipv4_address: 10.250.10.2
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/login').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
+  backoffice:
+    <<: *backoffice-image
+    pull_policy: build
+    build:
+      context: ./frontend
+      dockerfile: apps/backoffice/Dockerfile
+    restart: unless-stopped
+    environment: *frontend-environment
+    networks:
+      frontend:
+        ipv4_address: 10.250.10.3
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/admin/login').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
+networks:
+  frontend:
+    ipam:
+      config:
+        - subnet: 10.250.10.0/28
 
 volumes:
   auth-keys:

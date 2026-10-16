@@ -1,6 +1,12 @@
 entryPoints:
   web:
     address: ":80"
+    http:
+      aliasHeadersStrategy: delete
+    forwardedHeaders:
+      trustedIPs:
+        - "10.250.10.2/32"
+        - "10.250.10.3/32"
   traefik:
     address: ":8080"
 

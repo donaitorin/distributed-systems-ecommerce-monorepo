@@ -1,0 +1,13 @@
+**/node_modules
+**/.next
+**/.turbo
+**/coverage
+**/storybook-static
+**/*.tsbuildinfo
+**/tests
+**/*.test.ts
+**/*.test.tsx
+**/*.test.cjs
+**/*.stories.tsx
+**/.storybook
+.git

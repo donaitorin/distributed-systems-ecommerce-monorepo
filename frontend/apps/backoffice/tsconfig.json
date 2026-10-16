@@ -1,0 +1,9 @@
+{
+  "extends": "@ecommerce/config/tsconfig/nextjs.json",
+  "compilerOptions": {
+    "types": ["node", "jest", "@testing-library/jest-dom"],
+    "jsx": "react-jsx"
+  },
+  "include": ["next-env.d.ts", "src", "tests", "*.mjs", "*.cjs", ".next/types/**/*.ts", ".next/dev/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}

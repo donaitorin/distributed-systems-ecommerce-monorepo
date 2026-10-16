@@ -1,0 +1,22 @@
+http:
+  routers:
+    backoffice:
+      rule: "Path(`/admin`) || PathPrefix(`/admin/`)"
+      priority: 10
+      entryPoints: [web]
+      service: backoffice
+    store:
+      rule: "PathPrefix(`/`)"
+      priority: 1
+      entryPoints: [web]
+      service: store
+
+  services:
+    backoffice:
+      loadBalancer:
+        servers:
+          - url: "http://backoffice:3000"
+    store:
+      loadBalancer:
+        servers:
+          - url: "http://store:3000"

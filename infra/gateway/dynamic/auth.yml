@@ -1,10 +1,22 @@
 http:
   routers:
+    auth-login-forwarded:
+      rule: "Path(`/api/v1/auth/login`) && Method(`POST`) && (ClientIP(`10.250.10.2/32`) || ClientIP(`10.250.10.3/32`))"
+      priority: 101
+      entryPoints: [web]
+      middlewares: [auth-login-forwarded-rate-limit]
+      service: auth
     auth-login:
       rule: "Path(`/api/v1/auth/login`) && Method(`POST`)"
       priority: 100
       entryPoints: [web]
       middlewares: [auth-login-rate-limit]
+      service: auth
+    auth-register-forwarded:
+      rule: "Path(`/api/v1/auth/register`) && Method(`POST`) && (ClientIP(`10.250.10.2/32`) || ClientIP(`10.250.10.3/32`))"
+      priority: 101
+      entryPoints: [web]
+      middlewares: [auth-register-forwarded-rate-limit]
       service: auth
     auth-register:
       rule: "Path(`/api/v1/auth/register`) && Method(`POST`)"
@@ -31,11 +43,31 @@ http:
         average: 10
         period: 1m
         burst: 10
+    auth-login-forwarded-rate-limit:
+      rateLimit:
+        average: 10
+        period: 1m
+        burst: 10
+        sourceCriterion:
+          ipStrategy:
+            excludedIPs:
+              - "10.250.10.2/32"
+              - "10.250.10.3/32"
     auth-register-rate-limit:
       rateLimit:
         average: 5
         period: 1m
         burst: 5
+    auth-register-forwarded-rate-limit:
+      rateLimit:
+        average: 5
+        period: 1m
+        burst: 5
+        sourceCriterion:
+          ipStrategy:
+            excludedIPs:
+              - "10.250.10.2/32"
+              - "10.250.10.3/32"
 
   services:
     auth:

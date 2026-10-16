@@ -1,0 +1,7 @@
+@import "tailwindcss";
+@import "@ecommerce/config/styles/fonts.css";
+@import "@ecommerce/config/styles/theme.css";
+@import "@ecommerce/config/styles/base.css";
+
+@source "../src";
+@source "../../../apps/*/src";

@@ -1,0 +1,2415 @@
+{
+  "components": {
+    "schemas": {
+      "CategoryCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "CategoryCreate",
+        "type": "object"
+      },
+      "CategoryOut": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug"
+        ],
+        "title": "CategoryOut",
+        "type": "object"
+      },
+      "FieldProblem": {
+        "properties": {
+          "location": {
+            "title": "Location",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "location",
+          "message",
+          "type"
+        ],
+        "title": "FieldProblem",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "ImportLinks": {
+        "properties": {
+          "confirm": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Present while the import can be confirmed",
+            "title": "Confirm"
+          },
+          "problems": {
+            "title": "Problems",
+            "type": "string"
+          },
+          "problems_csv": {
+            "title": "Problems Csv",
+            "type": "string"
+          },
+          "self": {
+            "title": "Self",
+            "type": "string"
+          }
+        },
+        "required": [
+          "self",
+          "problems",
+          "problems_csv"
+        ],
+        "title": "ImportLinks",
+        "type": "object"
+      },
+      "ImportOut": {
+        "properties": {
+          "confirmed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmed At"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "title": "Created By",
+            "type": "string"
+          },
+          "failure_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Reason"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "links": {
+            "$ref": "#/components/schemas/ImportLinks"
+          },
+          "problems": {
+            "description": "The first problems, errors before warnings; use the links for all of them",
+            "items": {
+              "$ref": "#/components/schemas/catalog__api__import_schemas__ProblemOut"
+            },
+            "title": "Problems",
+            "type": "array"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/ProgressOut"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "size_bytes": {
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ImportSummaryOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "validated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validated At"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "filename",
+          "size_bytes",
+          "sha256",
+          "created_by",
+          "created_at",
+          "updated_at",
+          "validated_at",
+          "confirmed_at",
+          "finished_at",
+          "failure_reason",
+          "summary",
+          "progress",
+          "problems",
+          "links"
+        ],
+        "title": "ImportOut",
+        "type": "object"
+      },
+      "ImportSummaryOut": {
+        "properties": {
+          "blank_rows": {
+            "title": "Blank Rows",
+            "type": "integer"
+          },
+          "duplicate_rows": {
+            "title": "Duplicate Rows",
+            "type": "integer"
+          },
+          "error_count": {
+            "title": "Error Count",
+            "type": "integer"
+          },
+          "error_rows": {
+            "title": "Error Rows",
+            "type": "integer"
+          },
+          "importable_rows": {
+            "title": "Importable Rows",
+            "type": "integer"
+          },
+          "rejected": {
+            "title": "Rejected",
+            "type": "boolean"
+          },
+          "rows_read": {
+            "title": "Rows Read",
+            "type": "integer"
+          },
+          "superseded_rows": {
+            "title": "Superseded Rows",
+            "type": "integer"
+          },
+          "to_create": {
+            "title": "To Create",
+            "type": "integer"
+          },
+          "to_restore": {
+            "title": "To Restore",
+            "type": "integer"
+          },
+          "to_update": {
+            "title": "To Update",
+            "type": "integer"
+          },
+          "truncated": {
+            "description": "True when only the first problems are stored; the counts stay exact",
+            "title": "Truncated",
+            "type": "boolean"
+          },
+          "unchanged": {
+            "title": "Unchanged",
+            "type": "integer"
+          },
+          "unknown_categories": {
+            "items": {
+              "$ref": "#/components/schemas/UnknownCategoryOut"
+            },
+            "title": "Unknown Categories",
+            "type": "array"
+          },
+          "warning_count": {
+            "title": "Warning Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rejected",
+          "rows_read",
+          "blank_rows",
+          "error_rows",
+          "error_count",
+          "warning_count",
+          "superseded_rows",
+          "duplicate_rows",
+          "importable_rows",
+          "to_create",
+          "to_update",
+          "to_restore",
+          "unchanged",
+          "truncated",
+          "unknown_categories"
+        ],
+        "title": "ImportSummaryOut",
+        "type": "object"
+      },
+      "ProblemsPageOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/catalog__api__import_schemas__ProblemOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "ProblemsPageOut",
+        "type": "object"
+      },
+      "ProductCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "category_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Price"
+          },
+          "sku": {
+            "title": "Sku",
+            "type": "string"
+          },
+          "stock": {
+            "title": "Stock",
+            "type": "integer"
+          },
+          "weight_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weight Kg"
+          }
+        },
+        "required": [
+          "name",
+          "price",
+          "stock",
+          "sku"
+        ],
+        "title": "ProductCreate",
+        "type": "object"
+      },
+      "ProductOut": {
+        "properties": {
+          "category": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CategoryOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Public URL of the 1200 px WebP image, null without an image",
+            "title": "Image Url"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "price": {
+            "title": "Price",
+            "type": "string"
+          },
+          "sku": {
+            "title": "Sku",
+            "type": "string"
+          },
+          "stock": {
+            "title": "Stock",
+            "type": "integer"
+          },
+          "thumbnail_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Public URL of the 400 px WebP thumbnail, null without an image",
+            "title": "Thumbnail Url"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "weight_kg": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weight Kg"
+          }
+        },
+        "required": [
+          "sku",
+          "name",
+          "description",
+          "category",
+          "price",
+          "stock",
+          "weight_kg",
+          "version",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ProductOut",
+        "type": "object"
+      },
+      "ProductPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ProductOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Opaque cursor for the next page, null on the last page",
+            "title": "Next Cursor"
+          },
+          "prev_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Opaque cursor for the previous page, null on the first page",
+            "title": "Prev Cursor"
+          },
+          "total": {
+            "default": 0,
+            "description": "Number of matching products; an estimate unless total_exact is true",
+            "title": "Total",
+            "type": "integer"
+          },
+          "total_exact": {
+            "default": true,
+            "description": "True when total is an exact count, false when it is a planner estimate",
+            "title": "Total Exact",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "ProductPage",
+        "type": "object"
+      },
+      "ProductWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "category_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Price"
+          },
+          "stock": {
+            "title": "Stock",
+            "type": "integer"
+          },
+          "weight_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weight Kg"
+          }
+        },
+        "required": [
+          "name",
+          "price",
+          "stock"
+        ],
+        "title": "ProductWrite",
+        "type": "object"
+      },
+      "ProgressOut": {
+        "properties": {
+          "created_rows": {
+            "title": "Created Rows",
+            "type": "integer"
+          },
+          "processed_rows": {
+            "title": "Processed Rows",
+            "type": "integer"
+          },
+          "restored_rows": {
+            "title": "Restored Rows",
+            "type": "integer"
+          },
+          "unchanged_rows": {
+            "title": "Unchanged Rows",
+            "type": "integer"
+          },
+          "updated_rows": {
+            "title": "Updated Rows",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "processed_rows",
+          "created_rows",
+          "updated_rows",
+          "restored_rows",
+          "unchanged_rows"
+        ],
+        "title": "ProgressOut",
+        "type": "object"
+      },
+      "Sort": {
+        "enum": [
+          "relevance",
+          "price_asc",
+          "price_desc",
+          "newest"
+        ],
+        "title": "Sort",
+        "type": "string"
+      },
+      "UnknownCategoryOut": {
+        "properties": {
+          "rows": {
+            "title": "Rows",
+            "type": "integer"
+          },
+          "suggestion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggestion"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "rows",
+          "suggestion"
+        ],
+        "title": "UnknownCategoryOut",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "catalog__api__import_schemas__ProblemOut": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "column": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Column"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "row": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Spreadsheet row; the header is row 1",
+            "title": "Row"
+          },
+          "severity": {
+            "title": "Severity",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The value as received, truncated to 200 characters",
+            "title": "Value"
+          }
+        },
+        "required": [
+          "severity",
+          "row",
+          "column",
+          "value",
+          "code",
+          "reason"
+        ],
+        "title": "ProblemOut",
+        "type": "object"
+      },
+      "catalog__api__schemas__ProblemOut": {
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "errors": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/FieldProblem"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Errors"
+          },
+          "instance": {
+            "title": "Instance",
+            "type": "string"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
+          "status": {
+            "title": "Status",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "default": "about:blank",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "status",
+          "instance"
+        ],
+        "title": "ProblemOut",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "title": "catalog",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/categories": {
+      "get": {
+        "operationId": "list_categories_api_v1_categories_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CategoryOut"
+                  },
+                  "title": "Response List Categories Api V1 Categories Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List all categories",
+        "tags": [
+          "categories"
+        ]
+      },
+      "post": {
+        "operationId": "create_category_api_v1_categories_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "Missing or invalid access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "The token does not carry the admin role"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "Conflict with an existing resource"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "Invalid request data"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create a category (admin)",
+        "tags": [
+          "categories"
+        ]
+      }
+    },
+    "/api/v1/imports": {
+      "post": {
+        "description": "Multipart field `file`. The file is stored, hashed and validated in the background; nothing is written to the catalog until the import is confirmed. Uploading the same file again returns the existing import with status 200.",
+        "operationId": "upload_import_api_v1_imports_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "format": "binary",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The same file was already uploaded; the existing import"
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "Missing or invalid access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "The token does not carry the admin role"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "The upload exceeds the 5 MB limit"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "The upload is not multipart or not a supported file"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "Invalid request data"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "The search exceeded its time limit; retry after the Retry-After delay"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Upload a products CSV (admin)",
+        "tags": [
+          "imports"
+        ]
+      }
+    },
+    "/api/v1/imports/{import_id}": {
+      "get": {
+        "operationId": "get_import_api_v1_imports__import_id__get",
+        "parameters": [
+          {
+            "description": "Import id",
+            "in": "path",
+            "name": "import_id",
+            "required": true,
+            "schema": {
+              "description": "Import id",
+              "format": "uuid",
+              "title": "Import Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "Missing or invalid access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "The token does not carry the admin role"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "Unknown or deleted SKU, or the product has no image"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get an import with its status, counts and first problems (admin)",
+        "tags": [
+          "imports"
+        ]
+      }
+    },
+    "/api/v1/imports/{import_id}/confirm": {
+      "post": {
+        "description": "Only a validated import can be confirmed. The valid rows are then written in the background; poll the import for progress. Repeating the call is harmless.",
+        "operationId": "confirm_import_api_v1_imports__import_id__confirm_post",
+        "parameters": [
+          {
+            "description": "Import id",
+            "in": "path",
+            "name": "import_id",
+            "required": true,
+            "schema": {
+              "description": "Import id",
+              "format": "uuid",
+              "title": "Import Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "Missing or invalid access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "The token does not carry the admin role"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "Unknown or deleted SKU, or the product has no image"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "Conflict with an existing resource"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Confirm the import of the valid rows (admin)",
+        "tags": [
+          "imports"
+        ]
+      }
+    },
+    "/api/v1/imports/{import_id}/problems": {
+      "get": {
+        "operationId": "list_problems_api_v1_imports__import_id__problems_get",
+        "parameters": [
+          {
+            "description": "Import id",
+            "in": "path",
+            "name": "import_id",
+            "required": true,
+            "schema": {
+              "description": "Import id",
+              "format": "uuid",
+              "title": "Import Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "severity",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "error",
+                    "warning"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Severity"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "description": "Page size: 25, 50, 100 or 500",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "description": "Page size: 25, 50, 100 or 500",
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemsPageOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "Missing or invalid access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "The token does not carry the admin role"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "Unknown or deleted SKU, or the product has no image"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "Invalid request data"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List the problems of an import, in file order (admin)",
+        "tags": [
+          "imports"
+        ]
+      }
+    },
+    "/api/v1/imports/{import_id}/problems.csv": {
+      "get": {
+        "operationId": "download_problems_api_v1_imports__import_id__problems_csv_get",
+        "parameters": [
+          {
+            "description": "Import id",
+            "in": "path",
+            "name": "import_id",
+            "required": true,
+            "schema": {
+              "description": "Import id",
+              "format": "uuid",
+              "title": "Import Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/csv": {}
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "Missing or invalid access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "The token does not carry the admin role"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "Unknown or deleted SKU, or the product has no image"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Download every problem of an import as a CSV (admin)",
+        "tags": [
+          "imports"
+        ]
+      }
+    },
+    "/api/v1/products": {
+      "get": {
+        "description": "Keyset-paginated listing. Without q the default order is newest first; with q it is relevance, and typos in q still match. sort=relevance without q falls back to newest. in_stock=true hides sold-out products; in_stock=false is the same as omitting it. An unknown category slug returns an empty page. A cursor is only valid with the q, category, price, in_stock and sort values it was issued for.",
+        "operationId": "list_products_api_v1_products_get",
+        "parameters": [
+          {
+            "description": "Free text; typos are tolerated",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Free text; typos are tolerated",
+              "title": "Q"
+            }
+          },
+          {
+            "description": "Category slug",
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 120,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Category slug",
+              "title": "Category"
+            }
+          },
+          {
+            "description": "Minimum price, inclusive",
+            "in": "query",
+            "name": "min_price",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0.0,
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Minimum price, inclusive",
+              "title": "Min Price"
+            }
+          },
+          {
+            "description": "Maximum price, inclusive",
+            "in": "query",
+            "name": "max_price",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0.0,
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Maximum price, inclusive",
+              "title": "Max Price"
+            }
+          },
+          {
+            "description": "true hides sold-out products; false is the same as omitting it",
+            "in": "query",
+            "name": "in_stock",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "true hides sold-out products; false is the same as omitting it",
+              "title": "In Stock"
+            }
+          },
+          {
+            "description": "Defaults to relevance when q is present, otherwise newest",
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Sort"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Defaults to relevance when q is present, otherwise newest",
+              "title": "Sort"
+            }
+          },
+          {
+            "description": "Page size: 12, 24 or 48",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 24,
+              "description": "Page size: 12, 24 or 48",
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Opaque cursor from a previous page",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 512,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque cursor from a previous page",
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "Invalid request data"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "The search exceeded its time limit; retry after the Retry-After delay"
+          }
+        },
+        "summary": "Search and list products",
+        "tags": [
+          "products"
+        ]
+      },
+      "post": {
+        "operationId": "create_product_api_v1_products_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductOut"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Version of the product",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "Missing or invalid access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "The token does not carry the admin role"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "Conflict with an existing resource"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "Invalid request data"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create a product (admin)",
+        "tags": [
+          "products"
+        ]
+      }
+    },
+    "/api/v1/products/{sku}": {
+      "delete": {
+        "operationId": "delete_product_api_v1_products__sku__delete",
+        "parameters": [
+          {
+            "description": "Product SKU, case insensitive",
+            "in": "path",
+            "name": "sku",
+            "required": true,
+            "schema": {
+              "description": "Product SKU, case insensitive",
+              "title": "Sku",
+              "type": "string"
+            }
+          },
+          {
+            "description": "ETag of the version being changed, or * to match any version",
+            "in": "header",
+            "name": "if-match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "ETag of the version being changed, or * to match any version",
+              "title": "If-Match"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "Missing or invalid access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "The token does not carry the admin role"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "Unknown or deleted SKU, or the product has no image"
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "If-Match does not match the current version"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "428": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "If-Match header is required"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Soft delete a product (admin, requires If-Match)",
+        "tags": [
+          "products"
+        ]
+      },
+      "get": {
+        "operationId": "get_product_api_v1_products__sku__get",
+        "parameters": [
+          {
+            "description": "Product SKU, case insensitive",
+            "in": "path",
+            "name": "sku",
+            "required": true,
+            "schema": {
+              "description": "Product SKU, case insensitive",
+              "title": "Sku",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductOut"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Version of the product",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "Unknown or deleted SKU"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get a product",
+        "tags": [
+          "products"
+        ]
+      },
+      "put": {
+        "operationId": "replace_product_api_v1_products__sku__put",
+        "parameters": [
+          {
+            "description": "Product SKU, case insensitive",
+            "in": "path",
+            "name": "sku",
+            "required": true,
+            "schema": {
+              "description": "Product SKU, case insensitive",
+              "title": "Sku",
+              "type": "string"
+            }
+          },
+          {
+            "description": "ETag of the version being changed, or * to match any version",
+            "in": "header",
+            "name": "if-match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "ETag of the version being changed, or * to match any version",
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductOut"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Version of the product",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "Missing or invalid access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "The token does not carry the admin role"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "Unknown or deleted SKU, or the product has no image"
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "If-Match does not match the current version"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "Invalid request data"
+          },
+          "428": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "If-Match header is required"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Replace a product (admin, requires If-Match)",
+        "tags": [
+          "products"
+        ]
+      }
+    },
+    "/api/v1/products/{sku}/image": {
+      "delete": {
+        "operationId": "remove_image_api_v1_products__sku__image_delete",
+        "parameters": [
+          {
+            "description": "Product SKU, case insensitive",
+            "in": "path",
+            "name": "sku",
+            "required": true,
+            "schema": {
+              "description": "Product SKU, case insensitive",
+              "title": "Sku",
+              "type": "string"
+            }
+          },
+          {
+            "description": "ETag of the version being changed, or * to match any version",
+            "in": "header",
+            "name": "if-match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "ETag of the version being changed, or * to match any version",
+              "title": "If-Match"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductOut"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Version of the product",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "Missing or invalid access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "The token does not carry the admin role"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "Unknown or deleted SKU, or the product has no image"
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "If-Match does not match the current version"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "428": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "If-Match header is required"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "The search exceeded its time limit; retry after the Retry-After delay"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Remove the product image (admin, requires If-Match)",
+        "tags": [
+          "product images"
+        ]
+      },
+      "put": {
+        "description": "Multipart field `file`: a JPEG, PNG or WebP image of at most 5 MB and 25 megapixels, validated by content. It is converted to WebP renditions of 400 px (`thumbnail_url`) and 1200 px (`image_url`) on the longest side, with metadata removed, and the product version is incremented.",
+        "operationId": "replace_image_api_v1_products__sku__image_put",
+        "parameters": [
+          {
+            "description": "Product SKU, case insensitive",
+            "in": "path",
+            "name": "sku",
+            "required": true,
+            "schema": {
+              "description": "Product SKU, case insensitive",
+              "title": "Sku",
+              "type": "string"
+            }
+          },
+          {
+            "description": "ETag of the version being changed, or * to match any version",
+            "in": "header",
+            "name": "if-match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "ETag of the version being changed, or * to match any version",
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "format": "binary",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductOut"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Version of the product",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "Missing or invalid access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "The token does not carry the admin role"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "Unknown or deleted SKU, or the product has no image"
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "If-Match does not match the current version"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "The upload exceeds the 5 MB limit"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "The upload is not multipart or not a supported file"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "Invalid request data"
+          },
+          "428": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "If-Match header is required"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/catalog__api__schemas__ProblemOut"
+                }
+              }
+            },
+            "description": "The search exceeded its time limit; retry after the Retry-After delay"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Set the product image (admin, requires If-Match)",
+        "tags": [
+          "product images"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Health Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health"
+      }
+    },
+    "/ready": {
+      "get": {
+        "operationId": "ready_ready_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ready"
+      }
+    }
+  }
+}

@@ -81,15 +81,17 @@ mypy_path = [
     "services/auth/tests/support",
     "services/accounts/tests/support",
     "test_support",
+    "tools",
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["libs", "services", "../scripts/tests"]
+testpaths = ["libs", "services", "tools", "../scripts/tests"]
 pythonpath = [
     "services/catalog/tests/support",
     "services/auth/tests/support",
     "services/accounts/tests/support",
     "test_support",
+    "tools",
     "../scripts",
 ]
 markers = ["integration: needs Docker (Testcontainers)"]
@@ -107,7 +109,7 @@ addopts = [
 ]
 
 [tool.coverage.run]
-source = ["libs", "services"]
+source = ["libs", "services", "tools"]
 omit = ["*/tests/*"]
 
 [tool.coverage.html]
