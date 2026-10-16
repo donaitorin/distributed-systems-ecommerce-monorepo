@@ -218,6 +218,20 @@ describe("registerAccount", () => {
     });
   });
 
+  it("passes the retry time of a rate limit on", async () => {
+    await install(() =>
+      Promise.resolve(
+        new Response("Too Many Requests", { status: 429, headers: { "retry-after": "17", "content-type": "text/plain" } }),
+      ),
+    );
+
+    expect(await registerAccount({ email: "ada@example.com", password: "long enough pw" })).toMatchObject({
+      ok: false,
+      problem: { status: 429 },
+      retryAfterSeconds: 17,
+    });
+  });
+
   it("rethrows unexpected failures", async () => {
     await install(() => Promise.reject(new TypeError("fetch failed")));
 

@@ -13,7 +13,7 @@ export type SignInResult =
   | { ok: false; problem: ProblemDetails; retryAfterSeconds?: number };
 export type RegisterResult =
   | { ok: true; user: RegisteredUser }
-  | { ok: false; problem: ProblemDetails };
+  | { ok: false; problem: ProblemDetails; retryAfterSeconds?: number };
 
 let runtime: AuthRuntime | undefined;
 
@@ -102,7 +102,11 @@ export async function registerAccount(credentials: Credentials): Promise<Registe
     return { ok: true, user };
   } catch (error) {
     if (error instanceof ApiError) {
-      return { ok: false, problem: error.problem };
+      return {
+        ok: false,
+        problem: error.problem,
+        ...(error.retryAfterSeconds !== undefined ? { retryAfterSeconds: error.retryAfterSeconds } : {}),
+      };
     }
     throw error;
   }
