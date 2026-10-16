@@ -17,6 +17,7 @@ export type TableProps<Row> = {
   error?: string;
   emptyMessage?: string;
   skeletonRowCount?: number;
+  renderCard?: (row: Row) => ReactNode;
 };
 
 const ALIGN_CLASSES = { left: "text-left", right: "text-right" } as const;
@@ -30,6 +31,7 @@ export function Table<Row>({
   error,
   emptyMessage = "No results found.",
   skeletonRowCount = 5,
+  renderCard,
 }: TableProps<Row>) {
   const cellClasses = (column: TableColumn<Row>) =>
     cn("px-4 py-3 text-sm", ALIGN_CLASSES[column.align ?? "left"]);
@@ -73,13 +75,42 @@ export function Table<Row>({
     ));
   };
 
-  return (
+  const cards = () => {
+    if (loading) {
+      return Array.from({ length: skeletonRowCount }, (_, index) => (
+        <li key={index} className="rounded-md border border-border bg-surface p-4" aria-hidden="true">
+          <span className="block h-4 w-2/3 animate-pulse rounded-sm bg-border" />
+          <span className="mt-3 block h-4 w-1/3 animate-pulse rounded-sm bg-border" />
+        </li>
+      ));
+    }
+    if (error || rows.length === 0) {
+      return (
+        <li
+          role={error ? "alert" : undefined}
+          className="rounded-md border border-border bg-surface px-4 py-8 text-center text-sm text-primary"
+        >
+          {error ?? emptyMessage}
+        </li>
+      );
+    }
+    return rows.map((row) => (
+      <li key={getRowKey(row)} className="rounded-md border border-border bg-surface p-4 text-primary">
+        {renderCard?.(row)}
+      </li>
+    ));
+  };
+
+  const grid = (
     <div
       role="region"
       aria-label={caption}
       // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- keyboard users must be able to scroll wide tables
       tabIndex={0}
-      className="overflow-x-auto rounded-md border border-border bg-surface text-primary"
+      className={cn(
+        "overflow-x-auto rounded-md border border-border bg-surface text-primary",
+        renderCard && "max-md:hidden",
+      )}
     >
       <table className="w-full border-collapse" aria-busy={loading || undefined}>
         <caption className="sr-only">{caption}</caption>
@@ -100,5 +131,18 @@ export function Table<Row>({
         </p>
       ) : null}
     </div>
+  );
+
+  if (!renderCard) {
+    return grid;
+  }
+
+  return (
+    <>
+      {grid}
+      <ul aria-label={caption} className="flex list-none flex-col gap-3 p-0 md:hidden">
+        {cards()}
+      </ul>
+    </>
   );
 }

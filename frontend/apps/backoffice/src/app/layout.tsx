@@ -1,7 +1,14 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { connection } from "next/server";
 import type { ReactNode } from "react";
-import { AppShell } from "@ecommerce/ui";
+import { getSession, NONCE_HEADER } from "@ecommerce/auth/next";
+import { NuqsAdapter } from "nuqs/adapters/next/app";
+import { AppShell, Button, StyleNonceProvider } from "@ecommerce/ui";
+import { NavigationProvider } from "../components/navigation";
+import { NotificationsProvider } from "../components/notifications";
+import { ADMIN_NAVIGATION } from "../lib/shell-links";
+import { signOutAction } from "./session-actions";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -9,24 +16,38 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const NAVIGATION = [
-  { label: "Products", href: "/admin/products" },
-  { label: "Imports", href: "/admin/imports" },
-];
-
 export default async function RootLayout({ children }: { children: ReactNode }) {
   await connection();
+  const session = await getSession();
+  const nonce = (await headers()).get(NONCE_HEADER) ?? undefined;
   return (
     <html lang="en">
       <body>
-        <AppShell
-          brand={{ label: "Backoffice", href: "/admin" }}
-          navigation={NAVIGATION}
-          navigationLabel="Admin"
-          footer="Distributed systems e-commerce challenge, administration"
-        >
-          {children}
-        </AppShell>
+        <StyleNonceProvider nonce={nonce}>
+          <NuqsAdapter>
+            <NavigationProvider>
+              <NotificationsProvider>
+                <AppShell
+                  brand={{ label: "Backoffice", href: "/admin" }}
+                  navigation={session ? ADMIN_NAVIGATION : []}
+                  navigationLabel="Admin"
+                  actions={
+                    session ? (
+                      <form action={signOutAction}>
+                        <Button type="submit" variant="secondary">
+                          Sign out
+                        </Button>
+                      </form>
+                    ) : undefined
+                  }
+                  footer="Distributed systems e-commerce challenge, administration"
+                >
+                  {children}
+                </AppShell>
+              </NotificationsProvider>
+            </NavigationProvider>
+          </NuqsAdapter>
+        </StyleNonceProvider>
       </body>
     </html>
   );

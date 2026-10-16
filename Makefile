@@ -1,7 +1,7 @@
 COMPOSE := docker compose
 export BUILDX_NO_DEFAULT_ATTESTATIONS := 1
 UV_BACKEND := uv --directory backend
-PNPM_FRONTEND := corepack pnpm --dir frontend
+PNPM_FRONTEND := cd frontend && corepack pnpm
 LONG_RUNNING := postgres redis-cart redis-cache kafka kafka-ui object-storage gateway auth auth-worker accounts accounts-worker catalog catalog-worker store backoffice
 
 .PHONY: up down logs ps dev-token seed test test-backend test-backend-unit test-frontend lint lint-backend lint-frontend format-backend openapi check-openapi check-routes check-rate-limit install-frontend storybook build-storybook test-storybook check-comments test-scripts

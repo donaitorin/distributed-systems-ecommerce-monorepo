@@ -15,6 +15,7 @@ async def test_openapi_documents_every_endpoint_and_the_problem_responses(
         "/api/v1/imports/{import_id}/problems",
         "/api/v1/imports/{import_id}/problems.csv",
         "/api/v1/imports/{import_id}/confirm",
+        "/api/v1/imports/{import_id}/revalidate",
         "/api/v1/categories",
         "/health",
         "/ready",

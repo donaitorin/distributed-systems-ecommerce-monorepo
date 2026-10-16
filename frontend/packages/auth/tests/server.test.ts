@@ -1,6 +1,7 @@
 import { ApiError } from "@ecommerce/api-client";
 import { createAuthRuntime, type AuthRuntime } from "../src";
 import {
+  authorizationHeaders,
   authRuntime,
   getSession,
   registerAccount,
@@ -115,7 +116,36 @@ describe("requireSession", () => {
   });
 });
 
+describe("authorizationHeaders", () => {
+  it("carries the bearer token and the visitor's address", async () => {
+    await install(() => Promise.reject(new Error("unused")));
+    cookieJar.set("ecommerce_access", "token-1");
+
+    expect(await authorizationHeaders()).toEqual({
+      authorization: "Bearer token-1",
+      "x-forwarded-for": "203.0.113.9",
+    });
+  });
+
+  it("omits what is not there", async () => {
+    await install(() => Promise.reject(new Error("unused")));
+    requestHeaders = new Headers();
+
+    expect(await authorizationHeaders()).toEqual({});
+  });
+});
+
 describe("signIn", () => {
+  it("reports the retry time of a rate limited login", async () => {
+    await install(() =>
+      Promise.resolve(new Response("Too Many Requests", { status: 429, headers: { "retry-after": "42" } })),
+    );
+
+    const result = await signIn({ email: "ada@example.com", password: "pw" });
+
+    expect(result).toMatchObject({ ok: false, problem: { status: 429 }, retryAfterSeconds: 42 });
+  });
+
   it("logs in through the gateway with the visitor's address and stores both tokens in httpOnly cookies", async () => {
     const { keys, fetchMock } = await install(() => Promise.resolve(jsonResponse({})));
     const access = await keys.sign({ role: "customer" });

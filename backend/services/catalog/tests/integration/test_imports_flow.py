@@ -305,6 +305,55 @@ async def test_a_file_changed_behind_our_back_fails_the_import_and_lands_in_the_
     assert (await stack.confirm(created["id"])).status_code == 409
 
 
+async def test_creating_the_missing_category_and_validating_again_replaces_the_old_results(
+    stack: Stack,
+) -> None:
+    file = (
+        b"name,sku,description,category,price,stock,weight_kg\r\n"
+        b"Rake,G-1,,Gardening,12.00,5,\r\n"
+        b"Spade,G-2,,Gardening,15.00,5,\r\n"
+        b"Boots,F-1,,Footwear,40.00,5,\r\n"
+    )
+    created = (await stack.upload(file)).json()
+    import_id = created["id"]
+    await stack.pump()
+    before = await stack.get(import_id)
+    assert before["status"] == "validated"
+    assert before["summary"]["importable_rows"] == 1
+    assert before["summary"]["unknown_categories"][0]["value"] == "Gardening"
+    assert {item["code"] for item in before["problems"]} == {"unknown_category"}
+    assert await stack.scalar("SELECT count(*) FROM import_problems") == 2
+
+    created_category = await stack.client.post(
+        "/api/v1/categories", json={"name": "Gardening"}, headers=stack.admin
+    )
+    assert created_category.status_code == 201
+
+    revalidated = await stack.client.post(f"{IMPORTS}/{import_id}/revalidate", headers=stack.admin)
+
+    assert revalidated.status_code == 202
+    assert revalidated.json()["status"] == "uploaded"
+    pending = await stack.get(import_id)
+    assert pending["summary"] is None
+    assert pending["problems"] == []
+    assert await stack.scalar("SELECT count(*) FROM import_problems") == 0
+    assert await stack.scalar("SELECT category_snapshot IS NULL FROM imports") is True
+
+    await stack.pump()
+    after = await stack.get(import_id)
+
+    assert after["status"] == "validated"
+    assert after["summary"]["unknown_categories"] == []
+    assert after["summary"]["error_rows"] == 0
+    assert after["summary"]["importable_rows"] == 3
+    assert after["problems"] == []
+    assert await stack.scalar("SELECT count(*) FROM import_problems") == 0
+    snapshot = await stack.scalar("SELECT category_snapshot FROM imports")
+    assert "Gardening" in {item["name"] for item in snapshot}
+    assert after["links"]["confirm"] is not None
+    assert await stack.scalar("SELECT count(*) FROM products") == 0
+
+
 async def test_a_rejected_file_is_never_confirmable(stack: Stack) -> None:
     created = (await stack.upload(b"colour,size\r\nred,1\r\n")).json()
     await stack.pump()

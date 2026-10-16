@@ -68,6 +68,18 @@ describe("AppShell", () => {
     expect(screen.getByRole("link", { name: "Backoffice" })).toHaveAttribute("href", "/admin");
   });
 
+  it("renders the actions in the header", () => {
+    renderShell({ actions: <button type="button">Sign out</button> });
+
+    expect(within(screen.getByRole("banner")).getByRole("button", { name: "Sign out" })).toBeInTheDocument();
+  });
+
+  it("renders no actions container without actions", () => {
+    renderShell();
+
+    expect(within(screen.getByRole("banner")).queryByRole("button")).not.toBeInTheDocument();
+  });
+
   it("renders the page content inside main", () => {
     renderShell();
 

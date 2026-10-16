@@ -41,6 +41,10 @@ export const Backoffice: Story = {
   },
 };
 
+export const WithActions: Story = {
+  args: { actions: <button type="button" className="min-h-11 rounded-md border border-border-strong px-4 text-sm font-medium">Sign out</button> },
+};
+
 export const Mobile: Story = {
   globals: { viewport: { value: "mobile", isRotated: false } },
 };

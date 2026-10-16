@@ -70,6 +70,13 @@ class ImportTooLargeError(DomainError):
         self.limit_bytes = limit_bytes
 
 
+class ImportNotRevalidatableError(DomainError):
+    def __init__(self, status: str, reason: str) -> None:
+        super().__init__(reason)
+        self.status = status
+        self.reason = reason
+
+
 class ImportNotConfirmableError(DomainError):
     def __init__(self, status: str, reason: str) -> None:
         super().__init__(reason)

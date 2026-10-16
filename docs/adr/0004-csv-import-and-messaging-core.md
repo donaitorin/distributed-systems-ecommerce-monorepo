@@ -50,3 +50,11 @@ Generic, with no knowledge of catalog or imports; the envelope and the payload m
 - **Source files are kept.** Nothing deletes old uploads or old import rows yet; a retention job belongs with the orphan sweeper noted in ADR 0003.
 - **Single partition of work per import.** The message key is the import id, so the two events of an import are ordered; different imports can run in parallel if more workers are started.
 - **No "create the missing category and re-validate" action** yet; the report contains the data (grouped unknown names with suggestions) for the backoffice to offer it.
+
+## Addendum: validating the same file again
+
+Uploading a file whose hash is already known returns the existing import, which is what stops duplicate work, but it also meant an administrator could not create a missing category and validate the same file again. `POST /api/v1/imports/{id}/revalidate` closes that gap:
+
+- Allowed from `validated` and `rejected`. A confirmed or finished import answers `409`; one that is already `uploaded` or `validating` is returned as it is, so a double click publishes one event.
+- One transaction locks the import row, moves it to `uploaded` with a conditional `UPDATE` (the status must still be `validated` or `rejected`), sets the report, the category snapshot and `validated_at` to `NULL`, deletes its `import_problems`, and writes `import.validation_requested` to the outbox. Nothing of the previous run is visible while the new one runs, and a crash cannot leave old problems next to a new summary.
+- The worker is unchanged. It reads the categories at validation time, so the new run sees the category that was just created, and `save_validation` still replaces results only while the status is `validating`, so a redelivered older event cannot overwrite a newer result.

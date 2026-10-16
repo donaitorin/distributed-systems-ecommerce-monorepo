@@ -132,3 +132,23 @@ async def confirm_import(
 ) -> ImportOut:
     record = await service.confirm(import_id, correlation_id())
     return ImportOut.from_domain(record, [])
+
+
+@router.post(
+    "/{import_id}/revalidate",
+    response_model=ImportOut,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Validate the same file again against the current categories (admin)",
+    description=(
+        "Allowed for a rejected or validated import, for example after creating a category the "
+        "file refers to. The previous report, problems and category snapshot are discarded "
+        "together with the status change and the file is validated again in the background; "
+        "poll the import for the result. Repeating the call while it is pending is harmless."
+    ),
+    responses=problem_responses(401, 403, 404, 409),
+)
+async def revalidate_import(
+    import_id: ImportId, _admin: AdminUser, service: ImportServiceDep
+) -> ImportOut:
+    record = await service.revalidate(import_id, correlation_id())
+    return ImportOut.from_domain(record, [])

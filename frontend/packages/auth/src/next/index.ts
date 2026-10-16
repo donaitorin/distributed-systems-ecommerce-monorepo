@@ -7,6 +7,14 @@ export {
 } from "./security";
 export { withCookies } from "./cookie-header";
 export {
+  applyCookies,
+  guardRoute,
+  type RouteAccess,
+  type RouteGuardOptions,
+  type RouteGuardResult,
+} from "./route";
+export {
+  authorizationHeaders,
   authRuntime,
   getSession,
   registerAccount,

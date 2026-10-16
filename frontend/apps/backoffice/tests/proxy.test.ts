@@ -40,4 +40,14 @@ describe("backoffice proxy", () => {
     expect(matches("/products")).toBe(true);
     expect(matches("/_next/static/chunks/app.js")).toBe(false);
   });
+
+  it("leaves the streaming upload routes to their own guard, because the proxy buffers request bodies", () => {
+    const patterns = config.matcher.map((source) => new RegExp(`^${source}$`));
+    const matches = (path: string) => patterns.some((pattern) => pattern.test(path));
+
+    expect(matches("/api/stream/products/RS-001/image")).toBe(false);
+    expect(matches("/api/stream/imports")).toBe(false);
+    expect(matches("/api/other")).toBe(true);
+    expect(matches("/products/api/stream/x")).toBe(true);
+  });
 });

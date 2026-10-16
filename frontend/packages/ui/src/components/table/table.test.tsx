@@ -100,4 +100,55 @@ describe("Table", () => {
 
     expect(within(row).getByRole("cell", { name: "$59.00" })).toHaveClass("text-right");
   });
+
+  describe("with cards for narrow screens", () => {
+    const renderCard = (row: Row) => <strong>{`${row.name} card`}</strong>;
+
+    it("renders the table and a list of cards, and has no accessibility violations", async () => {
+      const { container } = renderTable({ renderCard });
+
+      expect(screen.getByRole("table", { name: "Products" })).toBeInTheDocument();
+      const list = screen.getByRole("list", { name: "Products" });
+      expect(within(list).getAllByRole("listitem")).toHaveLength(2);
+      expect(within(list).getByText("Toy robot card")).toBeInTheDocument();
+      expect(screen.getByRole("region", { name: "Products" })).toHaveClass("max-md:hidden");
+      expect(list).toHaveClass("md:hidden");
+      expect(await axe(container)).toHaveNoViolations();
+    });
+
+    it("does not render a list without renderCard", () => {
+      renderTable();
+
+      expect(screen.queryByRole("list")).not.toBeInTheDocument();
+      expect(screen.getByRole("region", { name: "Products" })).not.toHaveClass("max-md:hidden");
+    });
+
+    it("shows skeleton cards while loading", () => {
+      renderTable({ renderCard, loading: true, skeletonRowCount: 2 });
+
+      expect(screen.getByRole("list", { hidden: true })).toBeInTheDocument();
+      expect(screen.queryByText("Running shoes card")).not.toBeInTheDocument();
+    });
+
+    it("shows the empty message and the error in the card list", () => {
+      const { rerender } = renderTable({ renderCard, rows: [], emptyMessage: "Nothing here." });
+      const list = screen.getByRole("list", { name: "Products" });
+      expect(within(list).getByText("Nothing here.")).toBeInTheDocument();
+      expect(within(list).queryByRole("alert")).not.toBeInTheDocument();
+
+      rerender(
+        <Table
+          caption="Products"
+          columns={COLUMNS}
+          rows={[]}
+          getRowKey={(row) => row.sku}
+          renderCard={renderCard}
+          error="Could not load"
+        />,
+      );
+      expect(within(screen.getByRole("list", { name: "Products" })).getByRole("alert")).toHaveTextContent(
+        "Could not load",
+      );
+    });
+  });
 });

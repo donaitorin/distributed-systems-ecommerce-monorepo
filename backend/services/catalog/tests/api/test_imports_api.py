@@ -543,3 +543,84 @@ async def test_the_openapi_document_describes_the_import_endpoints(
             "content"
         ]
     )
+
+
+async def test_revalidating_after_creating_the_category_replaces_the_report(
+    client: httpx.AsyncClient, admin: dict[str, str], jobs: ImportJobs, store: InMemoryStore
+) -> None:
+    data = csv_text(row(sku="G-1", category="Gardening"), row(sku="F-1")).encode()
+    first = await uploaded_and_validated(client, admin, jobs, data)
+    assert first["summary"]["unknown_categories"][0]["value"] == "Gardening"
+    assert first["summary"]["error_rows"] == 1
+    store.seed_categories(("Gardening", "gardening"))
+
+    response = await client.post(f"{IMPORTS}/{first['id']}/revalidate", headers=admin)
+
+    assert response.status_code == 202
+    queued = response.json()
+    assert queued["status"] == "uploaded"
+    assert queued["summary"] is None
+    assert queued["problems"] == []
+    assert queued["links"]["confirm"] is None
+    page = (await client.get(f"{IMPORTS}/{first['id']}/problems", headers=admin)).json()
+    assert page["items"] == []
+
+    await jobs.validate(UUID(first["id"]))
+    again = (await client.get(f"{IMPORTS}/{first['id']}", headers=admin)).json()
+
+    assert again["status"] == "validated"
+    assert again["summary"]["unknown_categories"] == []
+    assert again["summary"]["error_rows"] == 0
+    assert again["summary"]["importable_rows"] == 2
+    assert again["problems"] == []
+    assert again["links"]["confirm"] is not None
+
+
+async def test_revalidating_twice_publishes_one_request(
+    client: httpx.AsyncClient, admin: dict[str, str], jobs: ImportJobs, store: InMemoryStore
+) -> None:
+    body = await uploaded_and_validated(client, admin, jobs)
+
+    first = await client.post(f"{IMPORTS}/{body['id']}/revalidate", headers=admin)
+    second = await client.post(f"{IMPORTS}/{body['id']}/revalidate", headers=admin)
+
+    assert first.status_code == second.status_code == 202
+    requests = [
+        item
+        for item in store.import_data.outbox
+        if item.event_type == "import.validation_requested"
+    ]
+    assert len(requests) == 2
+
+
+async def test_revalidating_a_confirmed_import_is_a_409_and_keeps_it(
+    client: httpx.AsyncClient, admin: dict[str, str], jobs: ImportJobs
+) -> None:
+    body = await uploaded_and_validated(client, admin, jobs)
+    await client.post(f"{IMPORTS}/{body['id']}/confirm", headers=admin)
+
+    response = await client.post(f"{IMPORTS}/{body['id']}/revalidate", headers=admin)
+
+    assert response.status_code == 409
+    assert response.headers["content-type"].startswith("application/problem+json")
+    assert response.json()["title"] == "Import cannot be validated again"
+    assert response.json()["import_status"] == "queued"
+    kept = (await client.get(f"{IMPORTS}/{body['id']}", headers=admin)).json()
+    assert kept["status"] == "queued"
+    assert kept["summary"]["importable_rows"] == 88
+
+
+async def test_revalidating_an_unknown_import_is_a_404(
+    client: httpx.AsyncClient, admin: dict[str, str]
+) -> None:
+    assert (await client.post(f"{IMPORTS}/{uuid4()}/revalidate", headers=admin)).status_code == 404
+
+
+async def test_revalidating_requires_an_admin(
+    client: httpx.AsyncClient, admin: dict[str, str], customer: dict[str, str]
+) -> None:
+    created = (await upload(client, admin)).json()
+    url = f"{IMPORTS}/{created['id']}/revalidate"
+
+    assert (await client.post(url)).status_code == 401
+    assert (await client.post(url, headers=customer)).status_code == 403

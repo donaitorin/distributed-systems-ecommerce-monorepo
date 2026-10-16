@@ -16,6 +16,7 @@ from catalog.application.errors import (
     DuplicateImportError,
     ImportNotConfirmableError,
     ImportNotFoundError,
+    ImportNotRevalidatableError,
     ImportTooLargeError,
 )
 from catalog.application.ports import UnitOfWorkFactory
@@ -234,6 +235,29 @@ class ImportService:
         assert confirmed is not None
         return confirmed
 
+    async def revalidate(self, import_id: UUID, correlation_id: UUID) -> ImportRecord:
+        async with self._unit_of_work() as uow:
+            record = await uow.imports.get_for_update(import_id)
+            if record is None:
+                raise ImportNotFoundError(import_id)
+            if record.status in REVALIDATION_PENDING_STATUSES:
+                return record
+            _require_revalidatable(record)
+            await uow.imports.restart_validation(import_id, REVALIDATABLE_STATUSES, self._clock())
+            await uow.events.add(
+                topic=IMPORTS_TOPIC,
+                key=str(import_id),
+                event_type=IMPORT_VALIDATION_REQUESTED,
+                payload=ImportValidationRequestedV1(
+                    import_id=import_id, object_key=record.object_key, sha256=record.sha256
+                ),
+                correlation_id=correlation_id,
+            )
+            await uow.commit()
+            restarted = await uow.imports.get(import_id)
+        assert restarted is not None
+        return restarted
+
     async def _find_by_hash(self, digest: str) -> ImportRecord | None:
         async with self._unit_of_work() as uow:
             return await uow.imports.find_by_hash(digest)
@@ -258,6 +282,21 @@ class ImportService:
             await self._storage.delete(key)
         except Exception:
             logger.warning("import file cleanup failed, object left orphaned", extra={"key": key})
+
+
+REVALIDATABLE_STATUSES = frozenset({ImportStatus.REJECTED, ImportStatus.VALIDATED})
+REVALIDATION_PENDING_STATUSES = frozenset({ImportStatus.UPLOADED, ImportStatus.VALIDATING})
+
+
+def _require_revalidatable(record: ImportRecord) -> None:
+    if record.status not in REVALIDATABLE_STATUSES:
+        reasons = {
+            ImportStatus.QUEUED: "the import was already confirmed and is waiting to be processed",
+            ImportStatus.PROCESSING: "the import is being processed",
+            ImportStatus.COMPLETED: "the import is complete; upload a changed file to import again",
+            ImportStatus.FAILED: "the import failed; upload the file again",
+        }
+        raise ImportNotRevalidatableError(record.status.value, reasons[record.status])
 
 
 def _require_confirmable(record: ImportRecord) -> None:
