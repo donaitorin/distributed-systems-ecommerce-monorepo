@@ -31,12 +31,28 @@ reaches_store() {
   expect "store: GET $1" 200 "$2" "$(fetch "$GATEWAY$1")"
 }
 
-expect "store: GET /" 200 "Welcome to the store" "$(fetch "$GATEWAY/")"
+expect "store: GET / redirects to the product search with a temporary redirect" 307 "location: /products" "$(fetch "$GATEWAY/")"
+expect "store: GET / keeps the query string when redirecting" 307 "location: /products?q=shoes&in_stock=true" "$(fetch "$GATEWAY/?q=shoes&in_stock=true")"
+reaches_store /products "products-heading"
+reaches_store "/products?q=runing+shoes&category=footwear&min_price=10&in_stock=true&sort=price_asc&limit=12" 'role="search"'
+reaches_store "/products?min_price=abc&limit=7&sort=oldest&cursor=" "products-heading"
+sample_sku=$(curl -s --max-time 10 "$GATEWAY/api/v1/products?limit=12" | grep -o '"sku":"[^"]*"' | head -1 | cut -d'"' -f4)
+if [ -n "$sample_sku" ]; then
+  expect "store: GET /products/$sample_sku shows the product" 200 "product-heading" "$(fetch "$GATEWAY/products/$sample_sku")"
+  lower_sku=$(printf '%s' "$sample_sku" | tr '[:upper:]' '[:lower:]')
+  if [ "$lower_sku" != "$sample_sku" ]; then
+    expect "store: a SKU in lower case redirects to the canonical address" 307 "location: /products/$sample_sku" "$(fetch "$GATEWAY/products/$lower_sku")"
+  fi
+else
+  pass "store: no product in the catalog, detail page checks skipped"
+fi
+expect "store: an unknown SKU is a real 404 page" 404 "Product not found" "$(fetch "$GATEWAY/products/NO-SUCH-SKU-0000")"
+expect "store: a malformed address is refused with 400, not a server error" 400 "" "$(fetch "$GATEWAY/products/%E0%A4%A")"
 reaches_store /login "Sign in"
 expect "store: GET /account (no session) redirects to the store login" 307 "location: /login?next=%2Faccount" "$(fetch "$GATEWAY/account")"
 expect "store: unknown page is the store 404" 404 "could not be found" "$(fetch "$GATEWAY/does-not-exist")"
 
-store_css=$(fetch "$GATEWAY/" >/dev/null; grep -o '/_next/static/[^"]*\.css' /tmp/gateway-check.body | head -1)
+store_css=$(fetch "$GATEWAY/products" >/dev/null; grep -o '/_next/static/[^"]*\.css' /tmp/gateway-check.body | head -1)
 expect "store: static asset $store_css" 200 "" "$(fetch "$GATEWAY$store_css")"
 
 expect "backoffice: GET /admin (no session) redirects to the backoffice login" 307 "location: /admin/login?next=%2F" "$(fetch "$GATEWAY/admin")"
@@ -105,7 +121,8 @@ expect "accounts: GET /accounts/health" 200 '"status":"ok"' "$(fetch "$GATEWAY/a
 LOCALHOST="http://localhost:${GATEWAY_HTTP_PORT:-8000}"
 expect "localhost: backoffice login page" 200 "Administrator sign in" "$(fetch "$LOCALHOST/admin/login")"
 expect "localhost: /admin/products is guarded with a host-relative redirect" 307 "location: /admin/login?next=%2Fproducts" "$(fetch "$LOCALHOST/admin/products")"
-expect "localhost: store home" 200 "Welcome to the store" "$(fetch "$LOCALHOST/")"
+expect "localhost: store home redirects to the product search" 307 "location: /products" "$(fetch "$LOCALHOST/")"
+expect "localhost: store product search" 200 "products-heading" "$(fetch "$LOCALHOST/products")"
 if [ -n "${admin_token:-}" ]; then
   expect "localhost: /admin/products renders for an admin session" 200 "products-heading" "$(fetch -H "cookie: ecommerce_access=$admin_token" "$LOCALHOST/admin/products")"
 fi
