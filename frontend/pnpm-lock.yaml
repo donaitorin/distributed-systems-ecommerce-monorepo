@@ -281,6 +281,9 @@ importers:
       '@ecommerce/web-core':
         specifier: workspace:*
         version: link:../../packages/web-core
+      '@hookform/resolvers':
+        specifier: 5.9.1
+        version: 5.9.1(@sinclair/typebox@0.34.52)(@standard-schema/spec@1.1.0)(joi@17.13.8)(react-hook-form@7.90.0(@types/react@19.3.0)(react@19.3.1))(zod@4.6.7)
       next:
         specifier: 16.4.1
         version: 16.4.1(@babel/core@7.29.7(supports-color@10.2.2))(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -293,6 +296,12 @@ importers:
       react-dom:
         specifier: 19.3.1
         version: 19.3.1(react@19.3.1)
+      react-hook-form:
+        specifier: 7.90.0
+        version: 7.90.0(@types/react@19.3.0)(react@19.3.1)
+      zod:
+        specifier: 4.6.7
+        version: 4.6.7
     devDependencies:
       '@ecommerce/config':
         specifier: workspace:*
@@ -564,6 +573,9 @@ importers:
       '@ecommerce/api-client':
         specifier: workspace:*
         version: link:../api-client
+      '@ecommerce/auth':
+        specifier: workspace:*
+        version: link:../auth
       nuqs:
         specifier: 2.10.2
         version: 2.10.2(next@16.4.1(@babel/core@7.29.7(supports-color@10.2.2))(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)
