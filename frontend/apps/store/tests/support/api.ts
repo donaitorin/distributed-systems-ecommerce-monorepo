@@ -39,8 +39,8 @@ export function json(body: unknown, status = 200, headers: Record<string, string
   });
 }
 
-export function problem(status: number, title: string): Response {
-  return new Response(JSON.stringify({ type: "about:blank", title, status }), {
+export function problem(status: number, title: string, extra: Record<string, unknown> = {}): Response {
+  return new Response(JSON.stringify({ type: "about:blank", title, status, ...extra }), {
     status,
     headers: { "content-type": "application/problem+json" },
   });
@@ -71,3 +71,13 @@ export function mockFetch(routes: Route[]) {
   global.fetch = implementation;
   return { calls, implementation };
 }
+
+export const PROFILE = {
+  user_id: "0f6c1f0e-7a52-4f33-9c2a-5d9c3b1e7a10",
+  email: "ada@example.com",
+  role: "customer",
+  name: "Ada Lovelace",
+  phone: "+34600123456",
+  created_at: "2026-10-14T10:00:00Z",
+  updated_at: "2026-10-15T10:00:00Z",
+};

@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { connection } from "next/server";
 import type { ReactNode } from "react";
-import { NONCE_HEADER } from "@ecommerce/auth/next";
+import { getSession, NONCE_HEADER } from "@ecommerce/auth/next";
 import { NavigationProvider } from "@ecommerce/web-core/client";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
-import { AppShell, StyleNonceProvider } from "@ecommerce/ui";
+import { AppShell, Button, StyleNonceProvider } from "@ecommerce/ui";
+import { navigationFor } from "../lib/shell-links";
+import { signOutAction } from "./session-actions";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -13,14 +15,9 @@ export const metadata: Metadata = {
   description: "Distributed systems e-commerce store",
 };
 
-const NAVIGATION = [
-  { label: "Products", href: "/products" },
-  { label: "Account", href: "/account" },
-  { label: "Sign in", href: "/login" },
-];
-
 export default async function RootLayout({ children }: { children: ReactNode }) {
   await connection();
+  const session = await getSession();
   const nonce = (await headers()).get(NONCE_HEADER) ?? undefined;
   return (
     <html lang="en">
@@ -30,7 +27,16 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             <NavigationProvider>
               <AppShell
                 brand={{ label: "Store", href: "/" }}
-                navigation={NAVIGATION}
+                navigation={navigationFor(session !== null)}
+                actions={
+                  session ? (
+                    <form action={signOutAction}>
+                      <Button type="submit" variant="secondary">
+                        Sign out
+                      </Button>
+                    </form>
+                  ) : undefined
+                }
                 footer="Distributed systems e-commerce challenge"
               >
                 {children}

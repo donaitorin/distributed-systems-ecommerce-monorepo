@@ -1,6 +1,10 @@
+import { nextPath } from "@ecommerce/web-core";
+
 export const LOGIN_PATH = "/login";
+export const REGISTER_PATH = "/register";
+export const ACCOUNT_PATH = "/account";
 export const PRODUCTS_PATH = "/products";
-export const PROTECTED_PREFIXES = ["/account", "/checkout", "/orders"] as const;
+export const PROTECTED_PREFIXES = [ACCOUNT_PATH, "/checkout", "/orders"] as const;
 
 export function isProtectedPath(pathname: string): boolean {
   return PROTECTED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
@@ -12,4 +16,12 @@ export function productHref(sku: string): string {
 
 export function categoryHref(slug: string): string {
   return `${PRODUCTS_PATH}?category=${encodeURIComponent(slug)}`;
+}
+
+export function storeNextPath(candidate: string | null | undefined): string {
+  return nextPath(candidate, { fallback: PRODUCTS_PATH, loopPaths: [LOGIN_PATH, REGISTER_PATH] });
+}
+
+export function authPageHref(path: typeof LOGIN_PATH | typeof REGISTER_PATH, next: string): string {
+  return next === PRODUCTS_PATH ? path : `${path}?next=${encodeURIComponent(next)}`;
 }
