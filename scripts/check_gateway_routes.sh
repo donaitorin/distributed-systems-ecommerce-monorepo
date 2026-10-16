@@ -58,6 +58,12 @@ if [ -n "$admin_token" ] && [ -n "$customer_token" ]; then
   expect "backoffice: /admin/products renders for an admin" 200 "products-heading" "$(fetch -H "cookie: ecommerce_access=$admin_token" "$GATEWAY/admin/products")"
   expect "backoffice: the products page links to the CSV import route" 200 'href="/admin/products/import"' "$(fetch -H "cookie: ecommerce_access=$admin_token" "$GATEWAY/admin/products")"
   if grep -qi 'href="/admin/imports"' /tmp/gateway-check.body; then fail "backoffice: the shell must not link to a separate imports page"; else pass "backoffice: the shell has no separate imports link"; fi
+  expect "backoffice: /admin/categories renders for an admin" 200 "categories-heading" "$(fetch -H "cookie: ecommerce_access=$admin_token" "$GATEWAY/admin/categories")"
+  expect "backoffice: /admin/users renders for an admin" 200 "users-heading" "$(fetch -H "cookie: ecommerce_access=$admin_token" "$GATEWAY/admin/users")"
+  for section in categories users; do
+    expect "backoffice: the shell links to $section" 200 "href=\"/admin/$section\"" "$(fetch -H "cookie: ecommerce_access=$admin_token" "$GATEWAY/admin/products")"
+    expect "backoffice: /admin/$section with a customer session is sent back to login" 307 "reason=forbidden" "$(fetch -H "cookie: ecommerce_access=$customer_token" "$GATEWAY/admin/$section")"
+  done
   expect "backoffice: /admin/products/new renders for an admin" 200 "New product" "$(fetch -H "cookie: ecommerce_access=$admin_token" "$GATEWAY/admin/products/new")"
   expect "backoffice: /admin/products with a customer session is sent back to login" 307 "reason=forbidden" "$(fetch -H "cookie: ecommerce_access=$customer_token" "$GATEWAY/admin/products")"
   upload() {
