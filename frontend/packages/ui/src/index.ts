@@ -5,6 +5,16 @@ export { buttonClasses, type ButtonVariant } from "./components/button/button-cl
 export { ButtonLink, type ButtonLinkProps } from "./components/button-link/button-link";
 export { ConfirmDialog, type ConfirmDialogProps } from "./components/confirm-dialog/confirm-dialog";
 export { Input, type InputProps } from "./components/input/input";
+export { FileDropzone, type FileDropzoneProps } from "./components/file-dropzone/file-dropzone";
+export { formatBytes } from "./components/file-dropzone/format-bytes";
+export {
+  ImportReport,
+  type ImportReportCounts,
+  type ImportReportProps,
+  type ReportProblem,
+  type ReportUnknownCategory,
+  type SeverityFilter,
+} from "./components/import-report/import-report";
 export { Textarea, type TextareaProps } from "./components/textarea/textarea";
 export { Select, type SelectOption, type SelectProps } from "./components/select/select";
 export { Table, type TableColumn, type TableProps } from "./components/table/table";
