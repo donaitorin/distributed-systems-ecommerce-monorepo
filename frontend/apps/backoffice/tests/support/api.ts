@@ -1,4 +1,4 @@
-import type { Category, Product } from "../../src/lib/types";
+import type { Category, Product, UserProfile } from "../../src/lib/types";
 
 export function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), {
@@ -66,4 +66,17 @@ export function headerOf(init: RequestInit, name: string): string | undefined {
     return headers.get(name) ?? undefined;
   }
   return headers?.[name];
+}
+
+export function profile(overrides: Partial<UserProfile> = {}): UserProfile {
+  return {
+    user_id: "11111111-1111-4111-8111-111111111111",
+    email: "ada@example.com",
+    name: "Ada Lovelace",
+    phone: null,
+    role: "customer",
+    created_at: "2026-10-10T12:00:00Z",
+    updated_at: "2026-10-11T12:00:00Z",
+    ...overrides,
+  };
 }

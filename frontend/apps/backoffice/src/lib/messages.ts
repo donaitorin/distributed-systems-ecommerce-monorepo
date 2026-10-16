@@ -85,3 +85,33 @@ export function validateImageFile(file: { size: number; type: string }): string 
   }
   return null;
 }
+
+export function categoryFailureMessage(failure: Failure): string {
+  switch (failure.status) {
+    case 409:
+      return "A category with this name, or with the same URL slug, already exists.";
+    case 422:
+      return failure.fieldErrors.name ?? "The category name is not valid.";
+    case 429:
+      return `Too many requests.${retrySuffix(failure) || " Wait a moment and try again."}`;
+    default:
+      return failure.status === null || failure.status >= 500
+        ? unavailable(failure)
+        : (failure.detail ?? failure.title);
+  }
+}
+
+export function roleChangeFailureMessage(failure: Failure): string {
+  switch (failure.status) {
+    case 404:
+      return "This user no longer exists.";
+    case 409:
+      return `You cannot change your own role. ${failure.detail ?? "Ask another administrator to change it."}`;
+    case 422:
+      return "That role is not valid.";
+    default:
+      return failure.status === null || failure.status >= 500
+        ? unavailable(failure)
+        : (failure.detail ?? failure.title);
+  }
+}

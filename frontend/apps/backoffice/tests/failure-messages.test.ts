@@ -5,6 +5,8 @@ import { ApiError, ApiNetworkError } from "@ecommerce/api-client";
 import { failureFromError, failureFromProblem, failureFromResponse, isSessionFailure } from "../src/lib/failure";
 import { LOGIN_REASON_MESSAGES, rateLimitedMessage, validateCredentials } from "../src/lib/login-form";
 import {
+  categoryFailureMessage,
+  roleChangeFailureMessage,
   deleteFailureMessage,
   describeRetry,
   imageFailureMessage,
@@ -158,5 +160,50 @@ describe("login form helpers", () => {
 
   it("has messages for the redirect reasons", () => {
     expect(Object.keys(LOGIN_REASON_MESSAGES)).toEqual(["forbidden", "expired"]);
+  });
+});
+
+describe("category and role change messages", () => {
+  const failure = (status: number | null, extra: object = {}) => ({
+    ok: false as const,
+    status,
+    title: "Title",
+    fieldErrors: {},
+    ...extra,
+  });
+
+  it.each([
+    [409, "already exists"],
+    [422, "The category name is not valid."],
+    [429, "Too many requests"],
+    [503, "not available"],
+    [null, "not available"],
+    [400, "Detail"],
+  ])("explains category failure %s", (status, text) => {
+    expect(categoryFailureMessage(failure(status, { detail: "Detail" }))).toContain(text);
+  });
+
+  it("prefers the field message for an invalid category and mentions the retry time", () => {
+    expect(categoryFailureMessage(failure(422, { fieldErrors: { name: "must not be empty" } }))).toBe("must not be empty");
+    expect(categoryFailureMessage(failure(429, { retryAfterSeconds: 9 }))).toContain("Try again in 9 seconds");
+    expect(categoryFailureMessage(failure(400))).toBe("Title");
+  });
+
+  it.each([
+    [404, "no longer exists"],
+    [422, "not valid"],
+    [503, "not available"],
+    [null, "not available"],
+    [400, "Detail"],
+  ])("explains role change failure %s", (status, text) => {
+    expect(roleChangeFailureMessage(failure(status, { detail: "Detail" }))).toContain(text);
+  });
+
+  it("explains the self change with the API's advice, or a default", () => {
+    expect(roleChangeFailureMessage(failure(409, { detail: "Ask another admin" }))).toBe(
+      "You cannot change your own role. Ask another admin",
+    );
+    expect(roleChangeFailureMessage(failure(409))).toContain("Ask another administrator");
+    expect(roleChangeFailureMessage(failure(400))).toBe("Title");
   });
 });
