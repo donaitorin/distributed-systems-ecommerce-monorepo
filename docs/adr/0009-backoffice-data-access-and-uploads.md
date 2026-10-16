@@ -37,6 +37,15 @@ The backoffice manages the catalog: product list with filters, product create an
 
 - All API calls go through the Next.js server, so tests mock `fetch` at the process boundary. MSW, which the project specification mentions, would add a dependency to intercept exactly the same calls; this is a deliberate deviation.
 
+### CSV import
+
+- The file goes through `POST /admin/api/stream/imports`, which is `streamUpload` again: outside `proxy.ts`, guarded by `guardRoute`, `duplex: "half"`, limited to `IMPORT_MAX_BYTES` plus 64 KB of multipart overhead by `Content-Length` and by counting bytes. The backoffice container receives the same `IMPORT_MAX_BYTES` as the catalog, so the browser, the route and the API agree on the limit. Measured against the running stack: a 45 MB file raised the container's memory by 16 MiB, a 90 MB chunked body was answered 413 after about 58 MB had been sent, and a 70 MB `Content-Length` was refused before any body was read.
+- Reads for the page go through guarded route handlers (`/admin/api/imports/{id}`, `.../problems`, `.../problems.csv`), not server actions, because TanStack Query polls them from the browser and they answer `application/problem+json` (a redirect to an HTML login page would break a `fetch`). These sit behind `proxy.ts`, which also refreshes the session; the CSV download is streamed through, not buffered. Mutations (confirm, validate again, create a category) are server actions.
+- Polling starts at one second and grows by half each time up to eight seconds, counted per status, and stops on `validated`, `rejected`, `completed` and `failed`; confirming or validating again restarts it. A polite live region carries one sentence per status change; the progress bar is not live, so the screen reader is not told about every poll.
+- The import id is in the URL (`?import=<id>`), so a reload, a pasted link or the browser's back button reopen the same import. The same file uploaded twice returns the first import (the API answers 200 instead of 202) and the page says so.
+- `/admin/products/import` is a static segment, so it wins over `/admin/products/[sku]`. A product whose SKU is `import` would be edited at `/admin/products/IMPORT`; the routes are case sensitive and SKUs are stored upper case, so they never meet.
+- "Create category" calls the same server action as the categories page. A category that already exists (`409`) is treated as available, because the next step, validating again, is the same.
+
 ## Consequences
 
 - The routes under `/api/stream/` must not be added to the proxy matcher, and any new streaming route has to call `guardRoute`. A test pins the matcher.

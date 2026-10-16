@@ -64,6 +64,18 @@ if [ -n "$admin_token" ] && [ -n "$customer_token" ]; then
     expect "backoffice: the shell links to $section" 200 "href=\"/admin/$section\"" "$(fetch -H "cookie: ecommerce_access=$admin_token" "$GATEWAY/admin/products")"
     expect "backoffice: /admin/$section with a customer session is sent back to login" 307 "reason=forbidden" "$(fetch -H "cookie: ecommerce_access=$customer_token" "$GATEWAY/admin/$section")"
   done
+  expect "backoffice: /admin/products/import renders for an admin (the static route, not a SKU page)" 200 "Import products from CSV" "$(fetch -H "cookie: ecommerce_access=$admin_token" "$GATEWAY/admin/products/import")"
+  expect "backoffice: /admin/products/import with a customer session is sent back to login" 307 "reason=forbidden" "$(fetch -H "cookie: ecommerce_access=$customer_token" "$GATEWAY/admin/products/import")"
+  import_upload() {
+    fetch -X POST -H "content-type: text/plain" --data x "$@" "$GATEWAY/admin/api/stream/imports"
+  }
+  expect "backoffice: CSV upload route without a session answers 401 problem+json" 401 "problem+json" "$(import_upload)"
+  expect "backoffice: CSV upload route with a customer session answers 403" 403 "problem+json" "$(import_upload -H "cookie: ecommerce_access=$customer_token")"
+  expect "backoffice: CSV upload route reaches the catalog API for an admin" 415 "Unsupported media type" "$(import_upload -H "cookie: ecommerce_access=$admin_token")"
+  unknown_import="00000000-0000-4000-8000-000000000000"
+  expect "backoffice: import status route without a session is sent to login" 307 "location: /admin/login" "$(fetch "$GATEWAY/admin/api/imports/$unknown_import")"
+  expect "backoffice: import status route answers 404 problem+json for an unknown import" 404 "problem+json" "$(fetch -H "cookie: ecommerce_access=$admin_token" "$GATEWAY/admin/api/imports/$unknown_import")"
+  expect "backoffice: problems.csv route answers 404 problem+json for an unknown import" 404 "problem+json" "$(fetch -H "cookie: ecommerce_access=$admin_token" "$GATEWAY/admin/api/imports/$unknown_import/problems.csv")"
   expect "backoffice: /admin/products/new renders for an admin" 200 "New product" "$(fetch -H "cookie: ecommerce_access=$admin_token" "$GATEWAY/admin/products/new")"
   expect "backoffice: /admin/products with a customer session is sent back to login" 307 "reason=forbidden" "$(fetch -H "cookie: ecommerce_access=$customer_token" "$GATEWAY/admin/products")"
   upload() {
