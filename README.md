@@ -1,11 +1,13 @@
 # Distributed Systems E-commerce
 
-Event-driven e-commerce built as microservices (auth, accounts, catalog, cart, orders, payments) with a Next.js storefront and backoffice. Work in progress: the repository currently contains the base environment only.
+Event-driven e-commerce built as microservices (auth, accounts, catalog, cart, orders, payments) with a Next.js storefront and backoffice. Work in progress: the base environment, the auth, accounts and catalog services and the frontend foundations (design system, session handling, storefront and backoffice shells) are in place.
 
 ## Requirements
 
 - Docker with Compose v2
 - GNU Make
+
+To work on the code (not needed to run the stack): Python 3.13 with [uv](https://docs.astral.sh/uv/) for the backend, and the Node.js version in `frontend/.nvmrc` with Corepack for the frontend.
 
 ## Quick start
 
@@ -14,6 +16,8 @@ cp .env.example .env
 make up
 make ps
 ```
+
+When the stack is healthy, <http://127.0.0.1:8000/> is the store and <http://127.0.0.1:8000/admin> the backoffice (it redirects to its login page until an admin session exists). Both are built from `frontend/` and start without any backend.
 
 `.env.example` holds demo values for local development only. Change them if the stack is reachable from anywhere other than your machine.
 
@@ -32,6 +36,8 @@ All ports are bound to `127.0.0.1` and can be changed in `.env`.
 | Kafka UI | `kafka-ui` | 8088 |
 | Object storage S3 API (SeaweedFS) | `object-storage` | 19000 |
 
+The store and backoffice (`store`, `backoffice`) publish no host port: they are reached through the gateway on a separate `frontend` network (`10.250.10.0/28`) that holds only the gateway and the two apps, whose fixed addresses are the only ones the gateway trusts for forwarded headers.
+
 One-shot jobs `kafka-init`, `object-storage-init`, `auth-migrate` and `catalog-migrate` create the topics and buckets and apply database migrations, then exit. `auth-migrate` also seeds the initial admin. `auth-worker` and `catalog-worker` relay outbox events to Kafka.
 
 ## Services
@@ -41,6 +47,8 @@ One-shot jobs `kafka-init`, `object-storage-init`, `auth-migrate` and `catalog-m
 | Auth | `auth` | `/api/v1/auth/*`, and `/auth/docs`, `/auth/health`, `/auth/ready` |
 | Accounts | `accounts`, `accounts-worker` | `/api/v1/accounts/*`, and `/accounts/docs`, `/accounts/health`, `/accounts/ready` |
 | Catalog | `catalog` | `/api/v1/products`, `/api/v1/categories`, and `/catalog/docs`, `/catalog/health`, `/catalog/ready` |
+| Backoffice | `backoffice` | `/admin` and `/admin/*` |
+| Store | `store` | Everything else (lowest priority), including `/login`, `/register` and `/account` |
 
 The auth service generates its RSA signing key into a Docker volume on first start, and catalog (and every other service) validates tokens against its JWKS. Nothing secret is stored in the repository.
 
@@ -210,6 +218,31 @@ curl -s 'localhost:8000/api/v1/products?q=yoga+block'
 
 Uploading the same file twice returns the existing import (`200`). Rows are upserted by SKU: existing products are updated (and their version bumped only if something changed), soft-deleted ones are restored, and images are never touched. Files are limited by `IMPORT_MAX_BYTES` (50 MB by default). The design, including the reusable messaging library, is in [ADR 0004](docs/adr/0004-csv-import-and-messaging-core.md).
 
+## Frontend
+
+`frontend/` is a pnpm and Turborepo workspace with two Next.js apps joined with [Multi-Zones](docs/adr/0007-frontend-zones-session-and-csp.md): `apps/store` at `/` and `apps/backoffice` at `/admin`. Shared code is in `packages/`: `config` (ESLint, tsconfig, Jest preset, the Tailwind theme and the Next.js configuration), `ui` (components with Storybook), `api-client` (types generated from the services' OpenAPI documents and a small typed fetch wrapper that understands `application/problem+json`) and `auth` (server-side session handling).
+
+```bash
+nvm install && nvm use         # in frontend/, installs the version in .nvmrc
+corepack enable                # uses the pnpm version pinned in package.json
+make install-frontend
+make storybook                 # http://localhost:6006
+make test-frontend             # Jest with an 85% coverage threshold per package
+make test-storybook            # builds Storybook and runs axe on every story
+make lint                      # backend and frontend linters and typechecks
+```
+
+If `pnpm -v` does not print the version pinned in `frontend/package.json`, another pnpm (for example a Homebrew one) comes first in your `PATH`; the make targets call `corepack pnpm` and are not affected.
+
+- **Styling.** Tailwind v4 is the only styling approach. `packages/config/styles/theme.css` is the single source of design tokens (warm palette, Inter and Playfair Display self-hosted through Fontsource, radii, breakpoints). A test checks every text and control colour pair for WCAG 2.2 AA contrast, and another one fails on removed or misused tokens in component sources.
+- **API types.** `backend/tools/dump_openapi.py` writes each service's OpenAPI document to `frontend/packages/api-client/openapi/` and openapi-typescript generates the types. `make openapi` regenerates both; `make check-openapi` (a CI job and a backend test) fails when they are stale.
+- **Sessions.** Tokens live in `httpOnly`, `SameSite=Lax` cookies, never in `localStorage`. The Next.js servers call login, register and refresh through the gateway and forward the visitor's address, so the gateway rate limits stay per client. The design, what is proven and what is not are in [ADR 0008](docs/adr/0008-gateway-forwarded-headers-and-rate-limits.md); `make check-rate-limit` runs the proof.
+- **Security headers.** Strict, nonce-based Content Security Policy (fonts only from `'self'`), `X-Content-Type-Options`, `Referrer-Policy`, frame and permissions headers. Because a nonce is per response, every page is rendered dynamically; the trade-offs, the refresh deduplication that only works inside one Next.js process, and the deprecated Storybook test runner we keep on purpose are in [ADR 0007](docs/adr/0007-frontend-zones-session-and-csp.md).
+- **Routes.** `make check-routes` proves against the running stack that `/` and `/account` reach the store, `/admin` reaches the backoffice, and that no zone route shadows `/api/v1`, `/media`, `/auth`, `/catalog` or `/accounts`.
+- **Images.** Both apps build from `frontend/` with multi-stage Dockerfiles (Next.js standalone output, non-root user, pinned base image) and copy only the packages they use, so `make up` twice in a row recreates nothing, and editing one zone rebuilds only that zone.
+
+Keyboard and screen reader walkthrough of the purchase flow (VoiceOver or NVDA) is added with the checkout in a later stage.
+
 ## Commands
 
 | Command | Description |
@@ -223,7 +256,15 @@ Uploading the same file twice returns the existing import (`200`). Rows are upse
 | `make test-backend` | Backend tests with coverage (integration tests need Docker) |
 | `make test-backend-unit` | Backend tests without Docker |
 | `make lint-backend` | Ruff, format check and mypy |
-| `make check-comments` | Fail if backend Python code contains comments or docstrings (tool pragmas are allowed) |
+| `make check-comments` | Fail if backend Python or frontend TypeScript code contains comments or docstrings (tool pragmas are allowed). Needs `make install-frontend` first |
+| `make test-scripts` | Tests of the comment checker, including the real TypeScript cases |
+| `make install-frontend` | `pnpm install --frozen-lockfile` |
+| `make lint-frontend`, `make lint` | ESLint and typecheck of the frontend, or of both stacks |
+| `make test-frontend`, `make test` | Frontend tests with coverage, or backend and frontend |
+| `make storybook`, `make test-storybook` | Run Storybook; build it and run axe on every story |
+| `make openapi`, `make check-openapi` | Regenerate the OpenAPI documents and API types, or fail when they are stale |
+| `make check-routes` | Prove the gateway routes against the running stack |
+| `make check-rate-limit` | Prove the rate limit buckets and the forwarded header trust (isolated stack, needs Docker) |
 
 ## Repository layout
 
