@@ -55,6 +55,17 @@ if [ -n "$admin_token" ] && [ -n "$customer_token" ]; then
   expect "backoffice: /admin with an admin session" 200 "Backoffice" "$(fetch -H "cookie: ecommerce_access=$admin_token" "$GATEWAY/admin")"
   expect "backoffice: /admin with a customer session is sent back to login" 307 "reason=forbidden" "$(fetch -H "cookie: ecommerce_access=$customer_token" "$GATEWAY/admin")"
   expect "store: /account with a customer session" 200 "Signed in as" "$(fetch -H "cookie: ecommerce_access=$customer_token" "$GATEWAY/account")"
+  expect "backoffice: /admin/products renders for an admin" 200 "products-heading" "$(fetch -H "cookie: ecommerce_access=$admin_token" "$GATEWAY/admin/products")"
+  expect "backoffice: the products page links to the CSV import route" 200 'href="/admin/products/import"' "$(fetch -H "cookie: ecommerce_access=$admin_token" "$GATEWAY/admin/products")"
+  if grep -qi 'href="/admin/imports"' /tmp/gateway-check.body; then fail "backoffice: the shell must not link to a separate imports page"; else pass "backoffice: the shell has no separate imports link"; fi
+  expect "backoffice: /admin/products/new renders for an admin" 200 "New product" "$(fetch -H "cookie: ecommerce_access=$admin_token" "$GATEWAY/admin/products/new")"
+  expect "backoffice: /admin/products with a customer session is sent back to login" 307 "reason=forbidden" "$(fetch -H "cookie: ecommerce_access=$customer_token" "$GATEWAY/admin/products")"
+  upload() {
+    fetch -X PUT -H "content-type: text/plain" -H 'if-match: "1"' --data x "$@" "$GATEWAY/admin/api/stream/products/NO-SUCH-SKU/image"
+  }
+  expect "backoffice: image upload route without a session answers 401 problem+json, not a login redirect" 401 "problem+json" "$(upload)"
+  expect "backoffice: image upload route with a customer session answers 403" 403 "problem+json" "$(upload -H "cookie: ecommerce_access=$customer_token")"
+  expect "backoffice: image upload route reaches the catalog API for an admin" 404 "No product with SKU" "$(upload -H "cookie: ecommerce_access=$admin_token")"
 else
   fail "sessions: could not log in through the gateway (is the stack up and .env present?)"
 fi
@@ -72,6 +83,20 @@ expect "auth: GET /auth/health" 200 '"status":"ok"' "$(fetch "$GATEWAY/auth/heal
 expect "auth: GET /auth/ready" 200 "" "$(fetch "$GATEWAY/auth/ready")"
 expect "accounts: GET /api/v1/accounts/me needs a token" 401 "problem+json" "$(fetch "$GATEWAY/api/v1/accounts/me")"
 expect "accounts: GET /accounts/health" 200 '"status":"ok"' "$(fetch "$GATEWAY/accounts/health")"
+
+LOCALHOST="http://localhost:${GATEWAY_HTTP_PORT:-8000}"
+expect "localhost: backoffice login page" 200 "Administrator sign in" "$(fetch "$LOCALHOST/admin/login")"
+expect "localhost: /admin/products is guarded with a host-relative redirect" 307 "location: /admin/login?next=%2Fproducts" "$(fetch "$LOCALHOST/admin/products")"
+expect "localhost: store home" 200 "Welcome to the store" "$(fetch "$LOCALHOST/")"
+if [ -n "${admin_token:-}" ]; then
+  expect "localhost: /admin/products renders for an admin session" 200 "products-heading" "$(fetch -H "cookie: ecommerce_access=$admin_token" "$LOCALHOST/admin/products")"
+fi
+status=$(fetch "$LOCALHOST/media/media/nonexistent.webp")
+if { [ "$status" = 404 ] || [ "$status" = 403 ]; } && ! grep -qi "html" /tmp/gateway-check.headers; then
+  pass "localhost: /media/... is served by the same host (same-origin images)"
+else
+  fail "localhost: /media/... answered $status $(header content-type)"
+fi
 
 status=$(fetch "$GATEWAY/media/media/nonexistent.webp")
 if { [ "$status" = 404 ] || [ "$status" = 403 ]; } && ! grep -qi "html" /tmp/gateway-check.headers; then

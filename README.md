@@ -241,6 +241,16 @@ If `pnpm -v` does not print the version pinned in `frontend/package.json`, anoth
 - **Routes.** `make check-routes` proves against the running stack that `/` and `/account` reach the store, `/admin` reaches the backoffice, and that no zone route shadows `/api/v1`, `/media`, `/auth`, `/catalog` or `/accounts`.
 - **Images.** Both apps build from `frontend/` with multi-stage Dockerfiles (Next.js standalone output, non-root user, pinned base image) and copy only the packages they use, so `make up` twice in a row recreates nothing, and editing one zone rebuilds only that zone.
 
+### Backoffice
+
+`/admin` signs administrators in (`/admin/login`; customers and anonymous visitors are sent back to it) and manages the catalog. Part A of the stage covers sign in and out, the product list, and creating, editing, deleting and adding images to products; categories, the CSV import flow and the users page follow.
+
+- **Everything goes through the Next.js server.** The browser never calls the API: server components read, server actions write, and image uploads stream through a route handler to the gateway without being buffered (limit enforced by `Content-Length` and by counting bytes). The reasoning, including why those routes bypass `proxy.ts`, is in [ADR 0009](docs/adr/0009-backoffice-data-access-and-uploads.md).
+- **Navigation.** The shell links to the sections that exist (Products for now; Categories and Users arrive with their pages). CSV import is not a separate section: the products page has an "Import CSV" button that opens `/admin/products/import`.
+- **Products list.** Search, category, price range, availability, sort, page size and cursor live in the URL (`nuqs` + Zod): invalid values are ignored, defaults are not written, the cursor is cleared when a filter changes, and back and forward restore each state. The result count is announced with a status region and shown as approximate when the backend estimates it. On narrow screens the table becomes cards.
+- **Product form.** React Hook Form with a Zod schema that mirrors the backend rules, focus on the first invalid field, backend Problem Details shown on the fields. Edit sends `If-Match`; a `412` opens a dialog that shows the differing fields and lets the administrator choose between the latest version and their own input.
+- **Testing deviation.** The project specification mentions MSW for mocking the API. Because every API call is made by the Next.js server, the tests mock `fetch` at that boundary instead and the project avoids one dependency.
+
 Keyboard and screen reader walkthrough of the purchase flow (VoiceOver or NVDA) is added with the checkout in a later stage.
 
 ## Commands
