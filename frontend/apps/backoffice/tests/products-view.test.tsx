@@ -2,7 +2,7 @@ import { act, screen, waitFor, within } from "@testing-library/react";
 import { axe } from "jest-axe";
 import type { UrlUpdateEvent } from "nuqs/adapters/testing";
 import { ProductsView, type ProductsViewProps } from "../src/components/products/products-view";
-import type { Failure } from "../src/lib/failure";
+import type { Failure } from "@ecommerce/web-core";
 import { CATEGORY, product } from "./support/api";
 import { resetRouter, router } from "./support/navigation-mock";
 import { renderApp } from "./support/render";
@@ -13,7 +13,7 @@ const CATEGORIES = [CATEGORY, { id: "c2", name: "Toys", slug: "toys" }];
 const PAGE = {
   items: [
     product(),
-    product({ sku: "TY-002", name: "Toy robot", price: "19.50", stock: 0, category: null, version: 1, image_url: "http://127.0.0.1:8000/media/media/products/TY-002/a-1200.webp", thumbnail_url: "http://127.0.0.1:8000/media/media/products/TY-002/a-400.webp" }),
+    product({ sku: "TY-002", name: "Toy robot", price: "19.50", stock: 0, category: null, version: 1, image_url: "/media/products/TY-002/a-1200.webp", thumbnail_url: "/media/products/TY-002/a-400.webp" }),
   ],
   next_cursor: "NEXT",
   prev_cursor: "PREV",
@@ -51,11 +51,11 @@ describe("ProductsView results", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it("serves product images from the page's own origin and falls back to a placeholder", () => {
+  it("renders the same-origin image URLs the API returns and falls back to a placeholder", () => {
     renderApp(<ProductsView {...props()} />);
     const table = screen.getByRole("table", { name: "Product list" });
 
-    expect(within(table).getByAltText("Image of Toy robot")).toHaveAttribute("src", "/media/media/products/TY-002/a-400.webp");
+    expect(within(table).getByAltText("Image of Toy robot")).toHaveAttribute("src", "/media/products/TY-002/a-400.webp");
     expect(within(table).getByRole("img", { name: "Running shoes has no image" })).toBeInTheDocument();
   });
 
@@ -284,6 +284,9 @@ describe("ProductsView pagination", () => {
       expect(lastUrl(onUrlUpdate).get("cursor")).toBe("NEXT");
     });
     expect(lastUrl(onUrlUpdate).get("q")).toBe("shoes");
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Previous" })).toBeEnabled();
+    });
 
     await user.click(screen.getByRole("button", { name: "Previous" }));
     await waitFor(() => {

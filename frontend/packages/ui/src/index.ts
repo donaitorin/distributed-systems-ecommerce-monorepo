@@ -18,7 +18,10 @@ export {
 export { Textarea, type TextareaProps } from "./components/textarea/textarea";
 export { Select, type SelectOption, type SelectProps } from "./components/select/select";
 export { Table, type TableColumn, type TableProps } from "./components/table/table";
-export { Pagination, type PaginationProps } from "./components/pagination/pagination";
+export { Pagination, formatResultCount, type PaginationProps } from "./components/pagination/pagination";
+export { Checkbox, type CheckboxProps } from "./components/checkbox/checkbox";
+export { FilterChips, type FilterChipItem, type FilterChipsProps } from "./components/filter-chips/filter-chips";
+export { EmptyState, type EmptyStateProps } from "./components/empty-state/empty-state";
 export { Modal, type ModalProps } from "./components/modal/modal";
 export {
   Toast,

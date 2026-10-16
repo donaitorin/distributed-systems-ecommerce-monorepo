@@ -1,14 +1,41 @@
 import type { Metadata } from "next";
+import { getSession } from "@ecommerce/auth/next";
+import { redirect } from "next/navigation";
+import { LoginForm } from "../../components/auth/login-form";
+import { LOGIN_REASON_MESSAGES } from "../../lib/auth-form";
+import { authPageHref, REGISTER_PATH, storeNextPath } from "../../lib/paths";
+import { signInAction } from "./actions";
 
-export const metadata: Metadata = { title: "Sign in" };
+export const metadata: Metadata = { title: "Sign in", robots: { index: false } };
 
-export default function LoginPage() {
+type LoginPageProps = {
+  searchParams: Promise<{ reason?: string; next?: string }>;
+};
+
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const { reason, next } = await searchParams;
+  const destination = storeNextPath(next);
+  if ((await getSession()) && reason === undefined) {
+    redirect(destination);
+  }
+  const notice = reason === undefined ? undefined : LOGIN_REASON_MESSAGES[reason];
   return (
     <section aria-labelledby="login-heading" className="flex flex-col gap-4">
       <h1 id="login-heading" className="text-3xl font-semibold">
         Sign in
       </h1>
-      <p className="max-w-prose text-base text-secondary">Sign in is not available yet.</p>
+      {notice ? (
+        <p role="alert" className="max-w-prose text-base font-medium text-danger-strong">
+          {notice}
+        </p>
+      ) : null}
+      <LoginForm action={signInAction} next={destination} />
+      <p className="text-base">
+        New here?{" "}
+        <a href={authPageHref(REGISTER_PATH, destination)} className="text-accent-strong underline">
+          Create an account
+        </a>
+      </p>
     </section>
   );
 }

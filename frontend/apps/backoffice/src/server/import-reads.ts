@@ -1,6 +1,6 @@
 import { authorizationHeaders, authRuntime } from "@ecommerce/auth/next";
 import { readProblem } from "@ecommerce/api-client";
-import { failureFromError, failureFromProblem, type Failure } from "../lib/failure";
+import { failureFromError, failureFromProblem, type Failure } from "@ecommerce/web-core";
 import { gatewayApi } from "./gateway";
 import { problemResponse } from "./stream-upload";
 

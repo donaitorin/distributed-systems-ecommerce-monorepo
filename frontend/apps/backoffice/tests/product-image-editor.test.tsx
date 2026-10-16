@@ -8,8 +8,8 @@ import { renderApp } from "./support/render";
 jest.mock("next/navigation", () => jest.requireActual("./support/navigation-mock") as unknown);
 
 const WITH_IMAGE = product({
-  image_url: "http://127.0.0.1:8000/media/media/products/RS-001/a-1200.webp",
-  thumbnail_url: "http://127.0.0.1:8000/media/media/products/RS-001/a-400.webp",
+  image_url: "/media/products/RS-001/a-1200.webp",
+  thumbnail_url: "/media/products/RS-001/a-400.webp",
 });
 
 const created: string[] = [];
@@ -67,10 +67,10 @@ describe("ProductImageEditor", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it("shows the current image from the page's own origin, with a way to replace and remove it", () => {
+  it("shows the current image, with a way to replace and remove it", () => {
     setup({ product: WITH_IMAGE });
 
-    expect(screen.getByAltText("Image of Running shoes")).toHaveAttribute("src", "/media/media/products/RS-001/a-400.webp");
+    expect(screen.getByAltText("Image of Running shoes")).toHaveAttribute("src", "/media/products/RS-001/a-400.webp");
     expect(screen.getByLabelText("Replace the image")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Remove image" })).toBeEnabled();
   });

@@ -1,7 +1,7 @@
 /**
  * @jest-environment node
  */
-import type { ProductSearchState } from "../src/lib/product-search";
+import type { ProductSearchState } from "@ecommerce/web-core";
 import { isFailure, loadCategories, loadProduct, loadProductPage } from "../src/server/products";
 import { CATEGORY, json, mockFetch, problem, product } from "./support/api";
 

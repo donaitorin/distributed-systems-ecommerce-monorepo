@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, userEvent, within } from "storybook/test";
 import type { CategoryCreated } from "../../server/category-actions";
-import type { Failure } from "../../lib/failure";
+import type { Failure } from "@ecommerce/web-core";
 import { UnknownCategoryAction } from "./unknown-category-action";
 import { withAppProviders } from "../story-support";
 

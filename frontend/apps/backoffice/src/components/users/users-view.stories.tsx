@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, userEvent, within } from "storybook/test";
-import type { Failure } from "../../lib/failure";
+import type { Failure } from "@ecommerce/web-core";
 import type { RoleChanged } from "../../server/accounts";
 import { withAppProviders } from "../story-support";
 import { UsersView } from "./users-view";

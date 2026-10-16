@@ -2,7 +2,7 @@ import { render } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
 import { withNuqsTestingAdapter, type OnUrlUpdateFunction } from "nuqs/adapters/testing";
-import { NavigationContext } from "../../src/components/navigation";
+import { NavigationContext } from "@ecommerce/web-core/client";
 import { NotificationsProvider } from "../../src/components/notifications";
 import { router } from "./navigation-mock";
 

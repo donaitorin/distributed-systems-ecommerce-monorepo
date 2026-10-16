@@ -1,4 +1,4 @@
-import "./zod-config";
+import "@ecommerce/web-core/zod-config";
 import { z } from "zod";
 import type { Product } from "./types";
 

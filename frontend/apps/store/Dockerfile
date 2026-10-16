@@ -9,6 +9,7 @@ COPY packages/config/package.json ./packages/config/package.json
 COPY packages/api-client/package.json ./packages/api-client/package.json
 COPY packages/auth/package.json ./packages/auth/package.json
 COPY packages/ui/package.json ./packages/ui/package.json
+COPY packages/web-core/package.json ./packages/web-core/package.json
 COPY apps/store/package.json ./apps/store/package.json
 RUN pnpm install --frozen-lockfile --filter @ecommerce/store...
 COPY packages/config/next ./packages/config/next
@@ -17,6 +18,7 @@ COPY packages/config/tsconfig ./packages/config/tsconfig
 COPY packages/api-client/src ./packages/api-client/src
 COPY packages/auth/src ./packages/auth/src
 COPY packages/ui/src ./packages/ui/src
+COPY packages/web-core/src ./packages/web-core/src
 COPY apps/store ./apps/store
 RUN pnpm --filter @ecommerce/store build
 

@@ -84,3 +84,32 @@ describe("ProductImage", () => {
     expect(screen.getByRole("img")).toHaveAttribute("fetchpriority", "high");
   });
 });
+
+describe("ProductImage before hydration", () => {
+  it("shows the placeholder when the browser already failed to load the image", () => {
+    const complete = jest.spyOn(HTMLImageElement.prototype, "complete", "get").mockReturnValue(true);
+    const naturalWidth = jest.spyOn(HTMLImageElement.prototype, "naturalWidth", "get").mockReturnValue(0);
+    const currentSrc = jest.spyOn(HTMLImageElement.prototype, "currentSrc", "get").mockReturnValue(THUMBNAIL);
+
+    const { container } = render(<ProductImage thumbnailUrl={THUMBNAIL} imageUrl={FULL} alt="Running shoes" />);
+
+    expect(container.querySelector("img")).toBeNull();
+    expect(screen.getByRole("img", { name: "Running shoes" })).toBeInTheDocument();
+    complete.mockRestore();
+    naturalWidth.mockRestore();
+    currentSrc.mockRestore();
+  });
+
+  it("keeps the image when it loaded", () => {
+    const complete = jest.spyOn(HTMLImageElement.prototype, "complete", "get").mockReturnValue(true);
+    const naturalWidth = jest.spyOn(HTMLImageElement.prototype, "naturalWidth", "get").mockReturnValue(400);
+    const currentSrc = jest.spyOn(HTMLImageElement.prototype, "currentSrc", "get").mockReturnValue(THUMBNAIL);
+
+    const { container } = render(<ProductImage thumbnailUrl={THUMBNAIL} imageUrl={FULL} alt="Running shoes" />);
+
+    expect(container.querySelector("img")).not.toBeNull();
+    complete.mockRestore();
+    naturalWidth.mockRestore();
+    currentSrc.mockRestore();
+  });
+});

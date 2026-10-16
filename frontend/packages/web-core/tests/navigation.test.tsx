@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { NavigationProvider, useNavigation } from "../src/components/navigation";
+import { NavigationProvider, useNavigation } from "../src/client";
 import { resetRouter, router } from "./support/navigation-mock";
 
 jest.mock("next/navigation", () => jest.requireActual("./support/navigation-mock") as unknown);

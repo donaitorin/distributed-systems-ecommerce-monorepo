@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { getSession, NONCE_HEADER } from "@ecommerce/auth/next";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { AppShell, Button, StyleNonceProvider } from "@ecommerce/ui";
-import { NavigationProvider } from "../components/navigation";
+import { NavigationProvider } from "@ecommerce/web-core/client";
 import { NotificationsProvider } from "../components/notifications";
 import { ADMIN_NAVIGATION } from "../lib/shell-links";
 import { signOutAction } from "./session-actions";

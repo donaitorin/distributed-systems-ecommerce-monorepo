@@ -1,5 +1,5 @@
 import { categoryFormSchema, normalizeCategoryName, type CategoryFormValues } from "../lib/category-form";
-import type { Failure } from "../lib/failure";
+import type { Failure } from "@ecommerce/web-core";
 import type { Category } from "../lib/types";
 import { catalogApi } from "./catalog";
 import { guarded } from "./guarded";

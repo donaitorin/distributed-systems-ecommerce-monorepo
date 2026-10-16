@@ -1,6 +1,6 @@
 import { fetchImport, fetchProblems, uploadImportFile } from "../../lib/import-client";
 import type { CategoryFormValues } from "../../lib/category-form";
-import type { Failure } from "../../lib/failure";
+import type { Failure } from "@ecommerce/web-core";
 import type { ImportView } from "../../lib/types";
 import type { CategoryCreated } from "../../server/category-actions";
 

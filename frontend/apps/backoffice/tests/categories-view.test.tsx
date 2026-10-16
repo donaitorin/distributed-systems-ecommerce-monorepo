@@ -2,7 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import { axe } from "jest-axe";
 import { CategoriesView, type CategoriesViewProps } from "../src/components/categories/categories-view";
 import type { CategoryFormValues } from "../src/lib/category-form";
-import type { Failure } from "../src/lib/failure";
+import type { Failure } from "@ecommerce/web-core";
 import type { CategoryCreated } from "../src/server/category-actions";
 import { CATEGORY } from "./support/api";
 import { resetRouter, router } from "./support/navigation-mock";

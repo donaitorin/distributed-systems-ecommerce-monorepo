@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useEffectEvent, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 
 export const URL_DEBOUNCE_MS = 300;
 
@@ -20,6 +20,7 @@ export function useUrlText({ value, commit, accept, delay = URL_DEBOUNCE_MS }: U
     commit(next);
   });
   const acceptable = useEffectEvent((text: string) => accept?.(text) ?? true);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   if (value !== seen) {
     setSeen(value);
@@ -35,13 +36,24 @@ export function useUrlText({ value, commit, accept, delay = URL_DEBOUNCE_MS }: U
     if (next === committed || (next !== null && !acceptable(next))) {
       return;
     }
-    const timer = setTimeout(() => {
+    timer.current = setTimeout(() => {
       publish(next);
     }, delay);
     return () => {
-      clearTimeout(timer);
+      clearTimeout(timer.current);
     };
   }, [draft, committed, delay]);
 
-  return [draft, setDraft] as const;
+  const commitNow = () => {
+    clearTimeout(timer.current);
+    const text = draft.trim();
+    const next = text === "" ? null : text;
+    if (next === committed || (next !== null && accept?.(next) === false)) {
+      return;
+    }
+    setCommitted(next);
+    commit(next);
+  };
+
+  return [draft, setDraft, commitNow] as const;
 }

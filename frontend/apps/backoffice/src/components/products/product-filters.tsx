@@ -1,30 +1,26 @@
 "use client";
 
 import { Button, Input, Select, type SelectOption } from "@ecommerce/ui";
-import { useUrlText } from "../../lib/use-url-text";
+import { useUrlText } from "@ecommerce/web-core/client";
 import {
+  ALL_CATEGORIES,
+  categoryChoices,
   hasActiveFilters,
   impliedSort,
   PAGE_SIZES,
   PRICE_FILTER,
+  priceFieldError,
+  SORT_CHOICES,
   sortToStore,
   type ProductSearchState,
   type SortValue,
-} from "../../lib/product-search";
+} from "@ecommerce/web-core";
 import type { Category } from "../../lib/types";
 
-const ALL = "all";
 const AVAILABILITY: readonly SelectOption[] = [
   { value: "any", label: "Any availability" },
   { value: "in_stock", label: "In stock only" },
 ];
-const SORTS: readonly SelectOption[] = [
-  { value: "newest", label: "Newest first" },
-  { value: "relevance", label: "Best match" },
-  { value: "price_asc", label: "Price, low to high" },
-  { value: "price_desc", label: "Price, high to low" },
-];
-const PRICE_ERROR = "Enter a price like 19.99";
 
 export type ProductFiltersProps = {
   state: ProductSearchState;
@@ -33,18 +29,6 @@ export type ProductFiltersProps = {
   onChange: (patch: Partial<ProductSearchState>) => void;
   onClear: () => void;
 };
-
-function categoryOptions(categories: readonly Category[], selected: string | null): SelectOption[] {
-  const options = [{ value: ALL, label: "All categories" }, ...categories.map(({ slug, name }) => ({ value: slug, label: name }))];
-  return selected !== null && !categories.some(({ slug }) => slug === selected)
-    ? [...options, { value: selected, label: selected }]
-    : options;
-}
-
-function priceError(draft: string, serverError: string | undefined): string | undefined {
-  const text = draft.trim();
-  return text !== "" && !PRICE_FILTER.test(text) ? PRICE_ERROR : serverError;
-}
 
 export function ProductFilters({ state, categories, fieldErrors = {}, onChange, onClear }: ProductFiltersProps) {
   const [queryDraft, setQueryDraft] = useUrlText({
@@ -93,10 +77,10 @@ export function ProductFilters({ state, categories, fieldErrors = {}, onChange, 
         </div>
         <Select
           label="Category"
-          options={categoryOptions(categories, state.category)}
-          value={state.category ?? ALL}
+          options={categoryChoices(categories, state.category)}
+          value={state.category ?? ALL_CATEGORIES}
           onValueChange={(value) => {
-            onChange({ category: value === ALL ? null : value });
+            onChange({ category: value === ALL_CATEGORIES ? null : value });
           }}
         />
         <Select
@@ -113,7 +97,7 @@ export function ProductFilters({ state, categories, fieldErrors = {}, onChange, 
           inputMode="decimal"
           autoComplete="off"
           value={minDraft}
-          error={priceError(minDraft, fieldErrors.min_price)}
+          error={priceFieldError(minDraft, fieldErrors.min_price)}
           onChange={(event) => {
             setMinDraft(event.target.value);
           }}
@@ -124,14 +108,14 @@ export function ProductFilters({ state, categories, fieldErrors = {}, onChange, 
           inputMode="decimal"
           autoComplete="off"
           value={maxDraft}
-          error={priceError(maxDraft, fieldErrors.max_price)}
+          error={priceFieldError(maxDraft, fieldErrors.max_price)}
           onChange={(event) => {
             setMaxDraft(event.target.value);
           }}
         />
         <Select
           label="Sort by"
-          options={SORTS}
+          options={SORT_CHOICES}
           value={impliedSort(state)}
           onValueChange={(value) => {
             onChange({ sort: sortToStore(value as SortValue, state.q) });

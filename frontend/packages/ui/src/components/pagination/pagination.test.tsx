@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
-import { Pagination } from "./pagination";
+import { Pagination, formatResultCount } from "./pagination";
 
 function renderPagination(props: Partial<Parameters<typeof Pagination>[0]> = {}) {
   const handlers = { onPrevious: jest.fn(), onNext: jest.fn() };
@@ -79,5 +79,14 @@ describe("Pagination", () => {
     renderPagination();
 
     expect(screen.getByRole("status")).toBeEmptyDOMElement();
+  });
+});
+
+describe("formatResultCount", () => {
+  it("formats exact and approximate totals", () => {
+    expect(formatResultCount(1, true)).toBe("1 result");
+    expect(formatResultCount(1234, true)).toBe("1,234 results");
+    expect(formatResultCount(1234, false)).toBe("About 1,234 results");
+    expect(formatResultCount(0, true)).toBe("0 results");
   });
 });

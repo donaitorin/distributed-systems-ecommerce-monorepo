@@ -3,31 +3,25 @@
 import { useState, useTransition } from "react";
 import { useQueryStates } from "nuqs";
 import { ButtonLink, Button, Pagination, PriceTag, ProductImage, StockBadge, Table, type TableColumn } from "@ecommerce/ui";
-import type { Failure } from "../../lib/failure";
-import { sameOriginMedia } from "../../lib/media";
+import {
+  CLEARED_FILTERS,
+  productSearchParsers,
+  searchFailureMessage,
+  type Failure,
+  type ProductSearchState,
+} from "@ecommerce/web-core";
 import { PRODUCTS_PATH, ZONE_PATH } from "../../lib/paths";
-import { productSearchParsers, type ProductSearchState } from "../../lib/product-search";
 import type { Category, Product, ProductPage } from "../../lib/types";
 import type { DeleteResult } from "../../server/product-actions";
 import { DeleteProductDialog } from "../delete-product-dialog";
 import { ProductFilters } from "./product-filters";
-import { useNavigation } from "../navigation";
+import { useNavigation } from "@ecommerce/web-core/client";
 
 export type ProductsViewProps = {
   categories: readonly Category[];
   page: ProductPage | null;
   failure: Failure | null;
   deleteProduct: (sku: string, etag: string) => Promise<DeleteResult>;
-};
-
-const EMPTY_FILTERS: Partial<ProductSearchState> = {
-  q: null,
-  category: null,
-  min_price: null,
-  max_price: null,
-  in_stock: false,
-  sort: null,
-  cursor: null,
 };
 
 function editHref(product: Product): string {
@@ -38,25 +32,13 @@ function Thumbnail({ product }: { product: Product }) {
   return (
     <div className="size-12 shrink-0 overflow-hidden rounded-md">
       <ProductImage
-        thumbnailUrl={sameOriginMedia(product.thumbnail_url)}
-        imageUrl={sameOriginMedia(product.image_url)}
+        thumbnailUrl={product.thumbnail_url ?? null}
+        imageUrl={product.image_url ?? null}
         alt={product.image_url ? `Image of ${product.name}` : `${product.name} has no image`}
         sizes="48px"
       />
     </div>
   );
-}
-
-function failureText(failure: Failure): string {
-  if (failure.status === 422) {
-    return failure.fieldErrors.cursor !== undefined
-      ? "This page link no longer matches the current filters."
-      : "Some filters are not valid. Adjust them and try again.";
-  }
-  if (failure.status === 503 || failure.status === null) {
-    return "The product search is not available right now. Try again in a moment.";
-  }
-  return failure.detail ?? failure.title;
 }
 
 export function ProductsView({ categories, page, failure, deleteProduct }: ProductsViewProps) {
@@ -165,7 +147,7 @@ export function ProductsView({ categories, page, failure, deleteProduct }: Produ
         fieldErrors={filterErrors}
         onChange={change}
         onClear={() => {
-          void setState(EMPTY_FILTERS);
+          void setState(CLEARED_FILTERS);
         }}
       />
       <div aria-busy={pending} className={pending ? "flex flex-col gap-4 opacity-60" : "flex flex-col gap-4"}>
@@ -174,7 +156,7 @@ export function ProductsView({ categories, page, failure, deleteProduct }: Produ
           columns={columns}
           rows={page?.items ?? []}
           getRowKey={(product) => product.sku}
-          error={failure ? failureText(failure) : undefined}
+          error={failure ? searchFailureMessage(failure) : undefined}
           emptyMessage="No products match these filters."
           renderCard={renderCard}
         />

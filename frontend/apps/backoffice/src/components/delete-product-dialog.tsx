@@ -3,13 +3,13 @@
 import { useState } from "react";
 import { ConfirmDialog } from "@ecommerce/ui";
 import { entityTag } from "../lib/entity-tag";
-import { isSessionFailure } from "../lib/failure";
+import { isSessionFailure } from "@ecommerce/web-core";
 import { LOGIN_PATH } from "../lib/paths";
 import { deleteFailureMessage } from "../lib/messages";
 import type { Product } from "../lib/types";
 import type { DeleteResult } from "../server/product-actions";
 import { useNotify } from "./notifications";
-import { useNavigation } from "./navigation";
+import { useNavigation } from "@ecommerce/web-core/client";
 
 export type DeleteTarget = Pick<Product, "sku" | "name" | "version">;
 

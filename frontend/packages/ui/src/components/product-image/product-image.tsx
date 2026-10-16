@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { cn } from "../../lib/cn";
 
 export type ProductImageProps = {
@@ -56,6 +56,14 @@ export function ProductImage({
   const sourceKey = `${thumbnailUrl ?? ""}|${imageUrl ?? ""}`;
   const [failedKey, setFailedKey] = useState<string | null>(null);
   const showPlaceholder = source === null || failedKey === sourceKey;
+  const detectEarlyFailure = useCallback(
+    (image: HTMLImageElement | null) => {
+      if (image?.complete && image.naturalWidth === 0 && image.currentSrc !== "") {
+        setFailedKey(sourceKey);
+      }
+    },
+    [sourceKey],
+  );
 
   return (
     <div className={cn("aspect-square w-full overflow-hidden bg-surface-2", className)}>
@@ -63,6 +71,7 @@ export function ProductImage({
         <ProductImagePlaceholder label={alt} />
       ) : (
         <img
+          ref={detectEarlyFailure}
           src={source}
           srcSet={sourceSet(thumbnailUrl, imageUrl)}
           sizes={sizes}

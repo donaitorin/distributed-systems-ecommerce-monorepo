@@ -1,7 +1,7 @@
-import "./zod-config";
+import "@ecommerce/web-core/zod-config";
 import type { AccountsPaths } from "@ecommerce/api-client";
 import { z } from "zod";
-import { zodParser } from "./zod-parser";
+import { zodParser } from "@ecommerce/web-core";
 
 export const USER_PAGE_SIZES = [25, 50, 100] as const;
 export const DEFAULT_USER_PAGE_SIZE = 25;

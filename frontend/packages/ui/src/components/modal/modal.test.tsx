@@ -148,3 +148,43 @@ describe("Modal", () => {
     });
   });
 });
+
+describe("Modal drawer variant", () => {
+  function DrawerHarness() {
+    const [open, setOpen] = useState(false);
+    return (
+      <>
+        <button type="button" onClick={() => setOpen(true)}>
+          Filters
+        </button>
+        <Modal open={open} onOpenChange={setOpen} title="Filters" variant="drawer">
+          <label>
+            Minimum price
+            <input />
+          </label>
+        </Modal>
+      </>
+    );
+  }
+
+  it("slides in from the edge, traps focus, closes on Escape and returns focus to the opener", async () => {
+    render(<DrawerHarness />);
+    const opener = screen.getByRole("button", { name: "Filters" });
+
+    await userEvent.click(opener);
+    const dialog = await screen.findByRole("dialog", { name: "Filters" });
+
+    expect(dialog).toHaveClass("inset-y-0", "left-0");
+    expect(await axe(dialog)).toHaveNoViolations();
+    await userEvent.tab();
+    await userEvent.tab();
+    await userEvent.tab();
+    expect(dialog).toContainElement(document.activeElement as HTMLElement);
+
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+    expect(opener).toHaveFocus();
+  });
+});

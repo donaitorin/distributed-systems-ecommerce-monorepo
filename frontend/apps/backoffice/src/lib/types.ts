@@ -1,8 +1,6 @@
 import type { AccountsComponents, CatalogComponents } from "@ecommerce/api-client";
 
-export type Product = CatalogComponents["schemas"]["ProductOut"];
-export type Category = CatalogComponents["schemas"]["CategoryOut"];
-export type ProductPage = CatalogComponents["schemas"]["ProductPage"];
+export type { Category, Product, ProductPage } from "@ecommerce/web-core";
 
 export type ImportView = CatalogComponents["schemas"]["ImportOut"];
 export type ImportSummary = CatalogComponents["schemas"]["ImportSummaryOut"];
