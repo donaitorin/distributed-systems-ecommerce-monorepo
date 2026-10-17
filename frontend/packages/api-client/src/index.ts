@@ -20,8 +20,8 @@ export type GatewayPaths = Omit<AuthPaths, "/health" | "/ready"> &
   Omit<OrdersPaths, "/health" | "/ready"> &
   Omit<PaymentsPaths, "/health" | "/ready">;
 
-export { createApiClient, buildPath, buildQuery } from "./client";
-export type { ApiClient, ApiClientOptions } from "./client";
+export { createApiClient, buildPath, buildQuery, isRetryableRead, retryDelayMs } from "./client";
+export type { ApiClient, ApiClientOptions, RetryPolicy } from "./client";
 export {
   ApiError,
   ApiNetworkError,

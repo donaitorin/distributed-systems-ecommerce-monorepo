@@ -8,11 +8,20 @@ import type {
   ResponseBody,
 } from "./types";
 
+export type RetryPolicy = {
+  attempts: number;
+  baseDelayMs: number;
+  maxDelayMs: number;
+};
+
 export type ApiClientOptions = {
   baseUrl: string;
   fetch?: typeof fetch;
   headers?: () => Record<string, string> | Promise<Record<string, string>>;
   timeoutMs?: number;
+  readRetry?: RetryPolicy;
+  random?: () => number;
+  sleep?: (milliseconds: number) => Promise<void>;
 };
 
 type LooseOptions = {
@@ -24,8 +33,36 @@ type LooseOptions = {
   timeoutMs?: number;
 };
 
-const DEFAULT_TIMEOUT_MS = 10_000;
+const DEFAULT_READ_TIMEOUT_MS = 5_000;
+const DEFAULT_WRITE_TIMEOUT_MS = 10_000;
+const DEFAULT_READ_RETRY: RetryPolicy = { attempts: 2, baseDelayMs: 100, maxDelayMs: 500 };
+const RETRYABLE_STATUSES = new Set([502, 503, 504]);
 const NO_CONTENT = 204;
+const TIMEOUT_ERROR_NAME = "TimeoutError";
+
+function pause(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+export function retryDelayMs(policy: RetryPolicy, attempt: number, random: () => number): number {
+  const ceiling = Math.min(policy.maxDelayMs, policy.baseDelayMs * 2 ** (attempt - 1));
+  return Math.round(ceiling / 2 + (random() * ceiling) / 2);
+}
+
+function isTimeout(error: ApiNetworkError): boolean {
+  return (error.cause as { name?: unknown } | null)?.name === TIMEOUT_ERROR_NAME;
+}
+
+export function isRetryableRead(error: unknown): boolean {
+  if (error instanceof ApiNetworkError) {
+    return !isTimeout(error);
+  }
+  return (
+    error instanceof ApiError &&
+    RETRYABLE_STATUSES.has(error.status) &&
+    error.retryAfterSeconds === undefined
+  );
+}
 
 function scalar(value: unknown): string {
   return typeof value === "string" ? value : JSON.stringify(value);
@@ -64,6 +101,10 @@ function requestBody(body: unknown): { body?: BodyInit; contentType?: string } {
   return { body: JSON.stringify(body), contentType: "application/json" };
 }
 
+function defaultTimeout(method: HttpMethod): number {
+  return method === "get" ? DEFAULT_READ_TIMEOUT_MS : DEFAULT_WRITE_TIMEOUT_MS;
+}
+
 function combineSignals(
   signal: AbortSignal | undefined,
   timeoutMs: number,
@@ -76,7 +117,29 @@ export function createApiClient<Paths>(clientOptions: ApiClientOptions) {
   const baseUrl = clientOptions.baseUrl.replace(/\/+$/, "");
   const doFetch = clientOptions.fetch ?? fetch;
 
+  const readRetry = clientOptions.readRetry ?? DEFAULT_READ_RETRY;
+  const random = clientOptions.random ?? Math.random;
+  const sleep = clientOptions.sleep ?? pause;
+
   async function request(
+    method: HttpMethod,
+    template: string,
+    options: LooseOptions,
+  ): Promise<{ data: unknown; response: Response }> {
+    const attempts = method === "get" ? readRetry.attempts : 1;
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        return await send(method, template, options);
+      } catch (error) {
+        if (attempt >= attempts || !isRetryableRead(error) || options.signal?.aborted) {
+          throw error;
+        }
+        await sleep(retryDelayMs(readRetry, attempt, random));
+      }
+    }
+  }
+
+  async function send(
     method: HttpMethod,
     template: string,
     options: LooseOptions,
@@ -97,7 +160,7 @@ export function createApiClient<Paths>(clientOptions: ApiClientOptions) {
         method: method.toUpperCase(),
         headers,
         body: payload.body,
-        signal: combineSignals(options.signal, options.timeoutMs ?? clientOptions.timeoutMs ?? DEFAULT_TIMEOUT_MS),
+        signal: combineSignals(options.signal, options.timeoutMs ?? clientOptions.timeoutMs ?? defaultTimeout(method)),
         cache: "no-store",
       });
     } catch (error) {
