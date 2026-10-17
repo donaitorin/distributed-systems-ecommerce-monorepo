@@ -171,5 +171,37 @@ class ImportProblemModel(Base):
     __table_args__ = (Index("ix_import_problems_import_id_id", "import_id", "id"),)
 
 
+RESERVATION_STATUSES = ("RESERVED", "FAILED", "RELEASED")
+
+
+class StockReservationModel(Base):
+    __tablename__ = "stock_reservations"
+
+    order_id: Mapped[UUID] = mapped_column(primary_key=True)
+    status: Mapped[str] = mapped_column(String(10))
+    failure_reason: Mapped[str | None] = mapped_column(String(30))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN (" + ", ".join(f"'{item}'" for item in RESERVATION_STATUSES) + ")",
+            name="status_known",
+        ),
+    )
+
+
+class StockReservationLineModel(Base):
+    __tablename__ = "stock_reservation_lines"
+
+    order_id: Mapped[UUID] = mapped_column(
+        ForeignKey("stock_reservations.order_id", ondelete="CASCADE"), primary_key=True
+    )
+    sku: Mapped[str] = mapped_column(String(64), primary_key=True)
+    quantity: Mapped[int] = mapped_column(Integer)
+
+    __table_args__ = (CheckConstraint("quantity > 0", name="quantity_positive"),)
+
+
 OUTBOX = outbox_table(Base.metadata)
 PROCESSED_EVENTS = processed_events_table(Base.metadata)

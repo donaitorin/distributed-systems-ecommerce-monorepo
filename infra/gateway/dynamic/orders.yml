@@ -1,0 +1,26 @@
+http:
+  routers:
+    orders-api:
+      rule: "Path(`/api/v1/orders`) || PathPrefix(`/api/v1/orders/`)"
+      entryPoints: [web]
+      service: orders
+    orders-admin-api:
+      rule: "Path(`/api/v1/admin/orders`) || PathPrefix(`/api/v1/admin/orders/`)"
+      entryPoints: [web]
+      service: orders
+    orders-docs:
+      rule: "Path(`/orders-service`) || PathPrefix(`/orders-service/`)"
+      entryPoints: [web]
+      middlewares: [orders-strip-prefix]
+      service: orders
+
+  middlewares:
+    orders-strip-prefix:
+      stripPrefix:
+        prefixes: ["/orders-service"]
+
+  services:
+    orders:
+      loadBalancer:
+        servers:
+          - url: "http://orders:8000"

@@ -1,3 +1,4 @@
+from datetime import datetime
 from decimal import Decimal
 
 from cart.domain.cart import CartLine
@@ -27,6 +28,13 @@ class InMemoryCartStore:
         cart.pop(sku, None)
         if not cart:
             self.carts.pop(user_id, None)
+
+    async def remove_line_added_before(self, user_id: str, sku: str, cutoff: datetime) -> bool:
+        line = self.carts.get(user_id, {}).get(sku)
+        if line is None or line.added_at > cutoff:
+            return False
+        await self.remove_line(user_id, sku)
+        return True
 
     async def clear(self, user_id: str) -> None:
         self.carts.pop(user_id, None)

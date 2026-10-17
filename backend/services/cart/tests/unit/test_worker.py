@@ -1,22 +1,37 @@
 import logging
+from datetime import UTC, datetime
 from typing import Any, ClassVar
+from uuid import UUID
 
 import pytest
-from cart_testing.events import deleted_event, message_of, updated_event
+from cart_testing.events import confirmed_event, deleted_event, message_of, updated_event
 from cart_testing.support import Stores, product
 
 from cart.application.errors import CartError
+from cart.application.purchases import PurchasedLines
+from cart.domain.cart import CartLine
 from cart.domain.product import ProductState
+from cart.infra.memory import InMemoryCartStore
 from cart.worker import (
     CONSUMER_GROUP,
+    ORDERS_CONSUMER_GROUP,
     PATIENT_RETRY,
     SERVICE_NAME,
     WorkerSettings,
     build_consumer,
+    build_purchase_consumer,
     build_source,
     log_dead_letter,
+    purchase_handlers,
 )
-from ecommerce_messaging import DeadLetter, InMemoryBroker, Outcome, RetryPolicy
+from ecommerce_messaging import (
+    ClaimMode,
+    DeadLetter,
+    InMemoryBroker,
+    Outcome,
+    OutgoingMessage,
+    RetryPolicy,
+)
 
 ENVIRON = {
     "REDIS_CART_HOST": "redis-cart",
@@ -293,3 +308,45 @@ async def test_a_dead_letter_without_an_envelope_still_logs(
 
     [record] = [r for r in caplog.records if r.name == "cart.worker"]
     assert (record.__dict__["event_id"], record.__dict__["event_type"]) == (None, None)
+
+
+def test_the_cart_worker_also_listens_to_order_events_in_its_own_group() -> None:
+    settings = WorkerSettings.from_env(ENVIRON)
+
+    assert (settings.orders_topic, settings.orders_group) == ("orders.events", "cart-order-events")
+    assert ORDERS_CONSUMER_GROUP == "cart-order-events"
+
+
+def test_the_purchase_handler_is_idempotent_by_itself() -> None:
+    [handler] = purchase_handlers(PurchasedLines(InMemoryCartStore()))
+
+    assert (handler.event_type, handler.version, handler.claim) == (
+        "order.confirmed",
+        1,
+        ClaimMode.NONE,
+    )
+
+
+async def test_a_confirmed_order_empties_its_lines_through_the_consumer() -> None:
+    store = InMemoryCartStore()
+    broker = InMemoryBroker()
+    source = broker.source(["orders.events"])
+    consumer = build_purchase_consumer(source, broker, store, sleep=no_sleep)
+    customer = UUID(int=5)
+    when = datetime(2026, 10, 1, tzinfo=UTC)
+    for sku in ("A-1", "B-2"):
+        await store.put_line(str(customer), CartLine.started(product(sku=sku), 1, when), 100)
+    event = confirmed_event(customer, ["A-1"])
+    outgoing = OutgoingMessage("orders.events", "k", event.model_dump_json().encode())
+    await broker.publish(outgoing)
+    await broker.publish(outgoing)
+
+    while (message := await source.poll(0)) is not None:
+        await consumer.handle(message)
+
+    assert [line.sku for line in await store.lines(str(customer))] == ["B-2"]
+    assert broker.messages("orders.events.dlq") == []
+
+
+async def no_sleep(_: float) -> None:
+    return None

@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from catalog.infra.events import SqlEventOutbox
 from catalog.infra.imports import SqlImportRepository
 from catalog.infra.repositories import SqlCategoryRepository, SqlProductRepository
+from catalog.infra.reservations import SqlStockReservationRepository
 from catalog.settings import DEFAULT_SEARCH_TIMEOUT_MS
 
 
@@ -13,6 +14,7 @@ class SqlAlchemyUnitOfWork:
     products: SqlProductRepository
     categories: SqlCategoryRepository
     imports: SqlImportRepository
+    reservations: SqlStockReservationRepository
     events: SqlEventOutbox
     _session: AsyncSession
 
@@ -29,6 +31,7 @@ class SqlAlchemyUnitOfWork:
         self.products = SqlProductRepository(self._session, self._search_timeout_ms)
         self.categories = SqlCategoryRepository(self._session)
         self.imports = SqlImportRepository(self._session)
+        self.reservations = SqlStockReservationRepository(self._session)
         self.events = SqlEventOutbox(self._session)
         return self
 

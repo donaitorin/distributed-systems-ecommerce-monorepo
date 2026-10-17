@@ -4,9 +4,13 @@ from uuid import UUID, uuid4
 
 from ecommerce_contracts import (
     CATALOG_TOPIC,
+    ORDER_CONFIRMED,
+    ORDERS_TOPIC,
     PRODUCT_DELETED,
     PRODUCT_UPDATED,
     Envelope,
+    OrderConfirmedV1,
+    OrderLineV1,
     ProductDeletedV1,
     ProductUpdatedV1,
 )
@@ -58,4 +62,33 @@ def message_of(
 ) -> IncomingMessage:
     return IncomingMessage(
         CATALOG_TOPIC, 0, offset, event.payload.sku, event.model_dump_json().encode()
+    )
+
+
+def confirmed_event(
+    customer_id: UUID,
+    skus: list[str],
+    occurred_at: datetime = OCCURRED,
+    order_id: UUID | None = None,
+) -> Envelope[OrderConfirmedV1]:
+    return Envelope[OrderConfirmedV1](
+        event_id=uuid4(),
+        event_type=ORDER_CONFIRMED,
+        event_version=1,
+        correlation_id=CORRELATION,
+        producer="orders-service",
+        payload=OrderConfirmedV1(
+            order_id=order_id or uuid4(),
+            customer_id=customer_id,
+            lines=[OrderLineV1(sku=sku, quantity=1, unit_price=Decimal("10.00")) for sku in skus],
+            total=Decimal("10.00") * len(skus),
+            currency="USD",
+            occurred_at=occurred_at,
+        ),
+    )
+
+
+def order_message_of(event: Envelope[OrderConfirmedV1], offset: int = 0) -> IncomingMessage:
+    return IncomingMessage(
+        ORDERS_TOPIC, 0, offset, str(event.payload.order_id), event.model_dump_json().encode()
     )

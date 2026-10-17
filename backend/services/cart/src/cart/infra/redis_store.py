@@ -24,6 +24,17 @@ return 1
 """
 
 
+REMOVE_IF_UNCHANGED: Final = """
+if redis.call('HGET', KEYS[1], ARGV[1]) == ARGV[2] then
+  redis.call('HDEL', KEYS[1], ARGV[1])
+  return 1
+end
+return 0
+"""
+
+REMOVE_ATTEMPTS: Final = 3
+
+
 def cart_key(user_id: str) -> str:
     return f"cart:{user_id}"
 
@@ -58,6 +69,7 @@ class RedisCartStore:
         self._ttl = ttl_seconds
         self._put_line = redis.register_script(PUT_LINE)
         self._remove_line = redis.register_script(REMOVE_LINE)
+        self._remove_if_unchanged = redis.register_script(REMOVE_IF_UNCHANGED)
 
     async def lines(self, user_id: str) -> list[CartLine]:
         stored = cast(dict[str, str], await self._redis.hgetall(cart_key(user_id)))
@@ -77,6 +89,16 @@ class RedisCartStore:
 
     async def remove_line(self, user_id: str, sku: str) -> None:
         await self._remove_line(keys=[cart_key(user_id)], args=[sku, self._ttl])
+
+    async def remove_line_added_before(self, user_id: str, sku: str, cutoff: datetime) -> bool:
+        key = cart_key(user_id)
+        for _ in range(REMOVE_ATTEMPTS):
+            raw = cast(str | None, await self._redis.hget(key, sku))
+            if raw is None or decode_line(sku, raw).added_at > cutoff:
+                return False
+            if await self._remove_if_unchanged(keys=[key], args=[sku, raw]):
+                return True
+        return False
 
     async def clear(self, user_id: str) -> None:
         await self._redis.delete(cart_key(user_id))

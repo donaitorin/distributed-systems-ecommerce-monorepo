@@ -10,7 +10,7 @@ from cart.application.ports import CartStore, ProductProjection
 from cart.domain.cart import CartLine
 from cart.infra.memory import InMemoryCartStore, InMemoryProductProjection
 from cart.infra.redis_projection import PENDING_SECONDS, RedisProductProjection, product_key
-from cart.infra.redis_store import RedisCartStore, cart_key
+from cart.infra.redis_store import RedisCartStore, cart_key, encode_line
 from redis_support import PASSWORD, RedisServer
 
 pytestmark = pytest.mark.integration
@@ -322,3 +322,51 @@ async def test_events_for_products_in_no_cart_never_create_keys(redis_kit: Kit) 
         await redis_kit.projection.apply_deletion(f"IMPORTED-{number}", 9)
 
     assert await redis.dbsize() == keys_before == 1
+
+
+async def test_a_line_added_before_the_cutoff_is_removed_and_the_others_stay(kit: Kit) -> None:
+    clock = SteppingClock()
+    first, second = line("A-1", clock=clock), line("B-2", clock=clock)
+    await kit.carts.put_line(USER, first, 100)
+    await kit.carts.put_line(USER, second, 100)
+
+    removed = await kit.carts.remove_line_added_before(USER, "A-1", first.added_at)
+
+    assert removed is True
+    assert await kit.carts.lines(USER) == [second]
+
+
+async def test_a_line_added_after_the_cutoff_is_kept(kit: Kit) -> None:
+    clock = SteppingClock()
+    older, newer = line("A-1", clock=clock), line("A-1", clock=clock)
+    await kit.carts.put_line(USER, newer, 100)
+
+    removed = await kit.carts.remove_line_added_before(USER, "A-1", older.added_at)
+
+    assert removed is False
+    assert await kit.carts.get_line(USER, "A-1") == newer
+
+
+async def test_removing_a_line_that_is_not_there_does_nothing(kit: Kit) -> None:
+    removed = await kit.carts.remove_line_added_before(USER, "A-1", SteppingClock()())
+
+    assert removed is False
+    assert await kit.carts.lines(USER) == []
+
+
+async def test_the_redis_removal_loses_to_a_line_that_changed_in_between(
+    redis_kit: Kit,
+) -> None:
+    assert redis_kit.redis is not None
+    store = RedisCartStore(redis_kit.redis, TTL)
+    stored = line("A-1")
+    await store.put_line(USER, stored, 100)
+    changed = stored.with_quantity(7)
+    await store.put_line(USER, changed, 100)
+
+    removed = await store._remove_if_unchanged(
+        keys=[cart_key(USER)], args=["A-1", encode_line(stored)]
+    )
+
+    assert removed == 0
+    assert await store.get_line(USER, "A-1") == changed

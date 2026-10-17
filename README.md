@@ -47,6 +47,8 @@ One-shot jobs `kafka-init`, `object-storage-init`, `auth-migrate` and `catalog-m
 | Auth | `auth` | `/api/v1/auth/*`, and `/auth/docs`, `/auth/health`, `/auth/ready` |
 | Accounts | `accounts`, `accounts-worker` | `/api/v1/accounts/*`, and `/accounts/docs`, `/accounts/health`, `/accounts/ready` |
 | Cart | `cart`, `cart-worker` | `/api/v1/cart/*`, and `/cart-service/docs`, `/cart-service/health`, `/cart-service/ready` |
+| Payments | `payments`, `payments-worker` | `/api/v1/payments/*`, and `/payments-service/docs`, `/payments-service/health`, `/payments-service/ready` |
+| Orders | `orders`, `orders-worker` | `/api/v1/orders/*`, `/api/v1/admin/orders/*`, and `/orders-service/docs`, `/orders-service/health`, `/orders-service/ready` |
 | Catalog | `catalog` | `/api/v1/products`, `/api/v1/categories`, and `/catalog/docs`, `/catalog/health`, `/catalog/ready` |
 | Backoffice | `backoffice` | `/admin` and `/admin/*` |
 | Store | `store` | Everything else (lowest priority), including `/login`, `/register` and `/account` |
@@ -123,6 +125,41 @@ curl -s localhost:8000/api/v1/cart -H "Authorization: Bearer $TOKEN"
 - **Projection.** The `cart-worker` container consumes `catalog.events` in the group `cart-catalog-events` and keeps `product:{sku}` (price, stock, name, version, deleted) in Redis, applying an event only if its version is newer than the stored one, with a Lua script. Replays and out of order delivery change nothing, so there is no processed-events table ([ADR 0011](docs/adr/0011-consumers-that-skip-the-claim.md), [ADR 0012](docs/adr/0012-cart-service.md)). Entries exist only for products that were added to some cart and expire 30 days after their last use, so importing 200,000 products cannot fill `redis-cart`.
 - **Lifetime.** A cart expires 30 days after its last change. Reading does not renew it.
 - **Independence.** `/ready` checks Redis only. The service starts without catalog, Kafka or auth; catalog is called only when a product is added or a price is accepted.
+
+## Orders API
+
+Orders orchestrates the checkout saga over Kafka ([ADR 0014](docs/adr/0014-orders-saga-and-idempotency.md)): it creates the order as `PENDING` with `order.created`, catalog reserves the stock (`stock.reserved` or `stock.reservation_failed`, [ADR 0013](docs/adr/0013-stock-reservations.md)), orders asks for the payment (`order.payment_requested`) and confirms or cancels. Every state change is a row in `order_status_history`. The docs live under `/orders-service/...` because `/orders` belongs to the storefront.
+
+| Endpoint | Behaviour |
+| --- | --- |
+| `POST /api/v1/orders` | Customer. Body `{lines: [{sku, quantity, unit_price}], shipping_address, payment: {card_number}}`; the header `Idempotency-Key` is required. `202 {id, status: "PENDING"}`. The same key with the same body returns the same response for 24 hours (`Idempotent-Replay: true`); the same key with a different body is `422` with `code: idempotency_key_reused`; a missing or malformed key is `400`. `unit_price` is the price the customer saw: catalog refuses the order if it changed (`price_changed`) |
+| `GET /api/v1/orders` | The customer's own orders, newest first, `limit` 25/50/100, opaque `cursor`, optional `status` |
+| `GET /api/v1/orders/{id}` | Owner only (`404` otherwise): lines, totals, `card_last4`, address snapshot, `cancel_reason`, `refunded_at` and the status history |
+| `GET /api/v1/admin/orders`, `/{id}` | Admin. Filters `status`, `created_from` (inclusive) and `created_to` (exclusive), both with a time zone |
+
+Statuses: `PENDING`, `STOCK_RESERVED`, `PAID`, `CONFIRMED`, `CANCELLED`. The card number is used only to keep its last four digits: it is not stored, logged or published (a test fails if it appears in the tables, the outbox or the logs). The timeout is `ORDERS_SAGA_TIMEOUT_SECONDS` (60) checked every `ORDERS_SAGA_SWEEP_INTERVAL_SECONDS` (5) by every `orders-worker`, safely in parallel.
+
+```bash
+TOKEN=$(ROLE=customer make -s dev-token)
+curl -s -X POST localhost:8000/api/v1/orders -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" -H "Idempotency-Key: demo-0001" -d '{
+    "lines": [{"sku": "RS-001", "quantity": 1, "unit_price": "39.90"}],
+    "shipping_address": {"recipient_name": "Ada", "line1": "1 St", "city": "London", "postal_code": "N1", "country": "GB"},
+    "payment": {"card_number": "4111 1111 1111 1111"}}'
+```
+
+## Payments API
+
+Payments consumes `order.payment_requested` from `orders.events` and answers on `payments.events` with `payment.succeeded`, `payment.failed` or, after a late success for a cancelled order, `payment.refunded`. It is idempotent per order (`payments.order_id` is unique) and calls a `PaymentProvider` port with the order id as the idempotency key; the only adapter is a simulation, replaceable by a real one ([ADR 0015](docs/adr/0015-payments-provider-port-and-stripe.md), which also explains how Stripe would plug in). The docs live under `/payments-service/...`.
+
+| Card ending | Behaviour |
+| --- | --- |
+| `1111` (and any other ending) | Approved at once: order `CONFIRMED` |
+| `0000` | Declined: `payment.failed`, order `CANCELLED` (`payment_failed`) and the stock comes back |
+| `9999` | The provider never answers: the payment stays `PENDING` and the saga timeout cancels the order and releases the stock |
+| `2222` | Approved after `PAYMENT_LATE_APPROVAL_DELAY_SECONDS` (90, longer than the 60 s saga timeout): the order is already `CANCELLED`, so the payment is refunded (`payment.refunded`) and the order history gets `payment refunded` |
+
+`GET /api/v1/payments/{order_id}` is for the order's owner or an admin (`404` for anyone else) and returns the status, amount, `card_last4` and failure reason; the full number is never stored. A total of `0.00` skips payments: the order is confirmed right after the stock is reserved. After `order.confirmed` the `cart-worker` removes the purchased lines from the customer's cart ([ADR 0012](docs/adr/0012-cart-service.md)). `backend/tests/e2e` runs the whole saga (catalog, orders, payments and cart workers against real Postgres, Kafka and Redis) for each card above and for a total of zero, with short delays.
 
 ## Catalog API
 
@@ -248,6 +285,8 @@ curl -s 'localhost:8000/api/v1/products?q=yoga+block'
 | `failed` | A worker error survived its retries (the message is in the dead letter topic); `failure_reason` says why |
 
 Uploading the same file twice returns the existing import (`200`), also when it was rejected or has errors. To fix the cause without re-uploading, for example after creating a category the file refers to, `POST /imports/{id}/revalidate` validates the stored file again. It is allowed from `validated` and `rejected` only (`409` once the import is confirmed), discards the previous report, problems and category snapshot in the same transaction that moves the status back to `uploaded` and queues a new `import.validation_requested`, and repeating it while it is pending is harmless (no second event). Rows are upserted by SKU: existing products are updated (and their version bumped only if something changed), soft-deleted ones are restored, and images are never touched. Files are limited by `IMPORT_MAX_BYTES` (50 MB by default). The design, including the reusable messaging library, is in [ADR 0004](docs/adr/0004-csv-import-and-messaging-core.md).
+
+Stock reservations for the checkout saga live in catalog: on `order.created` (topic `orders.events`) the `catalog-worker` takes the stock of the whole order in one transaction (an atomic `UPDATE ... WHERE stock >= :qty` per line, in SKU order) and answers `stock.reserved` or `stock.reservation_failed` on `inventory.events`; on `order.cancelled` it gives the stock back and answers `stock.released`. Both are safe to replay, a cancellation that arrives before its order leaves a tombstone, and every change of stock emits `product.updated` so carts see it. See [ADR 0013](docs/adr/0013-stock-reservations.md).
 
 ## Frontend
 

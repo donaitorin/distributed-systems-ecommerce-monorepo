@@ -33,6 +33,10 @@ The cart is volatile, written often and owned by one user. It lives in its own s
 - A Redis failure is a `503` Problem Details with `Retry-After`. `/ready` checks Redis only; the service does not depend on catalog, Kafka or auth to start.
 - The documentation and health routes are published at `/cart-service/...`. A gateway route at `/cart` would shadow the storefront page of the same name (the same trap ADR 0007 notes for `/auth`).
 
+## Cleaning the cart after a purchase
+
+The `cart-worker` has a second consumer (group `cart-order-events`, topic `orders.events`) that handles `order.confirmed` and removes the purchased SKUs from that customer's cart. Removal is idempotent by nature, but a plain "delete these SKUs" would be wrong on a replay: a customer who bought a product and added it again later would lose the new line when the old confirmation is delivered again (a new consumer group reads the topic from the start, and dead letters can be replayed). So a line is removed only if it was added at or before the order's `occurred_at`, and the removal is a compare-and-delete in Lua (it deletes only if the stored value is still the one that was read, a few attempts), so a concurrent change by the customer wins. Lines the customer kept in the cart, or added afterwards, stay. This meets the condition of ADR 0011 for skipping the claim.
+
 ## Known limitations
 
 - **The image key is recovered from a URL.** Catalog's `GET /products/{sku}` only returns image URLs, so the cart derives the key from `image_url` (`image_key_from_full_url`, the inverse of `build_public_url` plus the `-1200.webp` suffix). Both services must therefore be configured with the same `MEDIA_PUBLIC_BASE_URL`; compose does it. If they differ the cart still works but its lines show the placeholder image instead of the photo. Events do not have the problem, they carry the key. Exposing `image_key` in catalog's response would remove the limitation, at the price of a change to catalog's API and its generated clients.

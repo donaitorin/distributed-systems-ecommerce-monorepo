@@ -28,6 +28,7 @@ from catalog.domain.listing import (
     Total,
 )
 from catalog.domain.product import Category, NewProduct, Product, ProductData
+from catalog.domain.reservation import ReleasedItem, ReservationLine, ReserveResult
 
 
 @dataclass(frozen=True, slots=True)
@@ -113,6 +114,14 @@ class ImportRepository(Protocol):
     async def record_progress(self, import_id: UUID, progress: Progress, now: datetime) -> None: ...
 
 
+class StockReservationRepository(Protocol):
+    async def reserve(
+        self, order_id: UUID, lines: tuple[ReservationLine, ...], now: datetime
+    ) -> ReserveResult: ...
+
+    async def release(self, order_id: UUID, now: datetime) -> tuple[ReleasedItem, ...]: ...
+
+
 class EventOutbox(Protocol):
     async def add(
         self, *, topic: str, key: str, event_type: str, payload: BaseModel, correlation_id: UUID
@@ -128,6 +137,9 @@ class UnitOfWork(Protocol):
 
     @property
     def imports(self) -> ImportRepository: ...
+
+    @property
+    def reservations(self) -> StockReservationRepository: ...
 
     @property
     def events(self) -> EventOutbox: ...

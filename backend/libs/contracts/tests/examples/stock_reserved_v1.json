@@ -1,0 +1,26 @@
+{
+  "event_id": "a1b2c3d4-0005-4a00-8000-000000000005",
+  "event_type": "stock.reserved",
+  "event_version": 1,
+  "occurred_at": "2026-10-17T09:15:00Z",
+  "correlation_id": "e4a9b7c6-1f20-4d83-95b6-0c7d2a8e3f51",
+  "producer": "catalog-service",
+  "payload": {
+    "order_id": "3f6a1c52-8d47-4b0e-a9c1-52e7d0b94a36",
+    "lines": [
+      {
+        "sku": "RS-001",
+        "name": "Rust in Action",
+        "quantity": 2,
+        "unit_price": "39.90"
+      },
+      {
+        "sku": "XS-001",
+        "name": "Sticker Pack",
+        "quantity": 1,
+        "unit_price": "12.50"
+      }
+    ],
+    "occurred_at": "2026-10-17T09:15:00Z"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "event_id": "a1b2c3d4-0006-4a00-8000-000000000006",
+  "event_type": "stock.reservation_failed",
+  "event_version": 1,
+  "occurred_at": "2026-10-17T09:15:00Z",
+  "correlation_id": "e4a9b7c6-1f20-4d83-95b6-0c7d2a8e3f51",
+  "producer": "catalog-service",
+  "payload": {
+    "order_id": "3f6a1c52-8d47-4b0e-a9c1-52e7d0b94a36",
+    "reason": "insufficient_stock",
+    "sku": "RS-001",
+    "available": 1,
+    "occurred_at": "2026-10-17T09:15:00Z"
+  }
+}

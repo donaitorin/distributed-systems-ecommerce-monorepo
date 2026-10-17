@@ -1,0 +1,22 @@
+http:
+  routers:
+    payments-api:
+      rule: "Path(`/api/v1/payments`) || PathPrefix(`/api/v1/payments/`)"
+      entryPoints: [web]
+      service: payments
+    payments-docs:
+      rule: "Path(`/payments-service`) || PathPrefix(`/payments-service/`)"
+      entryPoints: [web]
+      middlewares: [payments-strip-prefix]
+      service: payments
+
+  middlewares:
+    payments-strip-prefix:
+      stripPrefix:
+        prefixes: ["/payments-service"]
+
+  services:
+    payments:
+      loadBalancer:
+        servers:
+          - url: "http://payments:8000"

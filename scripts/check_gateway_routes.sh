@@ -139,6 +139,41 @@ expect "cart: GET /api/v1/cart needs a token" 401 "problem+json" "$(fetch "$GATE
 expect "cart: GET /cart-service/health" 200 '"status":"ok"' "$(fetch "$GATEWAY/cart-service/health")"
 expect "cart: GET /cart-service/ready" 200 '"redis":"ok"' "$(fetch "$GATEWAY/cart-service/ready")"
 
+expect "orders: GET /api/v1/orders needs a token" 401 "problem+json" "$(fetch "$GATEWAY/api/v1/orders")"
+expect "orders: POST /api/v1/orders needs a token" 401 "problem+json" "$(fetch -X POST -H "content-type: application/json" --data '{}' "$GATEWAY/api/v1/orders")"
+expect "orders: GET /api/v1/admin/orders needs a token" 401 "problem+json" "$(fetch "$GATEWAY/api/v1/admin/orders")"
+expect "orders: GET /orders-service/health" 200 '"status":"ok"' "$(fetch "$GATEWAY/orders-service/health")"
+expect "orders: GET /orders-service/ready" 200 '"database":"ok"' "$(fetch "$GATEWAY/orders-service/ready")"
+expect "orders: GET /orders-service/docs" 200 "swagger" "$(fetch "$GATEWAY/orders-service/docs")"
+fetch "$GATEWAY/orders" >/dev/null
+if grep -qi 'swagger' /tmp/gateway-check.body || [ "$(header content-type)" = "application/problem+json" ]; then
+  fail "orders: /orders must stay with the store, not the orders service"
+else
+  pass "orders: /orders is not shadowed by the orders service"
+fi
+if [ -n "${admin_token:-}" ] && [ -n "${customer_token:-}" ]; then
+  expect "orders: a customer lists their orders" 200 '"items"' "$(fetch -H "authorization: Bearer $customer_token" "$GATEWAY/api/v1/orders")"
+  order_body='{"lines":[{"sku":"X-1","quantity":1,"unit_price":"1.00"}],"shipping_address":{"recipient_name":"Ada","line1":"1 St","city":"London","postal_code":"N1","country":"GB"},"payment":{"card_number":"4111111111111111"}}'
+  expect "orders: placing an order without an Idempotency-Key is a 400" 400 "idempotency_key_invalid" "$(fetch -X POST -H "authorization: Bearer $customer_token" -H "content-type: application/json" --data "$order_body" "$GATEWAY/api/v1/orders")"
+  expect "orders: a customer cannot use the admin list" 403 "problem+json" "$(fetch -H "authorization: Bearer $customer_token" "$GATEWAY/api/v1/admin/orders")"
+  expect "orders: an admin lists every order" 200 '"items"' "$(fetch -H "authorization: Bearer $admin_token" "$GATEWAY/api/v1/admin/orders")"
+  expect "orders: an unknown order is a 404 problem" 404 "problem+json" "$(fetch -H "authorization: Bearer $admin_token" "$GATEWAY/api/v1/admin/orders/00000000-0000-4000-8000-000000000000")"
+fi
+
+expect "payments: GET /api/v1/payments/{order_id} needs a token" 401 "problem+json" "$(fetch "$GATEWAY/api/v1/payments/00000000-0000-4000-8000-000000000000")"
+expect "payments: GET /payments-service/health" 200 '"status":"ok"' "$(fetch "$GATEWAY/payments-service/health")"
+expect "payments: GET /payments-service/ready" 200 '"database":"ok"' "$(fetch "$GATEWAY/payments-service/ready")"
+expect "payments: GET /payments-service/docs" 200 "swagger" "$(fetch "$GATEWAY/payments-service/docs")"
+fetch "$GATEWAY/payments" >/dev/null
+if grep -qi 'swagger' /tmp/gateway-check.body || [ "$(header content-type)" = "application/problem+json" ]; then
+  fail "payments: /payments must stay with the store, not the payments service"
+else
+  pass "payments: /payments is not shadowed by the payments service"
+fi
+if [ -n "${customer_token:-}" ]; then
+  expect "payments: an order without a payment is a 404 problem" 404 "problem+json" "$(fetch -H "authorization: Bearer $customer_token" "$GATEWAY/api/v1/payments/00000000-0000-4000-8000-000000000000")"
+fi
+
 LOCALHOST="http://localhost:${GATEWAY_HTTP_PORT:-8000}"
 expect "localhost: backoffice login page" 200 "Administrator sign in" "$(fetch "$LOCALHOST/admin/login")"
 expect "localhost: /admin/products is guarded with a host-relative redirect" 307 "location: /admin/login?next=%2Fproducts" "$(fetch "$LOCALHOST/admin/products")"

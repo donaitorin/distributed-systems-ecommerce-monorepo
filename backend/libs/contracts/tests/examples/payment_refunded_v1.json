@@ -1,0 +1,16 @@
+{
+  "event_id": "a1b2c3d4-000a-4a00-8000-00000000000a",
+  "event_type": "payment.refunded",
+  "event_version": 1,
+  "occurred_at": "2026-10-17T09:15:00Z",
+  "correlation_id": "e4a9b7c6-1f20-4d83-95b6-0c7d2a8e3f51",
+  "producer": "payments-service",
+  "payload": {
+    "order_id": "3f6a1c52-8d47-4b0e-a9c1-52e7d0b94a36",
+    "payment_id": "7b2e9d10-4c58-4f6a-8e3d-1a0c6b5f2d97",
+    "amount": "92.30",
+    "currency": "USD",
+    "reason": "order_already_cancelled",
+    "occurred_at": "2026-10-17T09:15:00Z"
+  }
+}

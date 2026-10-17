@@ -1,17 +1,20 @@
 import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import cast
 from uuid import uuid4
 
 import httpx
 import pytest
-from cart_testing.events import deleted_event, updated_event
+from cart_testing.events import confirmed_event, deleted_event, updated_event
 from cart_testing.support import FakeCatalog, bearer, cart_settings, http_client, product
 from redis.asyncio import Redis
 
+from cart.domain.cart import CartLine
 from cart.infra.redis_client import create_redis
 from cart.infra.redis_projection import RedisProductProjection, product_key
+from cart.infra.redis_store import RedisCartStore
 from cart.main import create_cart_app
 from cart.settings import RedisSettings
 from cart.worker import WorkerSettings, run_worker
@@ -85,6 +88,8 @@ async def pipeline(
         ttl_seconds=TTL,
         topic=f"catalog.events.{uuid4().hex}",
         group=f"cart-catalog-events-{uuid4().hex}",
+        orders_topic=f"orders.events.{uuid4().hex}",
+        orders_group=f"cart-order-events-{uuid4().hex}",
     )
     prepared = Pipeline(settings, redis_client, KafkaPublisher(kafka_settings))
     yield prepared
@@ -231,3 +236,36 @@ async def test_a_product_change_published_in_kafka_shows_up_as_a_flag_in_the_car
         ("insufficient_stock", None, None, 1),
     ]
     assert [flag["type"] for flag in gone["flags"]] == ["unavailable"]
+
+
+async def test_a_confirmed_order_removes_its_lines_from_the_customers_cart_once(
+    pipeline: Pipeline,
+) -> None:
+    customer = uuid4()
+    store = RedisCartStore(pipeline.redis, TTL)
+    older = datetime(2026, 10, 1, tzinfo=UTC)
+    for sku in ("A-1", "B-2"):
+        await store.put_line(str(customer), CartLine.started(product(sku=sku), 2, older), 100)
+    event = confirmed_event(customer, ["A-1"])
+    body = event.model_dump_json().encode()
+    topic = pipeline.settings.orders_topic
+
+    pipeline.start_worker()
+    await pipeline.publisher.publish(OutgoingMessage(topic, "k", body))
+    await pipeline.publisher.publish(OutgoingMessage(topic, "k", body))
+
+    async def only_b_left() -> bool:
+        return [line.sku for line in await store.lines(str(customer))] == ["B-2"]
+
+    await pipeline.wait_for(only_b_left)
+    later = datetime.now(UTC)
+    await store.put_line(str(customer), CartLine.started(product(sku="A-1"), 1, later), 100)
+    await pipeline.publisher.publish(OutgoingMessage(topic, "k", body))
+    marker = confirmed_event(customer, ["B-2"], occurred_at=later)
+    await pipeline.publisher.publish(OutgoingMessage(topic, "k", marker.model_dump_json().encode()))
+
+    async def b_gone() -> bool:
+        return [line.sku for line in await store.lines(str(customer))] == ["A-1"]
+
+    await pipeline.wait_for(b_gone)
+    assert [line.sku for line in await store.lines(str(customer))] == ["A-1"]
