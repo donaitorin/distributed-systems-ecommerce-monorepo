@@ -47,6 +47,7 @@ One-shot jobs `kafka-init`, `object-storage-init`, `auth-migrate` and `catalog-m
 | Auth | `auth` | `/api/v1/auth/*`, and `/auth/docs`, `/auth/health`, `/auth/ready` |
 | Accounts | `accounts`, `accounts-worker` | `/api/v1/accounts/*`, and `/accounts/docs`, `/accounts/health`, `/accounts/ready` |
 | Cart | `cart`, `cart-worker` | `/api/v1/cart/*`, and `/cart-service/docs`, `/cart-service/health`, `/cart-service/ready` |
+| Payments | `payments`, `payments-worker` | `/api/v1/payments/*`, and `/payments-service/docs`, `/payments-service/health`, `/payments-service/ready` |
 | Orders | `orders`, `orders-worker` | `/api/v1/orders/*`, `/api/v1/admin/orders/*`, and `/orders-service/docs`, `/orders-service/health`, `/orders-service/ready` |
 | Catalog | `catalog` | `/api/v1/products`, `/api/v1/categories`, and `/catalog/docs`, `/catalog/health`, `/catalog/ready` |
 | Backoffice | `backoffice` | `/admin` and `/admin/*` |
@@ -127,7 +128,7 @@ curl -s localhost:8000/api/v1/cart -H "Authorization: Bearer $TOKEN"
 
 ## Orders API
 
-Orders orchestrates the checkout saga over Kafka ([ADR 0014](docs/adr/0014-orders-saga-and-idempotency.md)): it creates the order as `PENDING` with `order.created`, catalog reserves the stock (`stock.reserved` or `stock.reservation_failed`, [ADR 0013](docs/adr/0013-stock-reservations.md)), orders asks for the payment (`order.payment_requested`) and confirms or cancels. Every state change is a row in `order_status_history`. The docs live under `/orders-service/...` because `/orders` belongs to the storefront. The payments service arrives in the next part: until then an order stops at `STOCK_RESERVED` and the saga timeout cancels it and gives the stock back.
+Orders orchestrates the checkout saga over Kafka ([ADR 0014](docs/adr/0014-orders-saga-and-idempotency.md)): it creates the order as `PENDING` with `order.created`, catalog reserves the stock (`stock.reserved` or `stock.reservation_failed`, [ADR 0013](docs/adr/0013-stock-reservations.md)), orders asks for the payment (`order.payment_requested`) and confirms or cancels. Every state change is a row in `order_status_history`. The docs live under `/orders-service/...` because `/orders` belongs to the storefront.
 
 | Endpoint | Behaviour |
 | --- | --- |
@@ -146,6 +147,19 @@ curl -s -X POST localhost:8000/api/v1/orders -H "Authorization: Bearer $TOKEN" \
     "shipping_address": {"recipient_name": "Ada", "line1": "1 St", "city": "London", "postal_code": "N1", "country": "GB"},
     "payment": {"card_number": "4111 1111 1111 1111"}}'
 ```
+
+## Payments API
+
+Payments consumes `order.payment_requested` from `orders.events` and answers on `payments.events` with `payment.succeeded`, `payment.failed` or, after a late success for a cancelled order, `payment.refunded`. It is idempotent per order (`payments.order_id` is unique) and calls a `PaymentProvider` port with the order id as the idempotency key; the only adapter is a simulation, replaceable by a real one ([ADR 0015](docs/adr/0015-payments-provider-port-and-stripe.md), which also explains how Stripe would plug in). The docs live under `/payments-service/...`.
+
+| Card ending | Behaviour |
+| --- | --- |
+| `1111` (and any other ending) | Approved at once: order `CONFIRMED` |
+| `0000` | Declined: `payment.failed`, order `CANCELLED` (`payment_failed`) and the stock comes back |
+| `9999` | The provider never answers: the payment stays `PENDING` and the saga timeout cancels the order and releases the stock |
+| `2222` | Approved after `PAYMENT_LATE_APPROVAL_DELAY_SECONDS` (90, longer than the 60 s saga timeout): the order is already `CANCELLED`, so the payment is refunded (`payment.refunded`) and the order history gets `payment refunded` |
+
+`GET /api/v1/payments/{order_id}` is for the order's owner or an admin (`404` for anyone else) and returns the status, amount, `card_last4` and failure reason; the full number is never stored. A total of `0.00` skips payments: the order is confirmed right after the stock is reserved. After `order.confirmed` the `cart-worker` removes the purchased lines from the customer's cart ([ADR 0012](docs/adr/0012-cart-service.md)). `backend/tests/e2e` runs the whole saga (catalog, orders, payments and cart workers against real Postgres, Kafka and Redis) for each card above and for a total of zero, with short delays.
 
 ## Catalog API
 
