@@ -8,6 +8,7 @@ from uuid import UUID, uuid4
 
 import httpx
 import pytest
+from aiokafka import AIOKafkaConsumer
 from botocore.exceptions import ClientError
 from catalog_testing import images
 from catalog_testing.imports import SAMPLE
@@ -22,7 +23,7 @@ from catalog.infra.unit_of_work import SqlAlchemyUnitOfWork
 from catalog.worker import build_consumer
 from ecommerce_auth import Role
 from ecommerce_auth.testing import StubTokenIssuer
-from ecommerce_contracts import IMPORTS_TOPIC
+from ecommerce_contracts import CATALOG_TOPIC, IMPORTS_TOPIC
 from ecommerce_messaging import (
     InMemoryBroker,
     KafkaPublisher,
@@ -75,6 +76,10 @@ class Stack:
     async def scalar(self, query: str, **params: object) -> Any:
         async with self.sessions() as session:
             return await session.scalar(text(query), params)
+
+    async def rows(self, query: str) -> list[Any]:
+        async with self.sessions() as session:
+            return list((await session.execute(text(query))).all())
 
     async def catalog_events(self) -> list[tuple[str, str, dict[str, Any]]]:
         async with self.sessions() as session:
@@ -498,6 +503,38 @@ async def wait_for_status(stack: Stack, import_id: str, wanted: str) -> dict[str
             await asyncio.sleep(0.2)
 
 
+async def wait_for_published_outbox(stack: Stack) -> None:
+    async with asyncio.timeout(60):
+        while True:
+            if await stack.scalar("SELECT count(*) FROM outbox WHERE published_at IS NULL") == 0:
+                return
+            await asyncio.sleep(0.2)
+
+
+async def published_catalog_events(
+    stack: Stack, kafka: KafkaBroker
+) -> list[tuple[str, dict[str, Any]]]:
+    expected = {
+        str(UUID(str(row[0])))
+        for row in await stack.rows("SELECT event_id FROM outbox WHERE topic = 'catalog.events'")
+    }
+    reader = AIOKafkaConsumer(
+        CATALOG_TOPIC, bootstrap_servers=kafka.bootstrap, auto_offset_reset="earliest"
+    )
+    await reader.start()
+    found: dict[str, tuple[str, dict[str, Any]]] = {}
+    try:
+        async with asyncio.timeout(60):
+            while not expected <= found.keys():
+                for records in (await reader.getmany(timeout_ms=1000)).values():
+                    for record in records:
+                        event = json.loads(record.value)
+                        found[event["event_id"]] = (record.key.decode(), event)
+    finally:
+        await reader.stop()
+    return [found[event_id] for event_id in expected]
+
+
 async def test_the_worker_imports_the_sample_file_through_kafka(
     stack: Stack, kafka: KafkaBroker
 ) -> None:
@@ -509,13 +546,21 @@ async def test_the_worker_imports_the_sample_file_through_kafka(
         assert await stack.scalar("SELECT count(*) FROM products") == 0
         await stack.confirm(import_id)
         completed = await wait_for_status(stack, import_id, "completed")
+        await wait_for_published_outbox(stack)
     finally:
         await worker.shutdown()
 
     assert validated["summary"]["importable_rows"] == 88
     assert completed["progress"]["created_rows"] == 88
     assert await stack.scalar("SELECT count(*) FROM products") == 88
-    assert await stack.scalar("SELECT count(*) FROM outbox WHERE published_at IS NULL") == 0
+    skus = {row[0] for row in await stack.rows("SELECT sku FROM products")}
+    published = await published_catalog_events(stack, kafka)
+    assert len(published) == 88
+    assert {key for key, _ in published} == skus
+    assert {(event["event_type"], event["payload"]["version"]) for _, event in published} == {
+        ("product.updated", 1)
+    }
+    assert {event["payload"]["sku"] for _, event in published} == skus
 
 
 async def test_uploads_survive_kafka_being_down_and_are_validated_when_it_returns(
