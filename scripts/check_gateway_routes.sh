@@ -130,6 +130,10 @@ expect "auth: GET /auth/ready" 200 "" "$(fetch "$GATEWAY/auth/ready")"
 expect "accounts: GET /api/v1/accounts/me needs a token" 401 "problem+json" "$(fetch "$GATEWAY/api/v1/accounts/me")"
 expect "accounts: GET /accounts/health" 200 '"status":"ok"' "$(fetch "$GATEWAY/accounts/health")"
 
+expect "cart: GET /api/v1/cart needs a token" 401 "problem+json" "$(fetch "$GATEWAY/api/v1/cart")"
+expect "cart: GET /cart-service/health" 200 '"status":"ok"' "$(fetch "$GATEWAY/cart-service/health")"
+expect "cart: GET /cart-service/ready" 200 '"redis":"ok"' "$(fetch "$GATEWAY/cart-service/ready")"
+
 LOCALHOST="http://localhost:${GATEWAY_HTTP_PORT:-8000}"
 expect "localhost: backoffice login page" 200 "Administrator sign in" "$(fetch "$LOCALHOST/admin/login")"
 expect "localhost: /admin/products is guarded with a host-relative redirect" 307 "location: /admin/login?next=%2Fproducts" "$(fetch "$LOCALHOST/admin/products")"

@@ -46,6 +46,7 @@ One-shot jobs `kafka-init`, `object-storage-init`, `auth-migrate` and `catalog-m
 | --- | --- | --- |
 | Auth | `auth` | `/api/v1/auth/*`, and `/auth/docs`, `/auth/health`, `/auth/ready` |
 | Accounts | `accounts`, `accounts-worker` | `/api/v1/accounts/*`, and `/accounts/docs`, `/accounts/health`, `/accounts/ready` |
+| Cart | `cart`, `cart-worker` | `/api/v1/cart/*`, and `/cart-service/docs`, `/cart-service/health`, `/cart-service/ready` |
 | Catalog | `catalog` | `/api/v1/products`, `/api/v1/categories`, and `/catalog/docs`, `/catalog/health`, `/catalog/ready` |
 | Backoffice | `backoffice` | `/admin` and `/admin/*` |
 | Store | `store` | Everything else (lowest priority), including `/login`, `/register` and `/account` |
@@ -98,6 +99,30 @@ How a profile comes to exist and stays current:
 - **Ordering rule.** The role carries the time it was written (`role_updated_at`), and a write changes the role only if its time is strictly newer: `registered_at` for `user.registered`, `changed_at` for `user.role_changed`, and the token `iat` for the lazy path (the token role was read from the database at that moment). When a profile has no role time, because the token had no `iat`, any event wins. The reasoning and its limits are in [ADR 0006](docs/adr/0006-accounts-profile-consistency.md).
 
 The accounts API needs only its own database: `/ready` checks Postgres, the API does not start Kafka, and it fetches the signing keys lazily like catalog. Only the worker needs Kafka.
+
+## Cart API
+
+The cart service keeps one cart per user in `redis-cart` (AOF with `appendfsync everysec`, `noeviction`), so a restart of Redis does not lose carts. Every endpoint needs a customer or admin token and answers `Cache-Control: no-store`. The docs live under `/cart-service/...` because `/cart` is the storefront page.
+
+| Request | What it does |
+| --- | --- |
+| `GET /api/v1/cart` | `{items, item_count, subtotal}`. Each item has `sku`, `name`, `quantity`, `price` (saved when the line was added or last accepted), `line_total`, `thumbnail_url` and `flags` |
+| `PUT /api/v1/cart/items/{sku}` | Body `{quantity, accepted_price?}`, quantity 1 to 99. Creates the line or replaces its quantity and returns the cart. A new line reads the product from catalog (timeout 2 s) and saves its price and name. `404` for an unknown or retired product, `409` when the cart already has 100 different products (`code: cart_full`), `503` with `Retry-After` when catalog or Redis cannot answer |
+| `DELETE /api/v1/cart/items/{sku}` | Removes the line (not an error if it is not there) and returns the cart |
+| `DELETE /api/v1/cart` | Empties the cart, `204` |
+
+```bash
+TOKEN=$(ROLE=customer make -s dev-token)
+curl -s -X PUT localhost:8000/api/v1/cart/items/RS-001 -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" -d '{"quantity": 2}'
+curl -s localhost:8000/api/v1/cart -H "Authorization: Bearer $TOKEN"
+```
+
+- **Flags.** `GET` compares every line with the cart's projection of catalog and reports, without changing the line: `price_changed` (`old_price`, `new_price`), `unavailable` (the product was retired) and `insufficient_stock` (`available`, which can be 0). The saved price is never the source of truth: checkout revalidates against catalog.
+- **Accepting a new price.** `PUT` with `accepted_price` set to the `new_price` the customer saw. The line takes the current price and name and keeps its quantity. If catalog's price is no longer that value the answer is `409` (`code: price_changed`, `current_price`), the same optimistic idea as `If-Match` on products.
+- **Projection.** The `cart-worker` container consumes `catalog.events` in the group `cart-catalog-events` and keeps `product:{sku}` (price, stock, name, version, deleted) in Redis, applying an event only if its version is newer than the stored one, with a Lua script. Replays and out of order delivery change nothing, so there is no processed-events table ([ADR 0011](docs/adr/0011-consumers-that-skip-the-claim.md), [ADR 0012](docs/adr/0012-cart-service.md)). Entries exist only for products that were added to some cart and expire 30 days after their last use, so importing 200,000 products cannot fill `redis-cart`.
+- **Lifetime.** A cart expires 30 days after its last change. Reading does not renew it.
+- **Independence.** `/ready` checks Redis only. The service starts without catalog, Kafka or auth; catalog is called only when a product is added or a price is accepted.
 
 ## Catalog API
 
