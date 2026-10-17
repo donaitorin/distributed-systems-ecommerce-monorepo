@@ -1,7 +1,7 @@
 /**
  * @jest-environment node
  */
-import { uploadProductImage } from "../src/lib/upload-client";
+import { IMAGE_UPLOAD_TIMEOUT_MS, uploadProductImage } from "../src/lib/upload-client";
 import { json, problem, product } from "./support/api";
 
 describe("uploadProductImage", () => {
@@ -19,6 +19,16 @@ describe("uploadProductImage", () => {
     expect(init.headers).toEqual({ "if-match": '"3"' });
     expect(init.body).toBeInstanceOf(FormData);
     expect((init.body as FormData).get("file")).toBeInstanceOf(Blob);
+  });
+
+  it("gives the upload a timeout", async () => {
+    const send = jest.fn(() => Promise.resolve(json(product())));
+    const timeout = jest.spyOn(AbortSignal, "timeout");
+
+    await uploadProductImage("RS-001", '"3"', file, send);
+
+    expect(timeout).toHaveBeenCalledWith(IMAGE_UPLOAD_TIMEOUT_MS);
+    timeout.mockRestore();
   });
 
   it("derives the etag from the version when the response has none", async () => {

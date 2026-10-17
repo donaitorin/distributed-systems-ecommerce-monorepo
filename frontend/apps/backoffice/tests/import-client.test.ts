@@ -7,7 +7,9 @@ import {
   ImportRequestError,
   importUrl,
   problemsCsvUrl,
+  READ_TIMEOUT_MS,
   unwrap,
+  UPLOAD_TIMEOUT_MS,
   uploadImportFile,
 } from "../src/lib/import-client";
 import { importView, json, problem } from "./support/api";
@@ -17,6 +19,38 @@ const ID = "9f0c1d2e-3a4b-4c5d-8e6f-7a8b9c0d1e2f";
 function sender(response: Response | Promise<Response>) {
   return jest.fn(() => Promise.resolve(response)) as unknown as typeof fetch & jest.Mock;
 }
+
+describe("import client timeouts", () => {
+  it("gives reads a short timeout and the upload a long one", async () => {
+    const timeout = jest.spyOn(AbortSignal, "timeout");
+
+    await fetchImport(ID, sender(json(importView())));
+    await fetchProblems(ID, { severity: null, cursor: null }, sender(json({ items: [], next_cursor: null })));
+    await uploadImportFile(new Blob(["a"]), sender(json(importView(), 202)));
+
+    expect(timeout.mock.calls.map(([milliseconds]) => milliseconds)).toEqual([
+      READ_TIMEOUT_MS,
+      READ_TIMEOUT_MS,
+      UPLOAD_TIMEOUT_MS,
+    ]);
+    expect(READ_TIMEOUT_MS).toBeLessThan(UPLOAD_TIMEOUT_MS);
+    timeout.mockRestore();
+  });
+
+  it("ends as an unreachable server when the timeout elapses", async () => {
+    const hung = jest.fn((_url: string, init: RequestInit) =>
+      init.signal?.aborted
+        ? Promise.reject(new DOMException("timed out", "TimeoutError"))
+        : Promise.resolve(json(importView())),
+    ) as unknown as typeof fetch;
+    const timeout = jest.spyOn(AbortSignal, "timeout").mockImplementation(() => AbortSignal.abort());
+
+    const result = await fetchImport(ID, hung);
+
+    expect(result).toMatchObject({ ok: false, status: null, title: "The server could not be reached" });
+    timeout.mockRestore();
+  });
+});
 
 describe("import client", () => {
   it("builds the zone's own URLs", () => {

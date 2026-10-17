@@ -1,7 +1,9 @@
 import { entityTag } from "./entity-tag";
-import { failureFromResponse, type Failure } from "@ecommerce/web-core";
+import { failureFromResponse, timeoutSignal, type Failure } from "@ecommerce/web-core";
 import { STREAM_PATH, ZONE_PATH } from "./paths";
 import type { Product } from "./types";
+
+export const IMAGE_UPLOAD_TIMEOUT_MS = 90_000;
 
 export type UploadResult = { ok: true; product: Product; etag: string } | Failure;
 
@@ -20,6 +22,7 @@ export async function uploadProductImage(
       headers: { "if-match": etag },
       body,
       credentials: "same-origin",
+      signal: timeoutSignal(IMAGE_UPLOAD_TIMEOUT_MS),
     });
   } catch {
     return { ok: false, status: null, title: "The server could not be reached", fieldErrors: {} };

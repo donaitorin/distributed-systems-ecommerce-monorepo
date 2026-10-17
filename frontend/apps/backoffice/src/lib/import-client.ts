@@ -1,17 +1,30 @@
-import { failureFromResponse, type Failure } from "@ecommerce/web-core";
+import { failureFromResponse, timeoutSignal, type Failure } from "@ecommerce/web-core";
 import { STREAM_PATH, ZONE_PATH } from "./paths";
 import type { ImportProblemsPage, ImportView } from "./types";
 
 export type Fetch = typeof fetch;
 export type Loaded<Value> = ({ ok: true } & Value) | Failure;
 
+export const READ_TIMEOUT_MS = 15_000;
+export const UPLOAD_TIMEOUT_MS = 15 * 60 * 1000;
+
 const SESSION_EXPIRED: Failure = { ok: false, status: 401, title: "Your session expired", fieldErrors: {} };
 const UNREACHABLE: Failure = { ok: false, status: null, title: "The server could not be reached", fieldErrors: {} };
 
-async function request(url: string, init: RequestInit, send: Fetch): Promise<Response | Failure> {
+async function request(
+  url: string,
+  init: RequestInit,
+  send: Fetch,
+  timeoutMs: number = READ_TIMEOUT_MS,
+): Promise<Response | Failure> {
   let response: Response;
   try {
-    response = await send(url, { ...init, credentials: "same-origin", redirect: "manual" });
+    response = await send(url, {
+      ...init,
+      credentials: "same-origin",
+      redirect: "manual",
+      signal: timeoutSignal(timeoutMs),
+    });
   } catch {
     return UNREACHABLE;
   }
@@ -36,7 +49,7 @@ export function problemsCsvUrl(importId: string): string {
 export async function uploadImportFile(file: Blob, send: Fetch = fetch): Promise<Loaded<{ import: ImportView; existing: boolean }>> {
   const body = new FormData();
   body.set("file", file);
-  const response = await request(`${ZONE_PATH}${STREAM_PATH}/imports`, { method: "POST", body }, send);
+  const response = await request(`${ZONE_PATH}${STREAM_PATH}/imports`, { method: "POST", body }, send, UPLOAD_TIMEOUT_MS);
   if (isFailure(response)) {
     return response;
   }
