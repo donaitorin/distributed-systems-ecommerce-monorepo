@@ -1,0 +1,25 @@
+{
+  "event_id": "a1b2c3d4-0001-4a00-8000-000000000001",
+  "event_type": "order.created",
+  "event_version": 1,
+  "occurred_at": "2026-10-17T09:15:00Z",
+  "correlation_id": "e4a9b7c6-1f20-4d83-95b6-0c7d2a8e3f51",
+  "producer": "orders-service",
+  "payload": {
+    "order_id": "3f6a1c52-8d47-4b0e-a9c1-52e7d0b94a36",
+    "customer_id": "c1d8e2f4-6a73-4e95-b0a2-9d5f31e7c840",
+    "lines": [
+      {
+        "sku": "RS-001",
+        "quantity": 2,
+        "unit_price": "39.90"
+      },
+      {
+        "sku": "XS-001",
+        "quantity": 1,
+        "unit_price": "12.50"
+      }
+    ],
+    "occurred_at": "2026-10-17T09:15:00Z"
+  }
+}
