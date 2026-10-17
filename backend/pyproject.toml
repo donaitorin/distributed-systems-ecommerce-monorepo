@@ -13,6 +13,7 @@ dependencies = [
     "ecommerce-auth-service",
     "ecommerce-accounts-service",
     "ecommerce-cart-service",
+    "ecommerce-orders-service",
 ]
 
 [dependency-groups]
@@ -44,6 +45,7 @@ ecommerce-catalog = { workspace = true }
 ecommerce-auth-service = { workspace = true }
 ecommerce-accounts-service = { workspace = true }
 ecommerce-cart-service = { workspace = true }
+ecommerce-orders-service = { workspace = true }
 
 [tool.ruff]
 line-length = 100
@@ -60,6 +62,7 @@ src = [
     "services/auth/src",
     "services/accounts/src",
     "services/cart/src",
+    "services/orders/src",
 ]
 
 [tool.ruff.lint]
@@ -81,10 +84,12 @@ mypy_path = [
     "services/auth/src",
     "services/accounts/src",
     "services/cart/src",
+    "services/orders/src",
     "services/catalog/tests/support",
     "services/auth/tests/support",
     "services/accounts/tests/support",
     "services/cart/tests/support",
+    "services/orders/tests/support",
     "test_support",
     "tools",
 ]
@@ -96,6 +101,7 @@ pythonpath = [
     "services/auth/tests/support",
     "services/accounts/tests/support",
     "services/cart/tests/support",
+    "services/orders/tests/support",
     "test_support",
     "tools",
     "../scripts",

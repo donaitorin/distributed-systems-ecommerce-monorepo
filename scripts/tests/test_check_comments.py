@@ -299,7 +299,7 @@ def test_real_scanner_reports_real_comments(
 def test_generated_api_client_files_are_excluded_one_by_one() -> None:
     names = sorted(path.name for path in GENERATED_FILES)
 
-    assert names == ["accounts.ts", "auth.ts", "cart.ts", "catalog.ts"]
+    assert names == ["accounts.ts", "auth.ts", "cart.ts", "catalog.ts", "orders.ts"]
     assert not set(source_files(list(GENERATED_FILES))) & GENERATED_FILES
 
 

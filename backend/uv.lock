@@ -13,6 +13,7 @@ members = [
     "ecommerce-contracts",
     "ecommerce-messaging",
     "ecommerce-observability",
+    "ecommerce-orders-service",
     "ecommerce-storage",
     "ecommerce-web",
 ]
@@ -518,6 +519,7 @@ dependencies = [
     { name = "ecommerce-contracts" },
     { name = "ecommerce-messaging" },
     { name = "ecommerce-observability" },
+    { name = "ecommerce-orders-service" },
     { name = "ecommerce-storage" },
     { name = "ecommerce-web" },
 ]
@@ -544,6 +546,7 @@ requires-dist = [
     { name = "ecommerce-contracts", editable = "libs/contracts" },
     { name = "ecommerce-messaging", editable = "libs/messaging" },
     { name = "ecommerce-observability", editable = "libs/observability" },
+    { name = "ecommerce-orders-service", editable = "services/orders" },
     { name = "ecommerce-storage", editable = "libs/storage" },
     { name = "ecommerce-web", editable = "libs/web" },
 ]
@@ -662,6 +665,35 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [{ name = "starlette", specifier = ">=0.41" }]
+
+[[package]]
+name = "ecommerce-orders-service"
+version = "0.1.0"
+source = { editable = "services/orders" }
+dependencies = [
+    { name = "alembic" },
+    { name = "asyncpg" },
+    { name = "ecommerce-auth" },
+    { name = "ecommerce-contracts" },
+    { name = "ecommerce-messaging" },
+    { name = "ecommerce-observability" },
+    { name = "ecommerce-web" },
+    { name = "sqlalchemy", extra = ["asyncio"] },
+    { name = "uvicorn" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "alembic", specifier = ">=1.14" },
+    { name = "asyncpg", specifier = ">=0.30" },
+    { name = "ecommerce-auth", editable = "libs/auth" },
+    { name = "ecommerce-contracts", editable = "libs/contracts" },
+    { name = "ecommerce-messaging", editable = "libs/messaging" },
+    { name = "ecommerce-observability", editable = "libs/observability" },
+    { name = "ecommerce-web", editable = "libs/web" },
+    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0" },
+    { name = "uvicorn", specifier = ">=0.32" },
+]
 
 [[package]]
 name = "ecommerce-storage"
