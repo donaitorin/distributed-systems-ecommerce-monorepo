@@ -30,6 +30,13 @@ export {
   type ToastVariant,
 } from "./components/toast/toast";
 export { PriceTag, formatPrice, type PriceTagProps } from "./components/price-tag/price-tag";
+export {
+  ORDER_STATUSES,
+  OrderStatusBadge,
+  orderStatusLabel,
+  type OrderStatusBadgeProps,
+  type OrderStatusValue,
+} from "./components/order-status-badge/order-status-badge";
 export { StockBadge, type StockBadgeProps } from "./components/stock-badge/stock-badge";
 export {
   ProductImage,
