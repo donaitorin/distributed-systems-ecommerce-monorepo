@@ -1,5 +1,4 @@
-from catalog.domain.image import full_key, thumbnail_key
-from ecommerce_storage import ObjectStorage
+from ecommerce_storage import ObjectStorage, full_key, thumbnail_key
 
 
 class MediaUrls:

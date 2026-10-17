@@ -20,13 +20,11 @@ from catalog.domain.image import (
     RENDITION_CONTENT_TYPE,
     SIGNATURE_LENGTH,
     detect_image_format,
-    full_key,
     new_image_key,
-    thumbnail_key,
 )
 from catalog.domain.preconditions import VersionPrecondition
 from catalog.domain.product import Product
-from ecommerce_storage import ObjectStorage
+from ecommerce_storage import ObjectStorage, full_key, thumbnail_key
 
 logger = logging.getLogger(__name__)
 
