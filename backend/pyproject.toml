@@ -14,6 +14,7 @@ dependencies = [
     "ecommerce-accounts-service",
     "ecommerce-cart-service",
     "ecommerce-orders-service",
+    "ecommerce-payments-service",
 ]
 
 [dependency-groups]
@@ -46,6 +47,7 @@ ecommerce-auth-service = { workspace = true }
 ecommerce-accounts-service = { workspace = true }
 ecommerce-cart-service = { workspace = true }
 ecommerce-orders-service = { workspace = true }
+ecommerce-payments-service = { workspace = true }
 
 [tool.ruff]
 line-length = 100
@@ -63,6 +65,7 @@ src = [
     "services/accounts/src",
     "services/cart/src",
     "services/orders/src",
+    "services/payments/src",
 ]
 
 [tool.ruff.lint]
@@ -85,23 +88,26 @@ mypy_path = [
     "services/accounts/src",
     "services/cart/src",
     "services/orders/src",
+    "services/payments/src",
     "services/catalog/tests/support",
     "services/auth/tests/support",
     "services/accounts/tests/support",
     "services/cart/tests/support",
     "services/orders/tests/support",
+    "services/payments/tests/support",
     "test_support",
     "tools",
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["libs", "services", "tools", "../scripts/tests"]
+testpaths = ["libs", "services", "tools", "tests", "../scripts/tests"]
 pythonpath = [
     "services/catalog/tests/support",
     "services/auth/tests/support",
     "services/accounts/tests/support",
     "services/cart/tests/support",
     "services/orders/tests/support",
+    "services/payments/tests/support",
     "test_support",
     "tools",
     "../scripts",

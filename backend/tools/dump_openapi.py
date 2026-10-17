@@ -16,6 +16,8 @@ from catalog.main import create_catalog_app
 from catalog.settings import CatalogSettings
 from orders.main import create_orders_app
 from orders.settings import OrdersSettings
+from payments.main import create_payments_app
+from payments.settings import PaymentsSettings
 
 PLACEHOLDER_ENVIRONMENT: Mapping[str, str] = {
     "JWT_JWKS_URL": "http://auth.invalid/api/v1/auth/.well-known/jwks.json",
@@ -71,12 +73,18 @@ def build_orders() -> FastAPI:
     return create_orders_app(OrdersSettings.from_env(environment))
 
 
+def build_payments() -> FastAPI:
+    environment = {**PLACEHOLDER_ENVIRONMENT, **database_environment("PAYMENTS")}
+    return create_payments_app(PaymentsSettings.from_env(environment))
+
+
 SERVICES: Mapping[str, Callable[[], FastAPI]] = {
     "auth": build_auth,
     "catalog": build_catalog,
     "accounts": build_accounts,
     "cart": build_cart,
     "orders": build_orders,
+    "payments": build_payments,
 }
 
 

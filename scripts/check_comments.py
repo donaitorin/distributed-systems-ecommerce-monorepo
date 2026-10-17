@@ -17,7 +17,7 @@ TYPESCRIPT_SCANNER = REPO_ROOT / "frontend" / "packages" / "config" / "tools" / 
 EXCLUDED_FILE_NAMES = frozenset({"next-env.d.ts"})
 GENERATED_FILES = frozenset(
     REPO_ROOT / "frontend" / "packages" / "api-client" / "src" / "generated" / f"{service}.ts"
-    for service in ("auth", "catalog", "accounts", "cart", "orders")
+    for service in ("auth", "catalog", "accounts", "cart", "orders", "payments")
 )
 IGNORED_DIRECTORIES = frozenset(
     {
