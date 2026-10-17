@@ -2,7 +2,7 @@
  * @jest-environment node
  */
 import { navigationFor } from "../src/lib/shell-links";
-import { authPageHref, categoryHref, isProtectedPath, productHref, storeNextPath } from "../src/lib/paths";
+import { authPageHref, categoryHref, isProtectedPath, orderHref, productHref, storeNextPath } from "../src/lib/paths";
 
 describe("storeNextPath", () => {
   it.each([
@@ -43,6 +43,8 @@ describe("storeNextPath", () => {
 describe("links", () => {
   it("builds product and category links with encoded values", () => {
     expect(productHref("A/B C")).toBe("/products/A%2FB%20C");
+    expect(orderHref("6f1c2f64-3f0e")).toBe("/orders/6f1c2f64-3f0e");
+    expect(orderHref("a/b")).toBe("/orders/a%2Fb");
     expect(categoryHref("home & garden")).toBe("/products?category=home%20%26%20garden");
   });
 
@@ -55,6 +57,9 @@ describe("links", () => {
   it("protects the account, checkout and orders pages only", () => {
     expect(isProtectedPath("/account")).toBe(true);
     expect(isProtectedPath("/orders/1")).toBe(true);
+    expect(isProtectedPath("/checkout")).toBe(true);
+    expect(isProtectedPath("/api/orders/1")).toBe(true);
+    expect(isProtectedPath("/api/orderly")).toBe(false);
     expect(isProtectedPath("/accounts")).toBe(false);
     expect(isProtectedPath("/products")).toBe(false);
   });

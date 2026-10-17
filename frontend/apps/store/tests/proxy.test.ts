@@ -17,7 +17,7 @@ jest.mock("@ecommerce/auth/next", () => ({
 }));
 
 describe("isProtectedPath", () => {
-  it.each(["/account", "/account/addresses", "/cart", "/cart/anything", "/checkout", "/checkout/pay", "/orders/42"])(
+  it.each(["/account", "/account/addresses", "/cart", "/cart/anything", "/checkout", "/checkout/pay", "/orders", "/orders/42", "/api/orders/42"])(
     "protects %s",
     (path) => {
       expect(isProtectedPath(path)).toBe(true);
