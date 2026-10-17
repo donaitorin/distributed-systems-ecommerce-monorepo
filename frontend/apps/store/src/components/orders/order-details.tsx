@@ -1,5 +1,6 @@
+import { formatDateTime } from "@ecommerce/web-core";
 import { money } from "../../lib/cart";
-import { formatDateTime, historyLabel, type Order } from "../../lib/orders";
+import { historyLabel, type Order } from "../../lib/orders";
 import { AddressText } from "../account/address-text";
 
 export type OrderDetailsProps = { order: Order };

@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-quer
 import { ButtonLink } from "@ecommerce/ui";
 import { fetchOrder as defaultFetchOrder, isTerminalRequestError, OrderRequestError, SESSION_EXPIRED, type OrderFetcher } from "../../lib/order-client";
 import { awaitsRefund, isFinalStatus, pollDelay, shouldKeepPolling, type Order } from "../../lib/orders";
-import { PRODUCTS_PATH } from "../../lib/paths";
+import { ORDERS_PATH, PRODUCTS_PATH } from "../../lib/paths";
 import { OrderDetails } from "./order-details";
 import { OrderStatusBanner } from "./order-status-banner";
 
@@ -73,7 +73,10 @@ function Tracker({ initial, fetchOrder = defaultFetchOrder, onConfirmed, onSessi
         </p>
       ) : null}
       <OrderDetails order={order} />
-      <div>
+      <div className="flex flex-wrap gap-3">
+        <ButtonLink href={ORDERS_PATH} variant="secondary">
+          Your orders
+        </ButtonLink>
         <ButtonLink href={PRODUCTS_PATH} variant="secondary">
           Continue shopping
         </ButtonLink>

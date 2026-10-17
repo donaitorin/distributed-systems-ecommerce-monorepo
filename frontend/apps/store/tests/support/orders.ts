@@ -1,4 +1,4 @@
-import type { HistoryEntry, Order } from "../../src/lib/orders";
+import type { HistoryEntry, Order, OrderSummary } from "../../src/lib/orders";
 
 export const ORDER_ID = "6f1c2f64-3f0e-4c1a-9d52-7a1b8c9d0e21";
 
@@ -33,6 +33,20 @@ export function order(overrides: Partial<Order> = {}): Order {
       { sku: "TY-002", name: null, quantity: 1, unit_price: "19.50", line_total: "19.50" },
     ],
     history: [historyEntry()],
+    ...overrides,
+  };
+}
+
+export function summary(overrides: Partial<OrderSummary> = {}): OrderSummary {
+  return {
+    id: ORDER_ID,
+    customer_id: "0f6c1f0e-7a52-4f33-9c2a-5d9c3b1e7a10",
+    status: "CONFIRMED",
+    total: "137.50",
+    currency: "USD",
+    item_count: 3,
+    created_at: "2026-10-17T10:00:00Z",
+    updated_at: "2026-10-17T10:00:09Z",
     ...overrides,
   };
 }

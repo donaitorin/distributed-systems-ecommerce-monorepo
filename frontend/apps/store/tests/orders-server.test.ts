@@ -2,11 +2,11 @@
  * @jest-environment node
  */
 import { cartFingerprint, type PlaceOrderInput } from "../src/lib/checkout";
-import { isOrderId, loadOrder, placeOrder, readOrderResponse } from "../src/server/orders";
+import { isOrderId, loadOrder, loadOrderPage, placeOrder, readOrderResponse } from "../src/server/orders";
 import { json, mockFetch, problem } from "./support/api";
 import { cart, line } from "./support/cart";
 import { address, ADDRESS_ID } from "./support/addresses";
-import { ORDER_ID, order } from "./support/orders";
+import { ORDER_ID, order, summary } from "./support/orders";
 
 const authorizationHeaders = jest.fn();
 
@@ -287,5 +287,66 @@ describe("readOrderResponse", () => {
     const plain = await readOrderResponse(ORDER_ID);
     expect(plain.status).toBe(503);
     expect(plain.headers.get("retry-after")).toBeNull();
+  });
+});
+
+
+describe("loadOrderPage", () => {
+  const LIST = (respond: (request: { url: URL }) => Response) => ({ method: "GET", path: "/api/v1/orders", respond });
+
+  it("reads the first page with the page size and no cursor", async () => {
+    const api = mockFetch([LIST(() => json({ items: [summary()], next_cursor: "n" }))]);
+
+    expect(await loadOrderPage(null)).toEqual({ items: [summary()], next_cursor: "n" });
+    expect(api.calls[0]?.url.searchParams.get("limit")).toBe("25");
+    expect(api.calls[0]?.url.searchParams.has("cursor")).toBe(false);
+    expect(new Headers(api.calls[0]?.init.headers).get("authorization")).toBe("Bearer t");
+  });
+
+  it("passes the cursor on", async () => {
+    const api = mockFetch([LIST(() => json({ items: [], next_cursor: null }))]);
+
+    await loadOrderPage("abc");
+
+    expect(api.calls[0]?.url.searchParams.get("cursor")).toBe("abc");
+  });
+
+  it("reports a cursor the API refuses", async () => {
+    mockFetch([LIST(() => problem(422, "Invalid cursor"))]);
+
+    expect(await loadOrderPage("old")).toEqual({ ok: false, kind: "invalid_cursor" });
+  });
+
+  it("reports other failures as unavailable, with the retry hint", async () => {
+    mockFetch([
+      LIST(
+        () =>
+          new Response(JSON.stringify({ type: "x", title: "Down", status: 503 }), {
+            status: 503,
+            headers: { "content-type": "application/problem+json", "retry-after": "4" },
+          }),
+      ),
+    ]);
+    expect(await loadOrderPage(null)).toEqual({ ok: false, kind: "unavailable", retryAfterSeconds: 4 });
+
+    mockFetch([LIST(() => problem(500, "Oops"))]);
+    expect(await loadOrderPage(null)).toEqual({ ok: false, kind: "unavailable" });
+
+    global.fetch = jest.fn(() => Promise.reject(new TypeError("fetch failed")));
+    expect(await loadOrderPage(null)).toEqual({ ok: false, kind: "unavailable" });
+  });
+
+  it("sends an expired session to the login page and back to the list", async () => {
+    mockFetch([LIST(() => problem(401, "Unauthorized"))]);
+
+    await expect(loadOrderPage(null)).rejects.toThrow("NEXT_REDIRECT /login?next=%2Forders&reason=expired");
+    await expect(loadOrderPage("abc")).rejects.toThrow("reason=expired");
+  });
+
+  it("lets unexpected errors surface", async () => {
+    mockFetch([LIST(() => json({ items: [], next_cursor: null }))]);
+    authorizationHeaders.mockRejectedValue(new RangeError("bug"));
+
+    await expect(loadOrderPage(null)).rejects.toThrow("bug");
   });
 });

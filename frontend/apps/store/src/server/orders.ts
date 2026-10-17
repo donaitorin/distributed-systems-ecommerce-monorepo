@@ -12,8 +12,8 @@ import {
   type PlaceOrderResult,
 } from "../lib/checkout";
 import type { Address } from "../lib/addresses";
-import type { Order, OrderFailure } from "../lib/orders";
-import { CHECKOUT_PATH, LOGIN_PATH, orderHref } from "../lib/paths";
+import { ORDER_PAGE_SIZE, type Order, type OrderFailure, type OrderListFailure, type OrderPage } from "../lib/orders";
+import { CHECKOUT_PATH, LOGIN_PATH, ORDERS_PATH, orderHref } from "../lib/paths";
 import { loadAddresses } from "./addresses";
 import { loadCart } from "./cart";
 
@@ -155,6 +155,33 @@ export async function loadOrder(orderId: string, returnTo: string = orderHref(or
             kind: "unavailable",
             ...(error.retryAfterSeconds !== undefined ? { retryAfterSeconds: error.retryAfterSeconds } : {}),
           };
+    }
+    if (error instanceof ApiNetworkError) {
+      return { ok: false, kind: "unavailable" };
+    }
+    throw error;
+  }
+}
+
+export async function loadOrderPage(cursor: string | null): Promise<OrderPage | OrderListFailure> {
+  try {
+    const { data } = await ordersApi().get("/api/v1/orders", {
+      query: { limit: ORDER_PAGE_SIZE, ...(cursor ? { cursor } : {}) },
+    });
+    return data;
+  } catch (error) {
+    if (error instanceof ApiError) {
+      if (error.status === UNAUTHORIZED) {
+        expiredSession(cursor ? `${ORDERS_PATH}?cursor=${cursor}` : ORDERS_PATH);
+      }
+      if (error.status === UNPROCESSABLE) {
+        return { ok: false, kind: "invalid_cursor" };
+      }
+      return {
+        ok: false,
+        kind: "unavailable",
+        ...(error.retryAfterSeconds !== undefined ? { retryAfterSeconds: error.retryAfterSeconds } : {}),
+      };
     }
     if (error instanceof ApiNetworkError) {
       return { ok: false, kind: "unavailable" };

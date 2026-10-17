@@ -1,9 +1,10 @@
 import {
   announcement,
   cancelReasonText,
-  formatDateTime,
   historyLabel,
   isFinalStatus,
+  isOrderListFailure,
+  readCursor,
   mayStillBeRefunded,
   pollDelay,
   shouldKeepPolling,
@@ -113,8 +114,20 @@ describe("historyLabel", () => {
   });
 });
 
-describe("formatDateTime", () => {
-  it("prints a fixed time zone so the server and the browser agree", () => {
-    expect(formatDateTime("2026-10-17T10:05:09Z")).toBe("17 Oct 2026, 10:05:09 UTC");
+describe("order list helpers", () => {
+  it("tells a failure from a page", () => {
+    expect(isOrderListFailure({ ok: false, kind: "unavailable" })).toBe(true);
+    expect(isOrderListFailure({ items: [], next_cursor: null })).toBe(false);
+  });
+
+  it.each([
+    ["abc", "abc"],
+    ["", null],
+    [undefined, null],
+    [["a"], null],
+    ["x".repeat(512), "x".repeat(512)],
+    ["x".repeat(513), null],
+  ])("reads the cursor %j as %j", (value, expected) => {
+    expect(readCursor(value)).toBe(expected);
   });
 });

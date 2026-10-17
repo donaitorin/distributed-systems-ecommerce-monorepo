@@ -40,6 +40,12 @@ describe("account page", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it("links to the order history", async () => {
+    render(await AccountPage());
+
+    expect(screen.getByRole("link", { name: "View your orders" })).toHaveAttribute("href", "/orders");
+  });
+
   it("lists the saved addresses under their own heading", async () => {
     render(await AccountPage());
 

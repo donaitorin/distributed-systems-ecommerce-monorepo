@@ -71,6 +71,13 @@ describe("OrderTracker", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it("links to the order history and back to the catalog", () => {
+    setup(order({ status: "CONFIRMED" }));
+
+    expect(screen.getByRole("link", { name: "Your orders" })).toHaveAttribute("href", "/orders");
+    expect(screen.getByRole("link", { name: "Continue shopping" })).toHaveAttribute("href", "/products");
+  });
+
   it("announces each status change in one live region and polls with growing delays until the order is confirmed", async () => {
     const times: number[] = [];
     const sequence = [order(), order({ status: "STOCK_RESERVED" }), order({ status: "PAID" }), order({ status: "CONFIRMED" })];

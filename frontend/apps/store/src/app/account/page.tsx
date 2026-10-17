@@ -3,7 +3,7 @@ import { requireSession } from "@ecommerce/auth/next";
 import { isFailure } from "@ecommerce/web-core";
 import { AddressBook } from "../../components/account/address-book";
 import { ProfileForm } from "../../components/account/profile-form";
-import { ACCOUNT_PATH, LOGIN_PATH } from "../../lib/paths";
+import { ACCOUNT_PATH, LOGIN_PATH, ORDERS_PATH } from "../../lib/paths";
 import { loadAddresses } from "../../server/addresses";
 import { loadProfile } from "../../server/profile";
 import { addAddressAction, removeAddressAction, updateProfileAction } from "./actions";
@@ -30,6 +30,11 @@ export default async function AccountPage() {
       ) : (
         <>
           <p className="text-base text-secondary">Signed in as {profile.email ?? session.email ?? session.userId}.</p>
+          <p>
+            <a href={ORDERS_PATH} className="text-accent-strong underline">
+              View your orders
+            </a>
+          </p>
           <section aria-labelledby="profile-heading" className="flex flex-col gap-4">
             <h2 id="profile-heading" className="text-xl font-semibold">
               Profile

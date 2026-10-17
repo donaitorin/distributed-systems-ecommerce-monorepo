@@ -73,9 +73,10 @@ describe("navigationFor", () => {
     ]);
   });
 
-  it("offers Account instead of Sign in when signed in", () => {
+  it("offers Orders and Account instead of Sign in when signed in", () => {
     expect(navigationFor(true)).toEqual([
       { label: "Products", href: "/products" },
+      { label: "Orders", href: "/orders" },
       { label: "Account", href: "/account" },
     ]);
   });

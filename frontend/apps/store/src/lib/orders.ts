@@ -5,6 +5,9 @@ export type OrderLine = OrdersComponents["schemas"]["OrderLineOut"];
 export type OrderStatus = OrdersComponents["schemas"]["OrderStatus"];
 export type HistoryEntry = OrdersComponents["schemas"]["HistoryEntryOut"];
 
+export type OrderSummary = OrdersComponents["schemas"]["OrderSummaryOut"];
+export type OrderPage = OrdersComponents["schemas"]["OrderPageOut"];
+
 export type StatusTone = "progress" | "success" | "failure";
 
 export type StatusView = { label: string; description: string; tone: StatusTone };
@@ -97,11 +100,19 @@ export function historyLabel(entry: HistoryEntry): string {
   }
 }
 
-const DATE_TIME = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "medium", timeZone: "UTC" });
-
-export function formatDateTime(iso: string): string {
-  return `${DATE_TIME.format(new Date(iso))} UTC`;
-}
-
 export type OrderFailureKind = "not_found" | "unavailable";
 export type OrderFailure = { ok: false; kind: OrderFailureKind; retryAfterSeconds?: number };
+
+export type OrderListFailureKind = "invalid_cursor" | "unavailable";
+export type OrderListFailure = { ok: false; kind: OrderListFailureKind; retryAfterSeconds?: number };
+
+export function isOrderListFailure(result: OrderPage | OrderListFailure): result is OrderListFailure {
+  return "ok" in result;
+}
+
+export const ORDER_PAGE_SIZE = 25;
+export const CURSOR_MAX_LENGTH = 512;
+
+export function readCursor(value: string | string[] | undefined): string | null {
+  return typeof value === "string" && value.length > 0 && value.length <= CURSOR_MAX_LENGTH ? value : null;
+}
