@@ -42,6 +42,7 @@ def _summary_of(order: Order) -> OrderSummary:
         item_count=sum(line.quantity for line in order.lines),
         created_at=order.created_at,
         updated_at=order.updated_at,
+        customer_email=order.customer_email,
     )
 
 
@@ -63,6 +64,7 @@ class InMemoryOrderRepository:
         self._store.orders[order.id] = Order(
             id=order.id,
             customer_id=order.customer_id,
+            customer_email=order.customer_email,
             status=OrderStatus.PENDING,
             total=total,
             currency="USD",

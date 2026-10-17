@@ -52,6 +52,7 @@ class OrderService:
         key: str,
         request: OrderRequest,
         correlation_id: UUID,
+        customer_email: str | None = None,
     ) -> Placement:
         if not idempotency.is_valid_key(key):
             raise InvalidIdempotencyKeyError(
@@ -60,7 +61,7 @@ class OrderService:
                 "colons or dots"
             )
         now = self._clock()
-        order = NewOrder(self._new_id(), customer_id, request, correlation_id)
+        order = NewOrder(self._new_id(), customer_id, request, correlation_id, customer_email)
         record = IdempotencyRecord(
             user_id=customer_id,
             key=key,

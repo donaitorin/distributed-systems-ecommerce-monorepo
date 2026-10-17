@@ -56,6 +56,38 @@ async def test_placing_an_order_stores_it_pending_with_its_lines_history_and_eve
     assert [line.sku for line in event.payload.lines] == ["RS-001", "XS-001"]
 
 
+async def test_the_email_of_the_customer_is_kept_on_the_order_and_its_summary(
+    service: OrderService,
+) -> None:
+    placement = await service.place(
+        CUSTOMER, KEY, order_request(), CORRELATION, customer_email="ada@example.com"
+    )
+
+    order = await service.get_any(placement.order_id)
+    page = await service.list_all(OrderFilters(), 25, None)
+    assert order.customer_email == "ada@example.com"
+    assert [item.customer_email for item in page.items] == ["ada@example.com"]
+
+
+async def test_an_order_placed_without_an_email_has_none(service: OrderService) -> None:
+    placement = await service.place(CUSTOMER, KEY, order_request(), CORRELATION)
+
+    assert (await service.get_any(placement.order_id)).customer_email is None
+
+
+async def test_a_replay_does_not_change_the_stored_email(service: OrderService) -> None:
+    first = await service.place(
+        CUSTOMER, KEY, order_request(), CORRELATION, customer_email="ada@example.com"
+    )
+
+    again = await service.place(
+        CUSTOMER, KEY, order_request(), CORRELATION, customer_email="new@example.com"
+    )
+
+    assert again.replayed
+    assert (await service.get_any(first.order_id)).customer_email == "ada@example.com"
+
+
 async def test_the_same_key_and_body_return_the_same_order_without_a_second_event(
     service: OrderService, store: InMemoryStore
 ) -> None:

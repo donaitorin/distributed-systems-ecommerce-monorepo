@@ -38,6 +38,7 @@ def to_summary(model: OrderModel, item_count: int) -> OrderSummary:
         item_count=item_count,
         created_at=model.created_at,
         updated_at=model.updated_at,
+        customer_email=model.customer_email,
     )
 
 
@@ -51,6 +52,7 @@ class SqlOrderRepository:
             insert(OrderModel).values(
                 id=order.id,
                 customer_id=order.customer_id,
+                customer_email=order.customer_email,
                 status=OrderStatus.PENDING.value,
                 total=total,
                 currency="USD",
@@ -108,6 +110,7 @@ class SqlOrderRepository:
             refunded_at=model.refunded_at,
             created_at=model.created_at,
             updated_at=model.updated_at,
+            customer_email=model.customer_email,
             lines=tuple(
                 OrderLine(item.position, item.sku, item.name, item.quantity, item.unit_price)
                 for item in lines

@@ -7,9 +7,11 @@ from fastapi.responses import JSONResponse
 from pydantic import AwareDatetime
 
 from ecommerce_auth import AdminUser
-from orders.api.dependencies import CustomerIdDep, OrderServiceDep
+from orders.api.dependencies import CustomerEmailDep, CustomerIdDep, OrderServiceDep
 from orders.api.responses import problem_responses
 from orders.api.schemas import (
+    AdminOrderDetailOut,
+    AdminOrderPageOut,
     OrderAcceptedOut,
     OrderDetailOut,
     OrderIn,
@@ -61,13 +63,18 @@ def build_filters(
 async def place_order(
     body: OrderIn,
     customer_id: CustomerIdDep,
+    customer_email: CustomerEmailDep,
     service: OrderServiceDep,
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ) -> Response:
     if idempotency_key is None:
         raise InvalidIdempotencyKeyError("the Idempotency-Key header is required")
     placement = await service.place(
-        customer_id, idempotency_key, body.to_domain(), current_correlation_id()
+        customer_id,
+        idempotency_key,
+        body.to_domain(),
+        current_correlation_id(),
+        customer_email,
     )
     headers = {"Location": f"/api/v1/orders/{placement.order_id}", "Cache-Control": NO_STORE}
     if placement.replayed:
@@ -109,7 +116,7 @@ async def get_order(
 
 @admin_router.get(
     "",
-    response_model=OrderPageOut,
+    response_model=AdminOrderPageOut,
     summary="List every order, newest first (admin)",
     responses=problem_responses(401, 403, 422),
 )
@@ -122,20 +129,20 @@ async def list_all_orders(
     created_to: CreatedToQuery = None,
     limit: LimitQuery = 25,
     cursor: CursorQuery = None,
-) -> OrderPageOut:
+) -> AdminOrderPageOut:
     response.headers["Cache-Control"] = NO_STORE
     filters = build_filters(order_status, created_from, created_to)
-    return OrderPageOut.from_domain(await service.list_all(filters, limit, cursor))
+    return AdminOrderPageOut.from_domain(await service.list_all(filters, limit, cursor))
 
 
 @admin_router.get(
     "/{order_id}",
-    response_model=OrderDetailOut,
+    response_model=AdminOrderDetailOut,
     summary="Get any order (admin)",
     responses=problem_responses(401, 403, 404, 422),
 )
 async def get_any_order(
     order_id: UUID, _admin: AdminUser, service: OrderServiceDep, response: Response
-) -> OrderDetailOut:
+) -> AdminOrderDetailOut:
     response.headers["Cache-Control"] = NO_STORE
-    return OrderDetailOut.from_domain(await service.get_any(order_id))
+    return AdminOrderDetailOut.from_domain(await service.get_any(order_id))

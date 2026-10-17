@@ -278,6 +278,40 @@ class OrderPageOut(BaseModel):
         )
 
 
+class AdminOrderSummaryOut(OrderSummaryOut):
+    customer_email: str | None
+
+    @classmethod
+    def from_domain(cls, summary: OrderSummary) -> "AdminOrderSummaryOut":
+        return cls(
+            **OrderSummaryOut.from_domain(summary).model_dump(),
+            customer_email=summary.customer_email,
+        )
+
+
+class AdminOrderDetailOut(OrderDetailOut):
+    customer_email: str | None
+
+    @classmethod
+    def from_domain(cls, order: Order) -> "AdminOrderDetailOut":
+        return cls(
+            **OrderDetailOut.from_domain(order).model_dump(),
+            customer_email=order.customer_email,
+        )
+
+
+class AdminOrderPageOut(BaseModel):
+    items: list[AdminOrderSummaryOut]
+    next_cursor: str | None
+
+    @classmethod
+    def from_domain(cls, page: OrderPage) -> "AdminOrderPageOut":
+        return cls(
+            items=[AdminOrderSummaryOut.from_domain(item) for item in page.items],
+            next_cursor=page.next_cursor,
+        )
+
+
 class FieldProblem(BaseModel):
     location: str
     message: str

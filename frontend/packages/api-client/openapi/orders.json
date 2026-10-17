@@ -1,6 +1,205 @@
 {
   "components": {
     "schemas": {
+      "AdminOrderDetailOut": {
+        "properties": {
+          "cancel_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancel Reason"
+          },
+          "card_last4": {
+            "title": "Card Last4",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "customer_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Email"
+          },
+          "customer_id": {
+            "format": "uuid",
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/HistoryEntryOut"
+            },
+            "title": "History",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/OrderLineOut"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "refunded_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refunded At"
+          },
+          "shipping_address": {
+            "$ref": "#/components/schemas/ShippingAddressOut"
+          },
+          "status": {
+            "$ref": "#/components/schemas/OrderStatus"
+          },
+          "total": {
+            "title": "Total",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "customer_id",
+          "status",
+          "total",
+          "currency",
+          "card_last4",
+          "shipping_address",
+          "cancel_reason",
+          "refunded_at",
+          "created_at",
+          "updated_at",
+          "lines",
+          "history",
+          "customer_email"
+        ],
+        "title": "AdminOrderDetailOut",
+        "type": "object"
+      },
+      "AdminOrderPageOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdminOrderSummaryOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "AdminOrderPageOut",
+        "type": "object"
+      },
+      "AdminOrderSummaryOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "customer_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Email"
+          },
+          "customer_id": {
+            "format": "uuid",
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "item_count": {
+            "title": "Item Count",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/OrderStatus"
+          },
+          "total": {
+            "title": "Total",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "customer_id",
+          "status",
+          "total",
+          "currency",
+          "item_count",
+          "created_at",
+          "updated_at",
+          "customer_email"
+        ],
+        "title": "AdminOrderSummaryOut",
+        "type": "object"
+      },
       "FieldProblem": {
         "properties": {
           "location": {
@@ -723,7 +922,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OrderPageOut"
+                  "$ref": "#/components/schemas/AdminOrderPageOut"
                 }
               }
             },
@@ -791,7 +990,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OrderDetailOut"
+                  "$ref": "#/components/schemas/AdminOrderDetailOut"
                 }
               }
             },

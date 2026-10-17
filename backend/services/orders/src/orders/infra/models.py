@@ -46,6 +46,7 @@ class OrderModel(Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True)
     customer_id: Mapped[UUID] = mapped_column()
+    customer_email: Mapped[str | None] = mapped_column(String(320))
     status: Mapped[str] = mapped_column(String(20))
     total: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     currency: Mapped[str] = mapped_column(String(3))

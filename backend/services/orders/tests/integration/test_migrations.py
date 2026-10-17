@@ -139,3 +139,45 @@ async def test_database_readiness_check_passes_against_a_real_database(
         await database_readiness_check(engine).probe()
     finally:
         await engine.dispose()
+
+
+async def test_the_email_column_is_added_nullable_and_old_orders_keep_a_null_email(
+    empty_database_url: str, alembic_runner: Callable[[str, str, str], None]
+) -> None:
+    alembic_runner(empty_database_url, "upgrade", "0001")
+    await insert_order(empty_database_url)
+    columns = "SELECT column_name FROM information_schema.columns WHERE table_name = 'orders'"
+    before = {name for (name,) in await fetch_all(empty_database_url, columns)}
+
+    alembic_runner(empty_database_url, "upgrade", "head")
+    after = {name for (name,) in await fetch_all(empty_database_url, columns)}
+    rows = await fetch_all(empty_database_url, "SELECT customer_email FROM orders")
+    shape = await fetch_all(
+        empty_database_url,
+        "SELECT is_nullable, character_maximum_length FROM information_schema.columns"
+        " WHERE table_name = 'orders' AND column_name = 'customer_email'",
+    )
+
+    assert "customer_email" not in before
+    assert after - before == {"customer_email"}
+    assert rows == [(None,)]
+    assert shape == [("YES", 320)]
+
+
+async def test_downgrading_removes_only_the_email_column(
+    empty_database_url: str, alembic_runner: Callable[[str, str, str], None]
+) -> None:
+    alembic_runner(empty_database_url, "upgrade", "head")
+    await insert_order(empty_database_url)
+
+    alembic_runner(empty_database_url, "downgrade", "0001")
+    rows = await fetch_all(empty_database_url, "SELECT count(*) FROM orders")
+    columns = await fetch_all(
+        empty_database_url,
+        "SELECT column_name FROM information_schema.columns"
+        " WHERE table_name = 'orders' AND column_name = 'customer_email'",
+    )
+    alembic_runner(empty_database_url, "upgrade", "head")
+
+    assert rows == [(1,)]
+    assert columns == []

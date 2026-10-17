@@ -50,6 +50,10 @@ async def http_client(app: FastAPI) -> AsyncIterator[httpx.AsyncClient]:
 
 
 def bearer(
-    issuer: StubTokenIssuer, user_id: UUID = CUSTOMER, role: Role = Role.CUSTOMER
+    issuer: StubTokenIssuer,
+    user_id: UUID = CUSTOMER,
+    role: Role = Role.CUSTOMER,
+    email: str | None = None,
 ) -> dict[str, str]:
-    return {"Authorization": f"Bearer {issuer.issue(subject=str(user_id), role=role)}"}
+    claims: dict[str, Any] = {"email": email} if email is not None else {}
+    return {"Authorization": f"Bearer {issuer.issue(subject=str(user_id), role=role, **claims)}"}

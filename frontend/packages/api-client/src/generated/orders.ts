@@ -109,6 +109,86 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AdminOrderDetailOut */
+        AdminOrderDetailOut: {
+            /** Cancel Reason */
+            cancel_reason: string | null;
+            /** Card Last4 */
+            card_last4: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Currency */
+            currency: string;
+            /** Customer Email */
+            customer_email: string | null;
+            /**
+             * Customer Id
+             * Format: uuid
+             */
+            customer_id: string;
+            /** History */
+            history: components["schemas"]["HistoryEntryOut"][];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Lines */
+            lines: components["schemas"]["OrderLineOut"][];
+            /** Refunded At */
+            refunded_at: string | null;
+            shipping_address: components["schemas"]["ShippingAddressOut"];
+            status: components["schemas"]["OrderStatus"];
+            /** Total */
+            total: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** AdminOrderPageOut */
+        AdminOrderPageOut: {
+            /** Items */
+            items: components["schemas"]["AdminOrderSummaryOut"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /** AdminOrderSummaryOut */
+        AdminOrderSummaryOut: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Currency */
+            currency: string;
+            /** Customer Email */
+            customer_email: string | null;
+            /**
+             * Customer Id
+             * Format: uuid
+             */
+            customer_id: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Item Count */
+            item_count: number;
+            status: components["schemas"]["OrderStatus"];
+            /** Total */
+            total: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
         /** FieldProblem */
         FieldProblem: {
             /** Location */
@@ -361,7 +441,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["OrderPageOut"];
+                    "application/json": components["schemas"]["AdminOrderPageOut"];
                 };
             };
             /** @description Missing, invalid or expired access token */
@@ -410,7 +490,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["OrderDetailOut"];
+                    "application/json": components["schemas"]["AdminOrderDetailOut"];
                 };
             };
             /** @description Missing, invalid or expired access token */
