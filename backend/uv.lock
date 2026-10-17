@@ -8,6 +8,7 @@ members = [
     "ecommerce-auth",
     "ecommerce-auth-service",
     "ecommerce-backend",
+    "ecommerce-cart-service",
     "ecommerce-catalog",
     "ecommerce-contracts",
     "ecommerce-messaging",
@@ -512,6 +513,7 @@ dependencies = [
     { name = "ecommerce-accounts-service" },
     { name = "ecommerce-auth" },
     { name = "ecommerce-auth-service" },
+    { name = "ecommerce-cart-service" },
     { name = "ecommerce-catalog" },
     { name = "ecommerce-contracts" },
     { name = "ecommerce-messaging" },
@@ -537,6 +539,7 @@ requires-dist = [
     { name = "ecommerce-accounts-service", editable = "services/accounts" },
     { name = "ecommerce-auth", editable = "libs/auth" },
     { name = "ecommerce-auth-service", editable = "services/auth" },
+    { name = "ecommerce-cart-service", editable = "services/cart" },
     { name = "ecommerce-catalog", editable = "services/catalog" },
     { name = "ecommerce-contracts", editable = "libs/contracts" },
     { name = "ecommerce-messaging", editable = "libs/messaging" },
@@ -555,6 +558,35 @@ dev = [
     { name = "pytest-cov", specifier = ">=6.0" },
     { name = "ruff", specifier = ">=0.8" },
     { name = "testcontainers", extras = ["postgres"], specifier = ">=4.9" },
+]
+
+[[package]]
+name = "ecommerce-cart-service"
+version = "0.1.0"
+source = { editable = "services/cart" }
+dependencies = [
+    { name = "ecommerce-auth" },
+    { name = "ecommerce-contracts" },
+    { name = "ecommerce-messaging" },
+    { name = "ecommerce-observability" },
+    { name = "ecommerce-storage" },
+    { name = "ecommerce-web" },
+    { name = "httpx" },
+    { name = "redis" },
+    { name = "uvicorn" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "ecommerce-auth", editable = "libs/auth" },
+    { name = "ecommerce-contracts", editable = "libs/contracts" },
+    { name = "ecommerce-messaging", editable = "libs/messaging" },
+    { name = "ecommerce-observability", editable = "libs/observability" },
+    { name = "ecommerce-storage", editable = "libs/storage" },
+    { name = "ecommerce-web", editable = "libs/web" },
+    { name = "httpx", specifier = ">=0.28" },
+    { name = "redis", specifier = ">=5.2" },
+    { name = "uvicorn", specifier = ">=0.32" },
 ]
 
 [[package]]
@@ -1074,6 +1106,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/2d/41/12fbfd7f36ed2146d8bc9de96c2741296bf0d490b98508496cff322e274c/pywin32-312-cp313-cp313-win32.whl", hash = "sha256:7a27df850933d16a8eabfbaeb73d52b273e2da667f80d70b01a89d1f6828d02c", size = 6370184, upload-time = "2026-06-04T07:49:36.253Z" },
     { url = "https://files.pythonhosted.org/packages/ba/db/36a78e3403099d31d9746d13fdcde5accc43c1155f375a34d15983a479a7/pywin32-312-cp313-cp313-win_amd64.whl", hash = "sha256:c53e878d15a1c44788082bfe712a905433473aa38f86375b7cf8b45e3acbaaf9", size = 6914298, upload-time = "2026-06-04T07:49:38.876Z" },
     { url = "https://files.pythonhosted.org/packages/84/37/c1697194092b76de9ed47ca124323f02c57ffc8a45c06f88a3d5acaf01eb/pywin32-312-cp313-cp313-win_arm64.whl", hash = "sha256:59aba5d5940842075343a5ddc6b11f1cdf0d1567fe745290359dfbcc7c2eb831", size = 6727640, upload-time = "2026-06-04T07:49:41.083Z" },
+]
+
+[[package]]
+name = "redis"
+version = "8.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/a8/99/604f0b666d4c616d891cf77ebb9db6bb21601344c051aebf1b72b9ff915f/redis-8.1.0.tar.gz", hash = "sha256:6e1a19beef9225c83efd689c7e6b7da2d5215b1f42cd13b7fc3714d0a09c7b25", size = 5254356, upload-time = "2026-07-30T08:51:00.269Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/66/9d/c5731f6e3608663d4d3656fd8d3aecee8b509c3082818f5a13eae925baea/redis-8.1.0-py3-none-any.whl", hash = "sha256:a4fe1aac3d3b3cc791d4b3d5931c5a956045dc951ee74d1c913ee3ac4d2ee9fb", size = 560618, upload-time = "2026-07-30T08:50:58.497Z" },
 ]
 
 [[package]]

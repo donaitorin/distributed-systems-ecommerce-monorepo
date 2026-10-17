@@ -4,6 +4,7 @@ import pytest
 
 from kafka_support import KafkaBroker, free_port, run_kafka
 from postgres_support import PostgresServer, run_postgres
+from redis_support import RedisServer, run_redis
 from seaweedfs_support import SeaweedFs, run_seaweedfs
 
 
@@ -23,6 +24,12 @@ def postgres_server() -> Iterator[PostgresServer]:
 def kafka() -> Iterator[KafkaBroker]:
     with run_kafka() as broker:
         yield broker
+
+
+@pytest.fixture(scope="session")
+def redis_server() -> Iterator[RedisServer]:
+    with run_redis() as server:
+        yield server
 
 
 @pytest.fixture
