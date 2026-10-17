@@ -18,8 +18,12 @@ proof_dynamic_files=(auth.yml)
 mkdir -p "$workdir/dynamic"
 sed 's/10\.250\.10\./10.250.20./g' "$gateway_config/traefik.yml" > "$workdir/traefik.yml"
 for name in "${proof_dynamic_files[@]}"; do
-  sed 's/10\.250\.10\./10.250.20./g' "$gateway_config/dynamic/$name" > "$workdir/dynamic/$name"
+  sed -e 's/10\.250\.10\./10.250.20./g' -e 's/period: 1m$/period: 1h/' "$gateway_config/dynamic/$name" > "$workdir/dynamic/$name"
 done
+if grep -q 'period: 1m' "$workdir/dynamic/auth.yml" || ! grep -q 'period: 1h' "$workdir/dynamic/auth.yml"; then
+  echo "the proof could not slow the refill of the rate limit buckets: check the period lines of infra/gateway/dynamic/auth.yml"
+  exit 2
+fi
 export PROOF_CONFIG_DIR=$workdir
 
 pass() { printf 'PASS  %s\n' "$1"; }
@@ -94,6 +98,11 @@ start_stack() {
 }
 
 start_stack
+
+echo "note: this proof is about bucket separation and header trust, not the production rate."
+echo "      Its copy of auth.yml keeps the production burst but refills per hour instead of per minute,"
+echo "      so a slow runner cannot earn an extra request while a check is counting rejections."
+echo
 
 login=/api/v1/auth/login
 register=/api/v1/auth/register
