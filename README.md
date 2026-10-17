@@ -337,6 +337,21 @@ Keyboard and screen reader walkthrough of the purchase flow (VoiceOver or NVDA) 
 - **Customer accounts.** `/register` creates the account and signs in with the same credentials; `/login` signs in. Both are server actions over `packages/auth`, so the tokens only ever live in the `httpOnly` cookies. An email that is taken is shown on the email field (with a link to sign in), password rules from the API (too short, too common, same as the email) are explained in plain language on the password field, and a rate limit says when to retry. `next` is only accepted as an internal path (`nextPath` in `web-core`, the same helper and open-redirect table the backoffice uses); anything else, and the login and register pages themselves, fall back to `/products`. The header shows Sign in to a visitor and Account and Sign out to a customer. `/account` reads the profile from `GET /api/v1/accounts/me` and edits name and phone with `PATCH` (a blank phone clears it); field errors are linked to their inputs and focus goes to the first invalid one. Saved addresses come with checkout.
 - **Cart.** The product page has the add to cart action in its slot: a quantity (1 to 99, never above the stock) and a button that is disabled, with the reason, when the product is out of stock. A visitor who adds goes to `/login?next=/products/{sku}`. Signed in customers see a Cart link with the number of units in the header; a polite live region announces the new count when it changes. `/cart` (protected like `/account`; the cart service documentation is under `/cart-service`) lists each line with image, name, quantity control, line total and Remove, a subtotal, an empty state and Clear cart behind a confirmation dialog. Every call goes through the store server with the session cookie. A price change shows as "The price changed from $X to $Y" with Accept new price (it sends `accepted_price`; on a `409` the page shows the price the server reported and the next click accepts that one), a retired product as "No longer available" and low stock as "Only N left" or "Out of stock". The cart limits (100 different products, 1 to 99 per product) and an unreachable cart are shown as plain messages, the latter with Try again. Changes are announced in `role="status"` regions and focus returns to the page heading when the cart empties. See [ADR 0010](docs/adr/0010-store-catalog-search-and-product-pages.md).
 
+## Dead letters
+
+A message that cannot be processed goes to `<topic>.dlq` and the partition keeps moving. That covers anything that is not a valid event envelope, an unsupported event version, a payload that does not match its contract, and a handler that still fails after its retries (3 attempts with exponential backoff). The original key and value are kept so the message can be replayed.
+
+Logs and dead letter headers never carry payload values. A log line has the event id and type (when the envelope could be read), the error type, the topic, partition and offset. The `x-error` header is a safe summary: for a contract violation it lists the field paths and error codes (`2 validation errors: payload.email: string_type; event_version: int_parsing`), and for any other exception only its type. The other headers are `x-error-type`, `x-attempts`, `x-original-topic`, `x-original-partition`, `x-original-offset` and `x-consumer-group`.
+
+| Command | What it does |
+| --- | --- |
+| `make dlq-inspect TOPIC=orders.events.dlq` | One JSON object per dead letter: partition, offset, key, event id and type, origin, group, error type, safe summary, attempts. Add `SHOW_PAYLOAD=1` to include the raw value (base64), which may hold personal data |
+| `make dlq-replay TOPIC=orders.events.dlq OFFSETS="0:12 3:4"` | Publish those dead letters (`PARTITION:OFFSET`, as printed by inspect) again to the original topic |
+| `make dlq-replay TOPIC=orders.events.dlq ALL=1` | Replay every dead letter of the topic. `DRY_RUN=1` shows what would be replayed without publishing |
+| `make check-dead-letters` | Produce one malformed message into every topic and wait until each `.dlq` has it (needs the stack running) |
+
+Replaying is safe to repeat: the replayed message keeps its event id, so every consumer skips what it already applied, and the original dead letter stays in the topic (Kafka does not delete). A replay is all or nothing: if one selected message has no usable `x-original-topic` header, or names a topic other than the one its dead letter topic belongs to, nothing is published. A message that is still malformed simply lands in the dead letter topic again, so fix the cause (a deploy, a missing row) before replaying. The commands run the `ecommerce_messaging.dlq_cli` module inside the `orders-worker` image, so they use the stack's Kafka and need no local Python setup.
+
 ## Commands
 
 | Command | Description |
@@ -358,6 +373,7 @@ Keyboard and screen reader walkthrough of the purchase flow (VoiceOver or NVDA) 
 | `make storybook`, `make test-storybook` | Run Storybook; build it and run axe on every story |
 | `make openapi`, `make check-openapi` | Regenerate the OpenAPI documents and API types, or fail when they are stale |
 | `make check-routes` | Prove the gateway routes against the running stack |
+| `make dlq-inspect`, `make dlq-replay`, `make check-dead-letters` | Inspect and replay dead letters, and prove every topic has a working dead letter path (see Dead letters) |
 | `make check-rate-limit` | Prove the rate limit buckets and the forwarded header trust (isolated stack, needs Docker) |
 
 ## Repository layout
