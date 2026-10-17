@@ -38,6 +38,19 @@ x-accounts-database-environment: &accounts-database-environment
   ACCOUNTS_DB_USER: accounts_user
   ACCOUNTS_DB_PASSWORD: ${ACCOUNTS_DB_PASSWORD}
 
+x-cart-image: &cart-image
+  image: ecommerce/cart:dev
+  pull_policy: never
+
+x-cart-build: &cart-build
+  context: ./backend
+  dockerfile: services/cart/Dockerfile
+
+x-cart-redis-environment: &cart-redis-environment
+  REDIS_CART_HOST: redis-cart
+  REDIS_CART_PORT: "6379"
+  REDIS_CART_PASSWORD: ${REDIS_CART_PASSWORD}
+
 x-store-image: &store-image
   image: ecommerce/store:dev
   pull_policy: never
@@ -339,6 +352,43 @@ services:
       <<: *accounts-database-environment
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
 
+  cart:
+    <<: *cart-image
+    pull_policy: build
+    build: *cart-build
+    restart: unless-stopped
+    depends_on:
+      redis-cart:
+        condition: service_healthy
+    environment:
+      <<: [*jwt-environment, *cart-redis-environment]
+      JWT_JWKS_URL: http://auth:8000/api/v1/auth/.well-known/jwks.json
+      ROOT_PATH: /cart-service
+      CATALOG_BASE_URL: http://catalog:8000
+      CATALOG_TIMEOUT_SECONDS: ${CART_CATALOG_TIMEOUT_SECONDS:-2}
+      MEDIA_PUBLIC_BASE_URL: ${MEDIA_PUBLIC_BASE_URL:-/media}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready', timeout=2)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  cart-worker:
+    <<: *cart-image
+    restart: unless-stopped
+    command: ["python", "-m", "cart.worker"]
+    depends_on:
+      redis-cart:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+    environment:
+      <<: *cart-redis-environment
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+
   catalog-migrate:
     <<: *catalog-image
     restart: "no"
@@ -465,6 +515,7 @@ networks:
     ipam:
       config:
         - subnet: 10.250.10.0/28
+          ip_range: 10.250.10.8/29
 
 volumes:
   auth-keys:

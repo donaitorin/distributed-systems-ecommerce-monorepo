@@ -1,15 +1,18 @@
 import type { paths as AccountsPaths } from "./generated/accounts";
 import type { paths as AuthPaths } from "./generated/auth";
+import type { paths as CartPaths } from "./generated/cart";
 import type { paths as CatalogPaths } from "./generated/catalog";
 
 export type { components as AccountsComponents } from "./generated/accounts";
 export type { components as AuthComponents } from "./generated/auth";
+export type { components as CartComponents } from "./generated/cart";
 export type { components as CatalogComponents } from "./generated/catalog";
-export type { AccountsPaths, AuthPaths, CatalogPaths };
+export type { AccountsPaths, AuthPaths, CartPaths, CatalogPaths };
 
 export type GatewayPaths = Omit<AuthPaths, "/health" | "/ready"> &
   Omit<CatalogPaths, "/health" | "/ready"> &
-  Omit<AccountsPaths, "/health" | "/ready">;
+  Omit<AccountsPaths, "/health" | "/ready"> &
+  Omit<CartPaths, "/health" | "/ready">;
 
 export { createApiClient, buildPath, buildQuery } from "./client";
 export type { ApiClient, ApiClientOptions } from "./client";

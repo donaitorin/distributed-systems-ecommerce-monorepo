@@ -8,6 +8,7 @@ from itertools import batched
 from uuid import UUID
 
 from catalog.application.ports import UnitOfWorkFactory
+from catalog.application.product_events import publish_product_updated
 from catalog.application.products import utc_now
 from catalog.domain.csv_import import (
     CategoryIndex,
@@ -157,8 +158,12 @@ class ImportJobs:
         progress = Progress()
         while (batch := await asyncio.to_thread(next, batches, None)) is not None:
             async with self._unit_of_work() as uow:
-                progress = progress.plus(await uow.products.upsert_many(batch, self._clock()))
-                await uow.imports.record_progress(import_id, progress, self._clock())
+                now = self._clock()
+                result = await uow.products.upsert_many(batch, now)
+                for product in result.changed:
+                    await publish_product_updated(uow, product, now, import_id)
+                progress = progress.plus(result.progress)
+                await uow.imports.record_progress(import_id, progress, now)
                 await uow.commit()
         async with self._unit_of_work() as uow:
             await uow.imports.transition(

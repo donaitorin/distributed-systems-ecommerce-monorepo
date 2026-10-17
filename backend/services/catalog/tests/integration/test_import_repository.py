@@ -13,10 +13,12 @@ from catalog.application.errors import DuplicateImportError
 from catalog.domain.csv_import import ImportableRow, Problem, Severity
 from catalog.domain.imports import (
     CategoryRef,
+    ChangedProduct,
     ImportStatus,
     ImportSummary,
     NewImport,
     Progress,
+    UpsertResult,
 )
 from catalog.domain.product import NewProduct, ProductData
 from catalog.infra.database import create_engine, create_session_factory
@@ -48,11 +50,17 @@ def incoming(
     return ImportableRow(2, NewProduct(sku, data))
 
 
-async def upsert(factory: Factory, rows: list[ImportableRow], now: datetime = NOW) -> Progress:
+async def upsert_with_changes(
+    factory: Factory, rows: list[ImportableRow], now: datetime = NOW
+) -> UpsertResult:
     async with factory() as uow:
-        progress = await uow.products.upsert_many(rows, now)
+        result = await uow.products.upsert_many(rows, now)
         await uow.commit()
-    return progress
+    return result
+
+
+async def upsert(factory: Factory, rows: list[ImportableRow], now: datetime = NOW) -> Progress:
+    return (await upsert_with_changes(factory, rows, now)).progress
 
 
 async def product(factory: Factory, sku: str) -> dict[str, Any]:
@@ -144,6 +152,28 @@ async def test_a_mixed_batch_gets_the_right_counts_and_effects(factory: Factory)
     assert (await product(factory, "SAME"))["version"] == 1
     assert (await product(factory, "CHANGED"))["stock"] == 9
     assert (await product(factory, "FRESH"))["version"] == 1
+
+
+async def test_only_created_updated_and_restored_products_are_reported_as_changed(
+    factory: Factory,
+) -> None:
+    await upsert(factory, [incoming("SAME"), incoming("CHANGED"), incoming("GONE")])
+    async with factory() as uow:
+        await uow.products.set_image("CHANGED", "products/CHANGED/abc", NOW)
+        await uow.products.soft_delete("GONE", NOW)
+        await uow.commit()
+
+    result = await upsert_with_changes(
+        factory,
+        [incoming("SAME"), incoming("CHANGED", stock=9), incoming("GONE"), incoming("FRESH")],
+        LATER,
+    )
+
+    assert sorted(result.changed, key=lambda item: item.sku) == [
+        ChangedProduct("CHANGED", "Shoes", Decimal("10.00"), 9, "products/CHANGED/abc", 3),
+        ChangedProduct("FRESH", "Shoes", Decimal("10.00"), 5, None, 1),
+        ChangedProduct("GONE", "Shoes", Decimal("10.00"), 5, None, 3),
+    ]
 
 
 async def test_a_thousand_rows_go_in_one_statement(factory: Factory) -> None:

@@ -37,6 +37,7 @@ type Sleeper = Callable[[float], Awaitable[None]]
 class ClaimMode(StrEnum):
     WITH_HANDLER = "with_handler"
     AFTER_HANDLER = "after_handler"
+    NONE = "none"
 
 
 class Outcome(StrEnum):
@@ -88,6 +89,18 @@ def standalone_handler[PayloadT: BaseModel](
     return Handler(event_type, version, payload, run, ClaimMode.AFTER_HANDLER)
 
 
+def idempotent_handler[PayloadT: BaseModel](
+    event_type: str,
+    version: int,
+    payload: type[PayloadT],
+    callback: Callable[[Envelope[PayloadT]], Awaitable[None]],
+) -> Handler:
+    async def run(envelope: Envelope[Any], session: AsyncSession | None) -> None:
+        await callback(envelope)
+
+    return Handler(event_type, version, payload, run, ClaimMode.NONE)
+
+
 @dataclass(frozen=True, slots=True)
 class RetryPolicy:
     max_attempts: int = 3
@@ -118,9 +131,9 @@ class EventConsumer:
         group: str,
         source: MessageSource,
         dead_letters: Publisher,
-        session_factory: async_sessionmaker[AsyncSession],
-        processed_events: Table,
         handlers: Sequence[Handler],
+        session_factory: async_sessionmaker[AsyncSession] | None = None,
+        processed_events: Table | None = None,
         retry: RetryPolicy = DEFAULT_RETRY,
         on_dead_letter: DeadLetterHook | None = None,
         sleep: Sleeper = asyncio.sleep,
@@ -142,6 +155,9 @@ class EventConsumer:
                 raise ValueError(f"handler registered twice for {identity}")
             self._handlers[identity] = handler
         self._types = {event_type for event_type, _ in self._handlers}
+        needs_claims = any(handler.claim is not ClaimMode.NONE for handler in handlers)
+        if needs_claims and (session_factory is None or processed_events is None):
+            raise ValueError("handlers that claim events need a session factory and a claim table")
 
     async def run(self, stop: asyncio.Event) -> None:
         backoff = 0.5
@@ -221,6 +237,10 @@ class EventConsumer:
         return typed
 
     async def _run_handler(self, handler: Handler, envelope: Envelope[Any]) -> Outcome:
+        if handler.claim is ClaimMode.NONE:
+            await handler.callback(envelope, None)
+            return Outcome.PROCESSED
+        assert self._sessions is not None
         if handler.claim is ClaimMode.WITH_HANDLER:
             async with self._sessions() as session, session.begin():
                 if not await self._claim(session, envelope.event_id):
@@ -236,6 +256,7 @@ class EventConsumer:
         return Outcome.PROCESSED
 
     async def _claim(self, session: AsyncSession, event_id: UUID) -> bool:
+        assert self._processed is not None
         statement = (
             pg_insert(self._processed)
             .values(consumer_group=self._group, event_id=event_id)
@@ -245,6 +266,7 @@ class EventConsumer:
         return (await session.execute(statement)).scalar_one_or_none() is not None
 
     async def _already_processed(self, session: AsyncSession, event_id: UUID) -> bool:
+        assert self._processed is not None
         statement = select(self._processed.c.event_id).where(
             self._processed.c.consumer_group == self._group,
             self._processed.c.event_id == event_id,

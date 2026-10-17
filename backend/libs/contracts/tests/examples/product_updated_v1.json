@@ -1,0 +1,17 @@
+{
+  "event_id": "5d1c2f7a-3b8e-4c19-9e64-7a0f2b6d8c13",
+  "event_type": "product.updated",
+  "event_version": 1,
+  "occurred_at": "2026-10-16T10:30:00Z",
+  "correlation_id": "9a4e6b21-0d7c-4f35-8b12-c3e5a7d90f68",
+  "producer": "catalog-service",
+  "payload": {
+    "sku": "RS-001",
+    "name": "Rust in Action",
+    "price": "39.90",
+    "stock": 12,
+    "image_key": "products/RS-001/0b9c5d7e1a02.webp",
+    "version": 4,
+    "occurred_at": "2026-10-16T10:30:00Z"
+  }
+}

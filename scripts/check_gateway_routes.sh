@@ -57,6 +57,8 @@ expect "store: /register drops a backslash next URL" 200 'name="next" value="/pr
 expect "store: the header offers Sign in to a visitor" 200 'href="/login"' "$(fetch "$GATEWAY/products")"
 if grep -qi 'Sign out' /tmp/gateway-check.body; then fail "store: a visitor must not see Sign out"; else pass "store: a visitor does not see Sign out"; fi
 expect "store: GET /account (no session) redirects to the store login" 307 "location: /login?next=%2Faccount" "$(fetch "$GATEWAY/account")"
+expect "store: GET /cart (no session) reaches the store and redirects to its login" 307 "location: /login?next=%2Fcart" "$(fetch "$GATEWAY/cart")"
+expect "store: GET /cart/ is the store (it normalises to /cart), not the cart service" 308 "location: /cart" "$(fetch "$GATEWAY/cart/")"
 expect "store: unknown page is the store 404" 404 "could not be found" "$(fetch "$GATEWAY/does-not-exist")"
 
 store_css=$(fetch "$GATEWAY/products" >/dev/null; grep -o '/_next/static/[^"]*\.css' /tmp/gateway-check.body | head -1)
@@ -81,6 +83,9 @@ if [ -n "$admin_token" ] && [ -n "$customer_token" ]; then
   expect "store: /account shows the profile form" 200 'name="name"' "$(fetch -H "cookie: ecommerce_access=$customer_token" "$GATEWAY/account")"
   expect "store: the header offers Account and Sign out to a customer" 200 "Sign out" "$(fetch -H "cookie: ecommerce_access=$customer_token" "$GATEWAY/products")"
   if grep -q 'href="/login"' /tmp/gateway-check.body; then fail "store: a customer must not see the Sign in link"; else pass "store: a customer does not see the Sign in link"; fi
+  expect "store: /cart with a customer session is the store cart page" 200 "Your cart" "$(fetch -H "cookie: ecommerce_access=$customer_token" "$GATEWAY/cart")"
+  if grep -qi 'swagger' /tmp/gateway-check.body; then fail "store: /cart must not be the cart service documentation"; else pass "store: /cart is not the cart service documentation"; fi
+  expect "store: the header offers the cart to a customer" 200 'href="/cart"' "$(fetch -H "cookie: ecommerce_access=$customer_token" "$GATEWAY/products")"
   expect "store: /login sends a signed in customer on to the next page" 307 "location: /account" "$(fetch -H "cookie: ecommerce_access=$customer_token" "$GATEWAY/login?next=%2Faccount")"
   expect "store: /register sends a signed in customer to the products page" 307 "location: /products" "$(fetch -H "cookie: ecommerce_access=$customer_token" "$GATEWAY/register")"
   expect "backoffice: /admin/products renders for an admin" 200 "products-heading" "$(fetch -H "cookie: ecommerce_access=$admin_token" "$GATEWAY/admin/products")"
@@ -129,6 +134,10 @@ expect "auth: GET /auth/health" 200 '"status":"ok"' "$(fetch "$GATEWAY/auth/heal
 expect "auth: GET /auth/ready" 200 "" "$(fetch "$GATEWAY/auth/ready")"
 expect "accounts: GET /api/v1/accounts/me needs a token" 401 "problem+json" "$(fetch "$GATEWAY/api/v1/accounts/me")"
 expect "accounts: GET /accounts/health" 200 '"status":"ok"' "$(fetch "$GATEWAY/accounts/health")"
+
+expect "cart: GET /api/v1/cart needs a token" 401 "problem+json" "$(fetch "$GATEWAY/api/v1/cart")"
+expect "cart: GET /cart-service/health" 200 '"status":"ok"' "$(fetch "$GATEWAY/cart-service/health")"
+expect "cart: GET /cart-service/ready" 200 '"redis":"ok"' "$(fetch "$GATEWAY/cart-service/ready")"
 
 LOCALHOST="http://localhost:${GATEWAY_HTTP_PORT:-8000}"
 expect "localhost: backoffice login page" 200 "Administrator sign in" "$(fetch "$LOCALHOST/admin/login")"

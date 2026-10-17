@@ -1,0 +1,603 @@
+{
+  "components": {
+    "schemas": {
+      "CartOut": {
+        "properties": {
+          "item_count": {
+            "description": "Total units in the cart",
+            "title": "Item Count",
+            "type": "integer"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/LineOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "subtotal": {
+            "description": "Sum of the line totals at the saved prices",
+            "title": "Subtotal",
+            "type": "string"
+          }
+        },
+        "required": [
+          "items",
+          "item_count",
+          "subtotal"
+        ],
+        "title": "CartOut",
+        "type": "object"
+      },
+      "FlagOut": {
+        "properties": {
+          "available": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Units in stock",
+            "title": "Available"
+          },
+          "new_price": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Current catalog price",
+            "title": "New Price"
+          },
+          "old_price": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Price saved in the cart",
+            "title": "Old Price"
+          },
+          "type": {
+            "$ref": "#/components/schemas/FlagType"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "title": "FlagOut",
+        "type": "object"
+      },
+      "FlagType": {
+        "enum": [
+          "price_changed",
+          "unavailable",
+          "insufficient_stock"
+        ],
+        "title": "FlagType",
+        "type": "string"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "ItemIn": {
+        "additionalProperties": false,
+        "properties": {
+          "accepted_price": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The price the customer agreed to. When present it must equal the current catalog price, otherwise the request fails with 409; on success the line takes the current price and name.",
+            "title": "Accepted Price"
+          },
+          "quantity": {
+            "examples": [
+              2
+            ],
+            "maximum": 99.0,
+            "minimum": 1.0,
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "quantity"
+        ],
+        "title": "ItemIn",
+        "type": "object"
+      },
+      "LineOut": {
+        "properties": {
+          "flags": {
+            "items": {
+              "$ref": "#/components/schemas/FlagOut"
+            },
+            "title": "Flags",
+            "type": "array"
+          },
+          "line_total": {
+            "title": "Line Total",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "price": {
+            "description": "Price saved when the line was added or last accepted",
+            "title": "Price",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "sku": {
+            "title": "Sku",
+            "type": "string"
+          },
+          "thumbnail_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Public URL of the 400 px image",
+            "title": "Thumbnail Url"
+          }
+        },
+        "required": [
+          "sku",
+          "name",
+          "quantity",
+          "price",
+          "line_total",
+          "thumbnail_url",
+          "flags"
+        ],
+        "title": "LineOut",
+        "type": "object"
+      },
+      "ProblemOut": {
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "instance": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instance"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
+          "status": {
+            "title": "Status",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "status"
+        ],
+        "title": "ProblemOut",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "title": "cart",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/cart": {
+      "delete": {
+        "operationId": "clear_cart_api_v1_cart_delete",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemOut"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemOut"
+                }
+              }
+            },
+            "description": "The cart store or the catalog is unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Empty the cart",
+        "tags": [
+          "cart"
+        ]
+      },
+      "get": {
+        "description": "Lines keep the price and name saved when they were added. `flags` compares each line with what the catalog says now: `price_changed` (old and new price), `unavailable` (the product was retired) and `insufficient_stock` (`available` may be 0). Nothing is changed silently.",
+        "operationId": "get_cart_api_v1_cart_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CartOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemOut"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemOut"
+                }
+              }
+            },
+            "description": "The cart store or the catalog is unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get the cart of the authenticated user",
+        "tags": [
+          "cart"
+        ]
+      }
+    },
+    "/api/v1/cart/items/{sku}": {
+      "delete": {
+        "description": "Removing a product that is not in the cart is not an error.",
+        "operationId": "delete_item_api_v1_cart_items__sku__delete",
+        "parameters": [
+          {
+            "description": "Product SKU, case insensitive",
+            "in": "path",
+            "name": "sku",
+            "required": true,
+            "schema": {
+              "description": "Product SKU, case insensitive",
+              "title": "Sku",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CartOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemOut"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemOut"
+                }
+              }
+            },
+            "description": "Unknown or retired product"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemOut"
+                }
+              }
+            },
+            "description": "The cart store or the catalog is unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Remove a product from the cart",
+        "tags": [
+          "cart"
+        ]
+      },
+      "put": {
+        "description": "Creates the line or replaces its quantity (1 to 99). A new line reads the product from the catalog and saves its price and name. A cart holds at most 100 different products. With `accepted_price` the line takes the current price and name, but only if that price is the one sent.",
+        "operationId": "put_item_api_v1_cart_items__sku__put",
+        "parameters": [
+          {
+            "description": "Product SKU, case insensitive",
+            "in": "path",
+            "name": "sku",
+            "required": true,
+            "schema": {
+              "description": "Product SKU, case insensitive",
+              "title": "Sku",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItemIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CartOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemOut"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemOut"
+                }
+              }
+            },
+            "description": "Unknown or retired product"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemOut"
+                }
+              }
+            },
+            "description": "The cart is full or the accepted price is not the current price"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemOut"
+                }
+              }
+            },
+            "description": "Invalid request data"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemOut"
+                }
+              }
+            },
+            "description": "The cart store or the catalog is unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Set the quantity of a product in the cart",
+        "tags": [
+          "cart"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Health Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health"
+      }
+    },
+    "/ready": {
+      "get": {
+        "operationId": "ready_ready_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ready"
+      }
+    }
+  }
+}

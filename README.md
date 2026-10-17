@@ -46,6 +46,7 @@ One-shot jobs `kafka-init`, `object-storage-init`, `auth-migrate` and `catalog-m
 | --- | --- | --- |
 | Auth | `auth` | `/api/v1/auth/*`, and `/auth/docs`, `/auth/health`, `/auth/ready` |
 | Accounts | `accounts`, `accounts-worker` | `/api/v1/accounts/*`, and `/accounts/docs`, `/accounts/health`, `/accounts/ready` |
+| Cart | `cart`, `cart-worker` | `/api/v1/cart/*`, and `/cart-service/docs`, `/cart-service/health`, `/cart-service/ready` |
 | Catalog | `catalog` | `/api/v1/products`, `/api/v1/categories`, and `/catalog/docs`, `/catalog/health`, `/catalog/ready` |
 | Backoffice | `backoffice` | `/admin` and `/admin/*` |
 | Store | `store` | Everything else (lowest priority), including `/login`, `/register` and `/account` |
@@ -98,6 +99,30 @@ How a profile comes to exist and stays current:
 - **Ordering rule.** The role carries the time it was written (`role_updated_at`), and a write changes the role only if its time is strictly newer: `registered_at` for `user.registered`, `changed_at` for `user.role_changed`, and the token `iat` for the lazy path (the token role was read from the database at that moment). When a profile has no role time, because the token had no `iat`, any event wins. The reasoning and its limits are in [ADR 0006](docs/adr/0006-accounts-profile-consistency.md).
 
 The accounts API needs only its own database: `/ready` checks Postgres, the API does not start Kafka, and it fetches the signing keys lazily like catalog. Only the worker needs Kafka.
+
+## Cart API
+
+The cart service keeps one cart per user in `redis-cart` (AOF with `appendfsync everysec`, `noeviction`), so a restart of Redis does not lose carts. Every endpoint needs a customer or admin token and answers `Cache-Control: no-store`. The docs live under `/cart-service/...` because `/cart` is the storefront page.
+
+| Request | What it does |
+| --- | --- |
+| `GET /api/v1/cart` | `{items, item_count, subtotal}`. Each item has `sku`, `name`, `quantity`, `price` (saved when the line was added or last accepted), `line_total`, `thumbnail_url` and `flags` |
+| `PUT /api/v1/cart/items/{sku}` | Body `{quantity, accepted_price?}`, quantity 1 to 99. Creates the line or replaces its quantity and returns the cart. A new line reads the product from catalog (timeout 2 s) and saves its price and name. `404` for an unknown or retired product, `409` when the cart already has 100 different products (`code: cart_full`), `503` with `Retry-After` when catalog or Redis cannot answer |
+| `DELETE /api/v1/cart/items/{sku}` | Removes the line (not an error if it is not there) and returns the cart |
+| `DELETE /api/v1/cart` | Empties the cart, `204` |
+
+```bash
+TOKEN=$(ROLE=customer make -s dev-token)
+curl -s -X PUT localhost:8000/api/v1/cart/items/RS-001 -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" -d '{"quantity": 2}'
+curl -s localhost:8000/api/v1/cart -H "Authorization: Bearer $TOKEN"
+```
+
+- **Flags.** `GET` compares every line with the cart's projection of catalog and reports, without changing the line: `price_changed` (`old_price`, `new_price`), `unavailable` (the product was retired) and `insufficient_stock` (`available`, which can be 0). The saved price is never the source of truth: checkout revalidates against catalog.
+- **Accepting a new price.** `PUT` with `accepted_price` set to the `new_price` the customer saw. The line takes the current price and name and keeps its quantity. If catalog's price is no longer that value the answer is `409` (`code: price_changed`, `current_price`), the same optimistic idea as `If-Match` on products.
+- **Projection.** The `cart-worker` container consumes `catalog.events` in the group `cart-catalog-events` and keeps `product:{sku}` (price, stock, name, version, deleted) in Redis, applying an event only if its version is newer than the stored one, with a Lua script. Replays and out of order delivery change nothing, so there is no processed-events table ([ADR 0011](docs/adr/0011-consumers-that-skip-the-claim.md), [ADR 0012](docs/adr/0012-cart-service.md)). Entries exist only for products that were added to some cart and expire 30 days after their last use, so importing 200,000 products cannot fill `redis-cart`.
+- **Lifetime.** A cart expires 30 days after its last change. Reading does not renew it.
+- **Independence.** `/ready` checks Redis only. The service starts without catalog, Kafka or auth; catalog is called only when a product is added or a price is accepted.
 
 ## Catalog API
 
@@ -191,6 +216,10 @@ Every problem carries the row, the column, the received value and the reason, se
 
 97 rows = 2 blank + 4 with errors + 3 skipped (rows 2 and 56 replaced by later rows, row 11 identical to the winning row 89) + 88 importable products.
 
+### Product events
+
+Every catalog write publishes an event on the `catalog.events` topic (key: SKU) through the transactional outbox, in the same transaction as the write; the `catalog-worker` relays them. Creating, replacing, changing or removing the image of a product, and every product that a CSV import creates, updates or restores, publish `product.updated` with `sku`, `name`, `price`, `stock`, `image_key` (an object key, never a URL), `version` and `occurred_at`. Soft deleting publishes `product.deleted` with `sku`, `version` and `occurred_at`. Rows of an import that change nothing publish nothing. The version grows with every change of a product, so a consumer applies an event only if its version is newer than the one it holds, which makes redelivery and reordering harmless. The payloads live in `backend/libs/contracts` with stored examples. A large import writes one outbox row per changed product: measured on a laptop with Testcontainers (Postgres and Kafka, relay batch of 100), a 100,000 row import that created every product took 39 s including the outbox rows, and the relay then needed 36 s (about 2,800 events per second) to publish the 100,000 events. Publishing takes roughly 4 s per 10,000 changed products after the import finishes; no optimization was needed.
+
 ### Importing a CSV
 
 Nothing is written to the catalog until an admin confirms. The file is validated in the background by the `catalog-worker` container, which talks to Kafka; the API itself only needs Postgres and the object store.
@@ -267,6 +296,7 @@ Keyboard and screen reader walkthrough of the purchase flow (VoiceOver or NVDA) 
 - **Product page.** The SKU is case-insensitive: another case redirects to the canonical address. Unknown and retired products are a real 404 with a page that links back to the catalog, and a temporary catalog failure shows an alert with a retry link instead. Out of stock products stay visible with their badge and a notice, and show no purchase action. `add-to-cart-slot.tsx` marks where the cart stage puts the add to cart form.
 - **Images.** Cards use the 400 px thumbnail and the product page the 1200 px image; a product without an image, or whose image fails to load (also before hydration), shows the placeholder. `MEDIA_PUBLIC_BASE_URL` is relative, so the URLs are same-origin and the CSP needs nothing extra.
 - **Customer accounts.** `/register` creates the account and signs in with the same credentials; `/login` signs in. Both are server actions over `packages/auth`, so the tokens only ever live in the `httpOnly` cookies. An email that is taken is shown on the email field (with a link to sign in), password rules from the API (too short, too common, same as the email) are explained in plain language on the password field, and a rate limit says when to retry. `next` is only accepted as an internal path (`nextPath` in `web-core`, the same helper and open-redirect table the backoffice uses); anything else, and the login and register pages themselves, fall back to `/products`. The header shows Sign in to a visitor and Account and Sign out to a customer. `/account` reads the profile from `GET /api/v1/accounts/me` and edits name and phone with `PATCH` (a blank phone clears it); field errors are linked to their inputs and focus goes to the first invalid one. Saved addresses come with checkout.
+- **Cart.** The product page has the add to cart action in its slot: a quantity (1 to 99, never above the stock) and a button that is disabled, with the reason, when the product is out of stock. A visitor who adds goes to `/login?next=/products/{sku}`. Signed in customers see a Cart link with the number of units in the header; a polite live region announces the new count when it changes. `/cart` (protected like `/account`; the cart service documentation is under `/cart-service`) lists each line with image, name, quantity control, line total and Remove, a subtotal, an empty state and Clear cart behind a confirmation dialog. Every call goes through the store server with the session cookie. A price change shows as "The price changed from $X to $Y" with Accept new price (it sends `accepted_price`; on a `409` the page shows the price the server reported and the next click accepts that one), a retired product as "No longer available" and low stock as "Only N left" or "Out of stock". The cart limits (100 different products, 1 to 99 per product) and an unreachable cart are shown as plain messages, the latter with Try again. Changes are announced in `role="status"` regions and focus returns to the page heading when the cart empties. See [ADR 0010](docs/adr/0010-store-catalog-search-and-product-pages.md).
 
 ## Commands
 

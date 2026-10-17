@@ -31,7 +31,11 @@ function watch(page) {
   });
 }
 
-setPreVisit(async (page) => {
+const MOBILE = { width: 375, height: 812 };
+const DESKTOP = { width: 1280, height: 720 };
+
+setPreVisit(async (page, context) => {
+  await page.setViewportSize(context.name === "Mobile" ? MOBILE : DESKTOP);
   watch(page);
   unexpected.set(page, []);
   await injectAxe(page);

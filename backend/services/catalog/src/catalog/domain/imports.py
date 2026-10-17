@@ -1,6 +1,7 @@
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
+from decimal import Decimal
 from enum import StrEnum
 from typing import Final
 from uuid import UUID
@@ -84,6 +85,22 @@ class Progress:
             self.restored_rows + other.restored_rows,
             self.unchanged_rows + other.unchanged_rows,
         )
+
+
+@dataclass(frozen=True, slots=True)
+class ChangedProduct:
+    sku: str
+    name: str
+    price: Decimal
+    stock: int
+    image_key: str | None
+    version: int
+
+
+@dataclass(frozen=True, slots=True)
+class UpsertResult:
+    progress: Progress
+    changed: tuple[ChangedProduct, ...]
 
 
 @dataclass(frozen=True, slots=True)

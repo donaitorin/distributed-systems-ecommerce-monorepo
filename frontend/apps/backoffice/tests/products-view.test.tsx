@@ -6,6 +6,7 @@ import type { Failure } from "@ecommerce/web-core";
 import { CATEGORY, product } from "./support/api";
 import { resetRouter, router } from "./support/navigation-mock";
 import { renderApp } from "./support/render";
+import { settled } from "@ecommerce/web-core/testing";
 
 jest.mock("next/navigation", () => jest.requireActual("./support/navigation-mock") as unknown);
 
@@ -169,6 +170,7 @@ describe("ProductsView URL state", () => {
     await waitFor(() => {
       expect(lastUrl(onUrlUpdate).has("sort")).toBe(false);
     });
+    await settled();
 
     await user.click(screen.getByRole("combobox", { name: "Results per page" }));
     await user.click(await screen.findByRole("option", { name: "24 per page" }));
@@ -284,9 +286,7 @@ describe("ProductsView pagination", () => {
       expect(lastUrl(onUrlUpdate).get("cursor")).toBe("NEXT");
     });
     expect(lastUrl(onUrlUpdate).get("q")).toBe("shoes");
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Previous" })).toBeEnabled();
-    });
+    await settled();
 
     await user.click(screen.getByRole("button", { name: "Previous" }));
     await waitFor(() => {

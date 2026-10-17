@@ -3,6 +3,7 @@ import { axe } from "jest-axe";
 import { DeleteProductDialog } from "../src/components/delete-product-dialog";
 import { router, resetRouter } from "./support/navigation-mock";
 import { renderApp } from "./support/render";
+import { settled } from "@ecommerce/web-core/testing";
 
 jest.mock("next/navigation", () => jest.requireActual("./support/navigation-mock") as unknown);
 
@@ -77,6 +78,7 @@ describe("DeleteProductDialog", () => {
 
     await user.click(await screen.findByRole("button", { name: "Delete product" }));
     await screen.findByRole("alert");
+    await settled();
     await user.click(screen.getByRole("button", { name: "Cancel" }));
 
     expect(onClose).toHaveBeenCalledTimes(1);

@@ -6,7 +6,9 @@ import { getSession, NONCE_HEADER } from "@ecommerce/auth/next";
 import { NavigationProvider } from "@ecommerce/web-core/client";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { AppShell, Button, StyleNonceProvider } from "@ecommerce/ui";
+import { CartLink } from "../components/cart/cart-link";
 import { navigationFor } from "../lib/shell-links";
+import { loadCartCount } from "../server/cart";
 import { signOutAction } from "./session-actions";
 import "./globals.css";
 
@@ -18,6 +20,7 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: { children: ReactNode }) {
   await connection();
   const session = await getSession();
+  const cartCount = session ? await loadCartCount() : null;
   const nonce = (await headers()).get(NONCE_HEADER) ?? undefined;
   return (
     <html lang="en">
@@ -30,11 +33,14 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 navigation={navigationFor(session !== null)}
                 actions={
                   session ? (
-                    <form action={signOutAction}>
-                      <Button type="submit" variant="secondary">
-                        Sign out
-                      </Button>
-                    </form>
+                    <>
+                      <CartLink count={cartCount} />
+                      <form action={signOutAction}>
+                        <Button type="submit" variant="secondary">
+                          Sign out
+                        </Button>
+                      </form>
+                    </>
                   ) : undefined
                 }
                 footer="Distributed systems e-commerce challenge"

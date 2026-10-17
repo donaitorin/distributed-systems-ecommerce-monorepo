@@ -19,10 +19,10 @@ from catalog.application.errors import (
 from catalog.application.images import ImageService
 from catalog.application.ports import ImageRenditions
 from catalog.application.products import ProductService
-from catalog.domain.image import IMMUTABLE_CACHE_CONTROL, full_key, thumbnail_key
+from catalog.domain.image import IMMUTABLE_CACHE_CONTROL
 from catalog.domain.preconditions import VersionPrecondition
 from catalog.infra.memory import InMemoryStore, InMemoryUnitOfWork
-from ecommerce_storage import InMemoryObjectStorage, ObjectStorageError
+from ecommerce_storage import InMemoryObjectStorage, ObjectStorageError, full_key, thumbnail_key
 
 ANY = VersionPrecondition(any_version=True)
 JPEG = b"\xff\xd8\xff\xe0" + b"0" * 32

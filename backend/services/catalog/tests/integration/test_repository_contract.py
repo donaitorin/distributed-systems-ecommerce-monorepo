@@ -7,6 +7,7 @@ import pytest
 from catalog.application.errors import (
     DuplicateCategoryError,
     DuplicateSkuError,
+    ProductNotFoundError,
     UnknownCategoryError,
 )
 from catalog.application.ports import UnitOfWorkFactory
@@ -152,6 +153,24 @@ async def test_soft_deleted_products_disappear_but_keep_their_sku(
         assert candidate.sku not in [row.product.sku for row in listed.rows]
         with pytest.raises(DuplicateSkuError):
             await uow.products.add(new_product(candidate.sku), NOW)
+
+
+async def test_soft_delete_returns_the_new_version_and_rejects_a_missing_product(
+    unit_of_work: UnitOfWorkFactory,
+) -> None:
+    candidate = new_product()
+    async with unit_of_work() as uow:
+        await uow.products.add(candidate, NOW)
+        await uow.commit()
+
+    async with unit_of_work() as uow:
+        version = await uow.products.soft_delete(candidate.sku, NOW)
+        await uow.commit()
+
+    async with unit_of_work() as uow:
+        assert version == 2
+        with pytest.raises(ProductNotFoundError):
+            await uow.products.soft_delete(candidate.sku, NOW)
 
 
 async def test_categories_are_listed_added_and_unique(unit_of_work: UnitOfWorkFactory) -> None:

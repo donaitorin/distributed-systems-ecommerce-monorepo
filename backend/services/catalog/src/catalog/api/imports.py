@@ -1,5 +1,5 @@
 from typing import Annotated, Literal
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Path, Query, Request, Response, status
 from fastapi.responses import StreamingResponse
@@ -8,9 +8,9 @@ from catalog.api.dependencies import ImportServiceDep, PageSize, require_problem
 from catalog.api.import_schemas import ImportOut, ProblemOut, ProblemsPageOut
 from catalog.api.responses import problem_responses
 from catalog.api.uploads import StreamedUpload
+from catalog.application.correlation import current_correlation_id as correlation_id
 from catalog.domain.imports import PREVIEW_PROBLEMS
 from ecommerce_auth import AdminUser
-from ecommerce_observability import get_request_id
 
 router = APIRouter(prefix="/api/v1/imports", tags=["imports"])
 
@@ -27,14 +27,6 @@ MULTIPART_BODY = {
         }
     },
 }
-
-
-def correlation_id() -> UUID:
-    current = get_request_id()
-    try:
-        return UUID(current) if current else uuid4()
-    except ValueError:
-        return uuid4()
 
 
 @router.post(

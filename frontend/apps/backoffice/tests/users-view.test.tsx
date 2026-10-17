@@ -6,6 +6,7 @@ import type { Failure } from "@ecommerce/web-core";
 import { profile } from "./support/api";
 import { resetRouter, router } from "./support/navigation-mock";
 import { renderApp } from "./support/render";
+import { settled } from "@ecommerce/web-core/testing";
 
 jest.mock("next/navigation", () => jest.requireActual("./support/navigation-mock") as unknown);
 
@@ -116,6 +117,7 @@ describe("UsersView URL state", () => {
       expect(onUrlUpdate).toHaveBeenCalled();
     });
     expect(lastUrl(onUrlUpdate).has("limit")).toBe(false);
+    await settled();
 
     await user.click(screen.getByRole("combobox", { name: "Users per page" }));
     await user.click(await screen.findByRole("option", { name: "100 per page" }));
@@ -178,6 +180,7 @@ describe("UsersView pagination", () => {
       expect(lastUrl(onUrlUpdate).get("cursor")).toBe("NEXT");
     });
     expect(lastUrl(onUrlUpdate).get("role")).toBe("admin");
+    await settled();
 
     await user.click(screen.getByRole("button", { name: "First page" }));
     await waitFor(() => {
@@ -268,6 +271,7 @@ describe("UsersView role change", () => {
     await user.click(table().getByRole("button", { name: "Make admin: ada@example.com" }));
     await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Make admin" }));
     expect(await within(screen.getByRole("dialog")).findByRole("alert")).toHaveTextContent("no longer exists");
+    await settled();
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();

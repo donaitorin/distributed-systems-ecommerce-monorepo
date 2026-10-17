@@ -1,0 +1,22 @@
+http:
+  routers:
+    cart-api:
+      rule: "Path(`/api/v1/cart`) || PathPrefix(`/api/v1/cart/`)"
+      entryPoints: [web]
+      service: cart
+    cart-docs:
+      rule: "Path(`/cart-service`) || PathPrefix(`/cart-service/`)"
+      entryPoints: [web]
+      middlewares: [cart-strip-prefix]
+      service: cart
+
+  middlewares:
+    cart-strip-prefix:
+      stripPrefix:
+        prefixes: ["/cart-service"]
+
+  services:
+    cart:
+      loadBalancer:
+        servers:
+          - url: "http://cart:8000"

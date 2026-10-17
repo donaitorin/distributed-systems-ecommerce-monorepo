@@ -1,12 +1,14 @@
 import asyncio
 import csv
 import io
+import json
 from collections.abc import AsyncIterator, Callable
 from typing import Any
 from uuid import UUID, uuid4
 
 import httpx
 import pytest
+from aiokafka import AIOKafkaConsumer
 from botocore.exceptions import ClientError
 from catalog_testing import images
 from catalog_testing.imports import SAMPLE
@@ -21,7 +23,7 @@ from catalog.infra.unit_of_work import SqlAlchemyUnitOfWork
 from catalog.worker import build_consumer
 from ecommerce_auth import Role
 from ecommerce_auth.testing import StubTokenIssuer
-from ecommerce_contracts import IMPORTS_TOPIC
+from ecommerce_contracts import CATALOG_TOPIC, IMPORTS_TOPIC
 from ecommerce_messaging import (
     InMemoryBroker,
     KafkaPublisher,
@@ -74,6 +76,18 @@ class Stack:
     async def scalar(self, query: str, **params: object) -> Any:
         async with self.sessions() as session:
             return await session.scalar(text(query), params)
+
+    async def rows(self, query: str) -> list[Any]:
+        async with self.sessions() as session:
+            return list((await session.execute(text(query))).all())
+
+    async def catalog_events(self) -> list[tuple[str, str, dict[str, Any]]]:
+        async with self.sessions() as session:
+            rows = await session.execute(
+                text("SELECT key, payload FROM outbox WHERE topic = 'catalog.events' ORDER BY id")
+            )
+        events = [(key, json.loads(raw)) for key, raw in rows.all()]
+        return [(key, event["event_type"], event["payload"]) for key, event in events]
 
     def stored_objects(self) -> list[str]:
         client = build_s3_client(self.seaweedfs.settings)
@@ -281,6 +295,69 @@ async def test_a_product_deleted_after_the_first_import_is_restored_by_the_next_
     assert (await stack.get(second))["progress"]["restored_rows"] == 1
 
 
+async def test_catalog_events_follow_every_write_in_order_with_rising_versions(
+    stack: Stack,
+) -> None:
+    created = await stack.client.post(
+        "/api/v1/products", json=valid_product(sku="EV-1", price="10.00"), headers=stack.admin
+    )
+    duplicate = await stack.client.post(
+        "/api/v1/products", json=valid_product(sku="EV-1"), headers=stack.admin
+    )
+    replaced = await stack.client.put(
+        "/api/v1/products/EV-1",
+        json={key: value for key, value in valid_product(price="12.50").items() if key != "sku"},
+        headers=stack.admin | {"If-Match": created.headers["ETag"]},
+    )
+    stale = await stack.client.delete(
+        "/api/v1/products/EV-1", headers=stack.admin | {"If-Match": created.headers["ETag"]}
+    )
+    deleted = await stack.client.delete(
+        "/api/v1/products/EV-1", headers=stack.admin | {"If-Match": replaced.headers["ETag"]}
+    )
+
+    events = await stack.catalog_events()
+
+    assert (created.status_code, duplicate.status_code) == (201, 409)
+    assert (replaced.status_code, stale.status_code, deleted.status_code) == (200, 412, 204)
+    assert [(key, kind) for key, kind, _ in events] == [
+        ("EV-1", "product.updated"),
+        ("EV-1", "product.updated"),
+        ("EV-1", "product.deleted"),
+    ]
+    assert [payload["version"] for _, _, payload in events] == [1, 2, 3]
+    assert [payload.get("price") for _, _, payload in events] == ["10.00", "12.50", None]
+
+
+async def test_an_import_publishes_events_only_for_created_updated_and_restored_products(
+    stack: Stack,
+) -> None:
+    first = (await stack.upload()).json()["id"]
+    await stack.pump()
+    await stack.confirm(first)
+    await stack.pump()
+    imported = await stack.catalog_events()
+    await stack.client.delete("/api/v1/products/CB-010", headers=stack.admin | {"If-Match": "*"})
+    changed = SAMPLE.replace(
+        b"Running Shoes,RS-001,Updated lightweight shoes", b"Running Shoes,RS-001,New text"
+    )
+    changed += b"\r\nBrand New,NEW-001,desc,Books,5.00,5,0.1"
+
+    second = (await stack.upload(changed)).json()["id"]
+    await stack.pump()
+    await stack.confirm(second)
+    await stack.pump()
+    events = (await stack.catalog_events())[len(imported) :]
+
+    assert len(imported) == 88
+    assert sorted((key, kind, payload["version"]) for key, kind, payload in events) == [
+        ("CB-010", "product.deleted", 2),
+        ("CB-010", "product.updated", 3),
+        ("NEW-001", "product.updated", 1),
+        ("RS-001", "product.updated", 2),
+    ]
+
+
 async def test_a_file_changed_behind_our_back_fails_the_import_and_lands_in_the_dead_letter_topic(
     stack: Stack,
 ) -> None:
@@ -426,6 +503,38 @@ async def wait_for_status(stack: Stack, import_id: str, wanted: str) -> dict[str
             await asyncio.sleep(0.2)
 
 
+async def wait_for_published_outbox(stack: Stack) -> None:
+    async with asyncio.timeout(60):
+        while True:
+            if await stack.scalar("SELECT count(*) FROM outbox WHERE published_at IS NULL") == 0:
+                return
+            await asyncio.sleep(0.2)
+
+
+async def published_catalog_events(
+    stack: Stack, kafka: KafkaBroker
+) -> list[tuple[str, dict[str, Any]]]:
+    expected = {
+        str(UUID(str(row[0])))
+        for row in await stack.rows("SELECT event_id FROM outbox WHERE topic = 'catalog.events'")
+    }
+    reader = AIOKafkaConsumer(
+        CATALOG_TOPIC, bootstrap_servers=kafka.bootstrap, auto_offset_reset="earliest"
+    )
+    await reader.start()
+    found: dict[str, tuple[str, dict[str, Any]]] = {}
+    try:
+        async with asyncio.timeout(60):
+            while not expected <= found.keys():
+                for records in (await reader.getmany(timeout_ms=1000)).values():
+                    for record in records:
+                        event = json.loads(record.value)
+                        found[event["event_id"]] = (record.key.decode(), event)
+    finally:
+        await reader.stop()
+    return [found[event_id] for event_id in expected]
+
+
 async def test_the_worker_imports_the_sample_file_through_kafka(
     stack: Stack, kafka: KafkaBroker
 ) -> None:
@@ -437,13 +546,21 @@ async def test_the_worker_imports_the_sample_file_through_kafka(
         assert await stack.scalar("SELECT count(*) FROM products") == 0
         await stack.confirm(import_id)
         completed = await wait_for_status(stack, import_id, "completed")
+        await wait_for_published_outbox(stack)
     finally:
         await worker.shutdown()
 
     assert validated["summary"]["importable_rows"] == 88
     assert completed["progress"]["created_rows"] == 88
     assert await stack.scalar("SELECT count(*) FROM products") == 88
-    assert await stack.scalar("SELECT count(*) FROM outbox WHERE published_at IS NULL") == 0
+    skus = {row[0] for row in await stack.rows("SELECT sku FROM products")}
+    published = await published_catalog_events(stack, kafka)
+    assert len(published) == 88
+    assert {key for key, _ in published} == skus
+    assert {(event["event_type"], event["payload"]["version"]) for _, event in published} == {
+        ("product.updated", 1)
+    }
+    assert {event["payload"]["sku"] for _, event in published} == skus
 
 
 async def test_uploads_survive_kafka_being_down_and_are_validated_when_it_returns(

@@ -1,7 +1,8 @@
 import pytest
 from catalog_testing import images
 
-from catalog.domain.image import ImageFormat, detect_image_format, full_key, thumbnail_key
+from catalog.domain.image import ImageFormat, detect_image_format
+from ecommerce_storage import full_key, thumbnail_key
 
 
 @pytest.mark.parametrize(

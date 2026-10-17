@@ -1,12 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { ProductDetail } from "./product-detail";
-import { STORY_PRODUCT } from "../story-support";
+import { STORY_ADD, STORY_PRODUCT } from "../story-support";
 
 const meta = {
   title: "Store/ProductDetail",
   component: ProductDetail,
   parameters: { layout: "padded" },
-  args: { product: STORY_PRODUCT },
+  args: { product: STORY_PRODUCT, addToCart: STORY_ADD },
 } satisfies Meta<typeof ProductDetail>;
 
 export default meta;

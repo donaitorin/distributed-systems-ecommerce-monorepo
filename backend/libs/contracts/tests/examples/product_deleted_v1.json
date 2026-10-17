@@ -1,0 +1,13 @@
+{
+  "event_id": "c8a3e5b0-6f12-4d79-a5c4-1e9b7d2f4a86",
+  "event_type": "product.deleted",
+  "event_version": 1,
+  "occurred_at": "2026-10-16T11:00:00Z",
+  "correlation_id": "2f6d8a14-9b3e-4c70-b5d1-e7a0c4f81b39",
+  "producer": "catalog-service",
+  "payload": {
+    "sku": "RS-001",
+    "version": 5,
+    "occurred_at": "2026-10-16T11:00:00Z"
+  }
+}

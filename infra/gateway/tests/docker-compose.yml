@@ -59,3 +59,4 @@ networks:
     ipam:
       config:
         - subnet: 10.250.20.0/28
+          ip_range: 10.250.20.12/30

@@ -10,6 +10,8 @@ from accounts.main import create_accounts_app
 from accounts.settings import AccountsSettings
 from auth.main import create_auth_app
 from auth.settings import AuthSettings
+from cart.main import create_cart_app
+from cart.settings import CartSettings
 from catalog.main import create_catalog_app
 from catalog.settings import CatalogSettings
 
@@ -53,10 +55,20 @@ def build_accounts() -> FastAPI:
     return create_accounts_app(AccountsSettings.from_env(environment))
 
 
+def build_cart() -> FastAPI:
+    environment = {
+        **PLACEHOLDER_ENVIRONMENT,
+        "REDIS_CART_HOST": "redis.invalid",
+        "REDIS_CART_PASSWORD": "placeholder",
+    }
+    return create_cart_app(CartSettings.from_env(environment))
+
+
 SERVICES: Mapping[str, Callable[[], FastAPI]] = {
     "auth": build_auth,
     "catalog": build_catalog,
     "accounts": build_accounts,
+    "cart": build_cart,
 }
 
 

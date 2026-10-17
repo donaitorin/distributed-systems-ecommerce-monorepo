@@ -4,5 +4,5 @@ module.exports = {
   ...preset,
   rootDir: __dirname,
   transformIgnorePatterns: ["node_modules/(?!\\.pnpm/nuqs@|nuqs/)"],
-  collectCoverageFrom: ["<rootDir>/src/**/*.{ts,tsx}", "!<rootDir>/src/index.ts", "!<rootDir>/src/client.ts"],
+  collectCoverageFrom: ["<rootDir>/src/**/*.{ts,tsx}", "!<rootDir>/src/index.ts", "!<rootDir>/src/client.ts", "!<rootDir>/src/testing.ts"],
 };

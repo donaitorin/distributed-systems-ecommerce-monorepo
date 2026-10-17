@@ -13,11 +13,17 @@ cleanup() {
 }
 trap cleanup EXIT
 
+proof_dynamic_files=(auth.yml)
+
 mkdir -p "$workdir/dynamic"
 sed 's/10\.250\.10\./10.250.20./g' "$gateway_config/traefik.yml" > "$workdir/traefik.yml"
-for file in "$gateway_config"/dynamic/*.yml; do
-  sed 's/10\.250\.10\./10.250.20./g' "$file" > "$workdir/dynamic/$(basename "$file")"
+for name in "${proof_dynamic_files[@]}"; do
+  sed -e 's/10\.250\.10\./10.250.20./g' -e 's/period: 1m$/period: 1h/' "$gateway_config/dynamic/$name" > "$workdir/dynamic/$name"
 done
+if grep -q 'period: 1m' "$workdir/dynamic/auth.yml" || ! grep -q 'period: 1h' "$workdir/dynamic/auth.yml"; then
+  echo "the proof could not slow the refill of the rate limit buckets: check the period lines of infra/gateway/dynamic/auth.yml"
+  exit 2
+fi
 export PROOF_CONFIG_DIR=$workdir
 
 pass() { printf 'PASS  %s\n' "$1"; }
@@ -66,7 +72,37 @@ check() {
   fi
 }
 
-"${project[@]}" up -d --wait >/dev/null 2>&1 || { echo "could not start the proof stack"; exit 2; }
+start_stack() {
+  local output="$workdir/up.log" code=0
+  echo "+ ${project[*]} up -d --wait"
+  "${project[@]}" up -d --wait >"$output" 2>&1 || code=$?
+  if [ "$code" -eq 0 ]; then
+    return 0
+  fi
+  echo "could not start the proof stack: 'docker compose up -d --wait' exited with $code"
+  echo "--- output of the command"
+  cat "$output"
+  echo "--- docker version"
+  docker version 2>&1 || true
+  echo "--- docker compose version"
+  docker compose version 2>&1 || true
+  echo "--- proof configuration in $workdir"
+  ls -l "$workdir" "$workdir/dynamic" 2>&1 || true
+  echo "--- docker compose config"
+  "${project[@]}" config 2>&1 || true
+  echo "--- docker compose ps -a"
+  "${project[@]}" ps -a 2>&1 || true
+  echo "--- docker compose logs"
+  "${project[@]}" logs --no-color --tail=200 2>&1 || true
+  exit 2
+}
+
+start_stack
+
+echo "note: this proof is about bucket separation and header trust, not the production rate."
+echo "      Its copy of auth.yml keeps the production burst but refills per hour instead of per minute,"
+echo "      so a slow runner cannot earn an extra request while a check is counting rejections."
+echo
 
 login=/api/v1/auth/login
 register=/api/v1/auth/register

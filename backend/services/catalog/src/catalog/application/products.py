@@ -3,9 +3,11 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import UUID
 
+from catalog.application.correlation import current_correlation_id
 from catalog.application.cursors import decode_cursor, encode_cursor
 from catalog.application.errors import PreconditionFailedError, ProductNotFoundError
 from catalog.application.ports import UnitOfWork, UnitOfWorkFactory
+from catalog.application.product_events import publish_product_deleted, publish_product_updated
 from catalog.domain.errors import ValidationFailedError, Violation
 from catalog.domain.listing import (
     Direction,
@@ -31,10 +33,14 @@ def utc_now() -> datetime:
 
 class ProductService:
     def __init__(
-        self, unit_of_work: UnitOfWorkFactory, clock: Callable[[], datetime] = utc_now
+        self,
+        unit_of_work: UnitOfWorkFactory,
+        clock: Callable[[], datetime] = utc_now,
+        correlation_id: Callable[[], UUID] = current_correlation_id,
     ) -> None:
         self._unit_of_work = unit_of_work
         self._clock = clock
+        self._correlation_id = correlation_id
 
     async def create(
         self,
@@ -51,7 +57,9 @@ class ProductService:
         )
         async with self._unit_of_work() as uow:
             await _require_known_category(uow, new_product.data.category_id)
-            product = await uow.products.add(new_product, self._clock())
+            now = self._clock()
+            product = await uow.products.add(new_product, now)
+            await publish_product_updated(uow, product, now, self._correlation_id())
             await uow.commit()
         return product
 
@@ -112,7 +120,9 @@ class ProductService:
         async with self._unit_of_work() as uow:
             await lock_and_check(uow, normalized, precondition)
             await _require_known_category(uow, data.category_id)
-            product = await uow.products.replace(normalized, data, self._clock())
+            now = self._clock()
+            product = await uow.products.replace(normalized, data, now)
+            await publish_product_updated(uow, product, now, self._correlation_id())
             await uow.commit()
         return product
 
@@ -120,7 +130,9 @@ class ProductService:
         normalized = require_sku(sku)
         async with self._unit_of_work() as uow:
             await lock_and_check(uow, normalized, precondition)
-            await uow.products.soft_delete(normalized, self._clock())
+            now = self._clock()
+            version = await uow.products.soft_delete(normalized, now)
+            await publish_product_deleted(uow, normalized, version, now, self._correlation_id())
             await uow.commit()
 
 

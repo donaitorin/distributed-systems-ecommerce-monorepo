@@ -4,7 +4,8 @@ export const LOGIN_PATH = "/login";
 export const REGISTER_PATH = "/register";
 export const ACCOUNT_PATH = "/account";
 export const PRODUCTS_PATH = "/products";
-export const PROTECTED_PREFIXES = [ACCOUNT_PATH, "/checkout", "/orders"] as const;
+export const CART_PATH = "/cart";
+export const PROTECTED_PREFIXES = [ACCOUNT_PATH, CART_PATH, "/checkout", "/orders"] as const;
 
 export function isProtectedPath(pathname: string): boolean {
   return PROTECTED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));

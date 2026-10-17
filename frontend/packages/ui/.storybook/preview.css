@@ -4,4 +4,5 @@
 @import "@ecommerce/config/styles/base.css";
 
 @source "../src";
-@source "../../../apps/*/src";
+@source "../../../apps/store/src";
+@source "../../../apps/backoffice/src";
