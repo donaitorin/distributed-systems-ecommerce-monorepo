@@ -17,14 +17,14 @@ jest.mock("@ecommerce/auth/next", () => ({
 }));
 
 describe("isProtectedPath", () => {
-  it.each(["/account", "/account/addresses", "/checkout", "/checkout/pay", "/orders/42"])(
+  it.each(["/account", "/account/addresses", "/cart", "/cart/anything", "/checkout", "/checkout/pay", "/orders/42"])(
     "protects %s",
     (path) => {
       expect(isProtectedPath(path)).toBe(true);
     },
   );
 
-  it.each(["/", "/products", "/login", "/register", "/accounting", "/account-help"])(
+  it.each(["/", "/products", "/login", "/register", "/accounting", "/account-help", "/cartoon", "/cart-service"])(
     "leaves %s public",
     (path) => {
       expect(isProtectedPath(path)).toBe(false);
