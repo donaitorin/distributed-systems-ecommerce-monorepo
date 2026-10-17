@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { isFailure, type Failure, type Product } from "@ecommerce/web-core";
+import { addToCartAction } from "../../cart/actions";
 import { ProductDetail } from "../../../components/catalog/product-detail";
 import { productHref } from "../../../lib/paths";
 import { loadProduct } from "../../../server/catalog";
@@ -69,5 +70,5 @@ export default async function ProductPage({ params }: ProductPageProps) {
   if (result.sku !== sku) {
     redirect(productHref(result.sku));
   }
-  return <ProductDetail product={result} />;
+  return <ProductDetail product={result} addToCart={addToCartAction} />;
 }

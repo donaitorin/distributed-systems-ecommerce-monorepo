@@ -1,6 +1,7 @@
 import type { Decorator } from "@storybook/nextjs-vite";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import type { Product, ProductPage } from "@ecommerce/web-core";
+import type { AddResult, Cart, CartActions } from "../lib/cart";
 
 export function withUrl(searchParams = ""): Decorator {
   return function WithUrl(Story) {
@@ -47,4 +48,37 @@ export const STORY_PAGE: ProductPage = {
   prev_cursor: null,
   total: 1200,
   total_exact: false,
+};
+
+export const STORY_ADD = (): Promise<AddResult> => Promise.resolve({ ok: true, quantity: 1, capped: false });
+
+export const STORY_CART: Cart = {
+  items: [
+    {
+      sku: "RS-001",
+      name: "Running shoes",
+      quantity: 2,
+      price: "59.00",
+      line_total: "118.00",
+      thumbnail_url: STORY_IMAGE,
+      flags: [],
+    },
+    {
+      sku: "RS-002",
+      name: "Trail shoes",
+      quantity: 1,
+      price: "89.90",
+      line_total: "89.90",
+      thumbnail_url: null,
+      flags: [],
+    },
+  ],
+  item_count: 3,
+  subtotal: "207.90",
+};
+
+export const STORY_CART_ACTIONS: CartActions = {
+  setQuantity: () => Promise.resolve({ ok: true, cart: STORY_CART }),
+  removeItem: () => Promise.resolve({ ok: true, cart: STORY_CART }),
+  clearCart: () => Promise.resolve({ ok: true }),
 };

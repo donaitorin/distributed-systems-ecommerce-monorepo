@@ -1,5 +1,6 @@
 import { PriceTag, ProductImage, StockBadge } from "@ecommerce/ui";
 import type { Product } from "@ecommerce/web-core";
+import type { AddToCart } from "../../lib/cart";
 import { categoryHref, PRODUCTS_PATH } from "../../lib/paths";
 import { AddToCartSlot } from "./add-to-cart-slot";
 
@@ -13,7 +14,7 @@ export function formatWeight(weightKg: string | null): string | null {
 
 const IMAGE_SIZES = "(min-width: 48rem) 50vw, 100vw";
 
-export function ProductDetail({ product }: { product: Product }) {
+export function ProductDetail({ product, addToCart }: { product: Product; addToCart: AddToCart }) {
   const weight = formatWeight(product.weight_kg);
 
   return (
@@ -60,7 +61,7 @@ export function ProductDetail({ product }: { product: Product }) {
           {product.description ? (
             <p className="max-w-prose text-base whitespace-pre-line text-primary">{product.description}</p>
           ) : null}
-          <AddToCartSlot product={product} />
+          <AddToCartSlot product={product} add={addToCart} />
           <dl className="flex flex-col gap-2 border-t border-border pt-4 text-sm">
             <div className="flex gap-2">
               <dt className="font-medium">SKU</dt>

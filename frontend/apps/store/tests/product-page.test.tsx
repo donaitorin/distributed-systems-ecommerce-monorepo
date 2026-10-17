@@ -10,6 +10,8 @@ jest.mock("../src/server/catalog", () => ({
   loadProduct: (sku: string) => loadProduct(sku) as unknown,
 }));
 
+jest.mock("../src/app/cart/actions", () => ({ addToCartAction: jest.fn() }));
+
 jest.mock("next/navigation", () => jest.requireActual("./support/navigation-mock") as unknown);
 
 const FAILURE = { ok: false, status: 503, title: "Down", fieldErrors: {} };
