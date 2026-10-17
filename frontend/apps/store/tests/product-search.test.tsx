@@ -38,6 +38,24 @@ describe("ProductSearch results", () => {
     expect(await axe(failed.container)).toHaveNoViolations();
   });
 
+  it.each([502, 503, 504, null])("offers a Try again link that reloads the same search when the status is %s", (status) => {
+    renderApp(<ProductSearch {...props({ page: null, failure: failure(status) })} />, {
+      searchParams: "?q=shoes&category=footwear",
+    });
+
+    expect(screen.getByRole("alert")).toHaveTextContent("not available right now");
+    expect(screen.getByRole("link", { name: "Try again" })).toHaveAttribute(
+      "href",
+      "/products?q=shoes&category=footwear",
+    );
+  });
+
+  it("offers no Try again link for a validation failure", () => {
+    renderApp(<ProductSearch {...props({ page: null, failure: failure(422) })} />);
+
+    expect(screen.queryByRole("link", { name: "Try again" })).not.toBeInTheDocument();
+  });
+
   it("shows a card per product that links to its detail page", () => {
     renderApp(<ProductSearch {...props()} />);
     const list = screen.getByRole("list");

@@ -1,7 +1,7 @@
 /**
  * @jest-environment node
  */
-import { fetchOrder, isTerminalRequestError, OrderRequestError } from "../src/lib/order-client";
+import { fetchOrder, isTerminalRequestError, ORDER_REQUEST_TIMEOUT_MS, OrderRequestError } from "../src/lib/order-client";
 import { json, problem } from "./support/api";
 import { ORDER_ID, order } from "./support/orders";
 
@@ -15,14 +15,30 @@ describe("fetchOrder", () => {
     expect(send).toHaveBeenCalledWith(`/api/orders/${ORDER_ID}`, expect.objectContaining({ credentials: "same-origin", redirect: "manual" }));
   });
 
-  it("passes the abort signal on", async () => {
+  it("aborts the request when the caller aborts", async () => {
     const send = jest.fn(() => Promise.resolve(json(order())));
     global.fetch = send;
     const controller = new AbortController();
 
     await fetchOrder(ORDER_ID, controller.signal);
+    const sent = (send.mock.calls[0] as unknown as [string, RequestInit])[1].signal as AbortSignal;
 
-    expect(send).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ signal: controller.signal }));
+    expect(sent.aborted).toBe(false);
+    controller.abort();
+    expect(sent.aborted).toBe(true);
+  });
+
+  it("gives every request a timeout, with or without a caller signal", async () => {
+    const send = jest.fn(() => Promise.resolve(json(order())));
+    global.fetch = send;
+    const timeout = jest.spyOn(AbortSignal, "timeout");
+
+    await fetchOrder(ORDER_ID);
+    await fetchOrder(ORDER_ID, new AbortController().signal);
+
+    expect(timeout).toHaveBeenNthCalledWith(1, ORDER_REQUEST_TIMEOUT_MS);
+    expect(timeout).toHaveBeenNthCalledWith(2, ORDER_REQUEST_TIMEOUT_MS);
+    timeout.mockRestore();
   });
 
   it("reports a redirect to the login page as an expired session", async () => {

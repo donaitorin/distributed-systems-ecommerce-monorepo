@@ -1,3 +1,4 @@
+import { timeoutSignal } from "@ecommerce/web-core";
 import type { Order } from "./orders";
 import { ORDERS_API_PATH } from "./paths";
 
@@ -14,6 +15,7 @@ export class OrderRequestError extends Error {
 }
 
 export const SESSION_EXPIRED = 401;
+export const ORDER_REQUEST_TIMEOUT_MS = 10_000;
 
 export function isTerminalRequestError(error: unknown): boolean {
   return error instanceof OrderRequestError && (error.status === SESSION_EXPIRED || error.status === 404);
@@ -26,7 +28,7 @@ export const fetchOrder: OrderFetcher = async (orderId, signal) => {
       credentials: "same-origin",
       redirect: "manual",
       headers: { accept: "application/json" },
-      ...(signal ? { signal } : {}),
+      signal: timeoutSignal(ORDER_REQUEST_TIMEOUT_MS, signal),
     });
   } catch {
     throw new OrderRequestError(null);
