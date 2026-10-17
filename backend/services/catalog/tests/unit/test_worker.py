@@ -72,7 +72,13 @@ def test_the_worker_handles_both_import_events_in_one_consumer_group() -> None:
     assert CONSUMER_GROUP == "catalog-imports"
 
 
-def letter(harness: ImportsHarness, import_id: UUID, with_envelope: bool = True) -> DeadLetter:
+def letter(
+    harness: ImportsHarness,
+    import_id: UUID,
+    with_envelope: bool = True,
+    error: str = "boom",
+    error_type: str = "ValueError",
+) -> DeadLetter:
     envelope = None
     if with_envelope:
         envelope = Envelope[ImportRequestedV1](
@@ -87,7 +93,7 @@ def letter(harness: ImportsHarness, import_id: UUID, with_envelope: bool = True)
             ),
         )
     message = IncomingMessage("imports.jobs", 0, 0, "k", b"{}")
-    return DeadLetter(message, envelope, "boom", "ValueError", 3, CONSUMER_GROUP)
+    return DeadLetter(message, envelope, error, error_type, 3, CONSUMER_GROUP)
 
 
 async def test_a_dead_lettered_import_event_marks_the_import_as_failed() -> None:
@@ -100,6 +106,20 @@ async def test_a_dead_lettered_import_event_marks_the_import_as_failed() -> None
     failed = await harness.service.get(result.record.id)
     assert failed.status is ImportStatus.FAILED
     assert failed.failure_reason == "ValueError: boom"
+
+
+async def test_a_failure_reason_that_already_names_the_error_type_is_not_repeated() -> None:
+    harness = ImportsHarness()
+    result = await harness.upload()
+    hook = mark_failed_on_dead_letter(harness.jobs)
+    summary = "ImportFileChangedError raised while handling the event"
+
+    await hook(
+        letter(harness, result.record.id, error=summary, error_type="ImportFileChangedError")
+    )
+
+    failed = await harness.service.get(result.record.id)
+    assert failed.failure_reason == summary
 
 
 async def test_a_dead_letter_that_could_not_even_be_parsed_changes_nothing() -> None:
