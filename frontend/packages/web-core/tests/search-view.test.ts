@@ -9,6 +9,7 @@ import {
   loadProductSearch,
   PRICE_ERROR,
   priceFieldError,
+  isSearchOutage,
   searchFailureMessage,
   toSearchParams,
   type Failure,
@@ -125,11 +126,23 @@ describe("activeFilterChips", () => {
   });
 });
 
+describe("isSearchOutage", () => {
+  it.each([null, 502, 503, 504])("treats %s as an outage", (status) => {
+    expect(isSearchOutage(failure(status))).toBe(true);
+  });
+
+  it.each([400, 404, 422, 500])("does not treat %s as an outage", (status) => {
+    expect(isSearchOutage(failure(status))).toBe(false);
+  });
+});
+
 describe("searchFailureMessage", () => {
   it.each([
     [failure(422, { fieldErrors: { cursor: "bad" } }), "no longer matches"],
     [failure(422), "not valid"],
     [failure(503), "not available"],
+    [failure(502, { detail: "Bad Gateway" }), "not available"],
+    [failure(504), "not available"],
     [failure(null), "not available"],
     [failure(500, { detail: "Detail" }), "Detail"],
     [failure(500), "Title"],
