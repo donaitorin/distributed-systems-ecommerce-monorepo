@@ -150,5 +150,18 @@ describe("Table", () => {
         "Could not load",
       );
     });
+
+    it("has no accessibility violations when it shows an error or nothing", async () => {
+      const failing = render(
+        <Table caption="Products" columns={COLUMNS} rows={[]} getRowKey={(row) => row.sku} renderCard={renderCard} error="Could not load" />,
+      );
+      expect(await axe(failing.container)).toHaveNoViolations();
+      failing.unmount();
+
+      const empty = render(
+        <Table caption="Products" columns={COLUMNS} rows={[]} getRowKey={(row) => row.sku} renderCard={renderCard} />,
+      );
+      expect(await axe(empty.container)).toHaveNoViolations();
+    });
   });
 });
