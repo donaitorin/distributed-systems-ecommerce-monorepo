@@ -32,6 +32,15 @@ describe("CartView", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it("offers a Checkout action that opens the checkout page, and none for an empty cart", () => {
+    const first = render(<CartView cart={cart()} actions={actions()} />);
+    expect(screen.getByRole("link", { name: "Checkout" })).toHaveAttribute("href", "/checkout");
+    first.unmount();
+
+    render(<CartView cart={cart([])} actions={actions()} />);
+    expect(screen.queryByRole("link", { name: "Checkout" })).not.toBeInTheDocument();
+  });
+
   it("shows an empty state with a way back to the catalog", async () => {
     const { container } = render(<CartView cart={cart([])} actions={actions()} />);
 

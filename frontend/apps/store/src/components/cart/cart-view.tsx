@@ -12,7 +12,7 @@ import {
   type CartResult,
   type ClearResult,
 } from "../../lib/cart";
-import { PRODUCTS_PATH } from "../../lib/paths";
+import { CHECKOUT_PATH, PRODUCTS_PATH } from "../../lib/paths";
 import { CartLineItem } from "./cart-line-item";
 
 export type CartViewProps = {
@@ -177,6 +177,9 @@ export function CartView({ cart, actions }: CartViewProps) {
               </div>
             </dl>
             <p className="text-sm text-secondary">Prices and stock are checked again when you check out.</p>
+            <div>
+              <ButtonLink href={CHECKOUT_PATH}>Checkout</ButtonLink>
+            </div>
           </div>
         </>
       )}

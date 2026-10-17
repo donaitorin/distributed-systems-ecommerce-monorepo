@@ -9,6 +9,7 @@ export {
   type Failure,
 } from "./failure";
 export { describeRetry } from "./retry";
+export { formatDate, formatDateTime } from "./date-format";
 export { nextPath, type NextPathOptions } from "./next-path";
 export {
   EMAIL_TAKEN,

@@ -21,6 +21,7 @@ from orders_testing.waiting import eventually
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
 
+from ecommerce_auth import Role
 from ecommerce_auth.testing import StubTokenIssuer, build_stub_verifier
 from ecommerce_contracts import ORDER_CANCELLED, ORDER_CONFIRMED, ORDER_CREATED
 from ecommerce_messaging import InMemoryBroker
@@ -35,6 +36,7 @@ pytestmark = pytest.mark.integration
 
 CONCURRENCY = 20
 ORDERS = "/api/v1/orders"
+ADMIN_ORDERS = "/api/v1/admin/orders"
 LINES = [("RS-001", "Rust in Action", 2, "39.90"), ("XS-001", "Sticker Pack", 1, "12.50")]
 TIMEOUT = timedelta(seconds=60)
 
@@ -374,3 +376,22 @@ async def test_a_payment_racing_the_timeout_leaves_one_consistent_outcome(stack:
 async def _drain(stack: Stack) -> None:
     while await stack.timeouts.sweep():
         pass
+
+
+async def test_the_email_of_the_token_reaches_the_admin_views_on_postgres(stack: Stack) -> None:
+    customer = bearer(stack.issuer, uuid4(), email="grace@example.com")
+    anonymous = bearer(stack.issuer, uuid4())
+    admin = bearer(stack.issuer, uuid4(), Role.ADMIN)
+    async with http_client(stack.app) as client:
+        first = (await post(client, customer, order_body(), "checkout-0001")).json()["id"]
+        second = (await post(client, anonymous, order_body(), "checkout-0001")).json()["id"]
+        listing = (await client.get(ADMIN_ORDERS, headers=admin)).json()
+        detail = (await client.get(f"{ADMIN_ORDERS}/{first}", headers=admin)).json()
+        mine = (await client.get(f"{ORDERS}/{first}", headers=customer)).json()
+
+    emails = {item["id"]: item["customer_email"] for item in listing["items"]}
+    assert emails == {first: "grace@example.com", second: None}
+    assert detail["customer_email"] == "grace@example.com"
+    assert "customer_email" not in mine
+    stored = await stack.rows("SELECT customer_email FROM orders ORDER BY created_at, id")
+    assert sorted(str(row[0]) for row in stored) == ["None", "grace@example.com"]

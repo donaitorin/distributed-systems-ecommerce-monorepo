@@ -1,4 +1,4 @@
-import type { Category, ImportView, Product, UserProfile } from "../../src/lib/types";
+import type { Category, ImportView, OrderDetail, OrderRow, Payment, Product, UserProfile } from "../../src/lib/types";
 
 export function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), {
@@ -124,6 +124,69 @@ export function importView(overrides: Record<string, unknown> = {}, summary: Rec
             unknown_categories: [],
             ...summary,
           },
+    ...overrides,
+  };
+}
+
+export const ORDER_ID = "6f1c2f64-3f0e-4c1a-9d52-7a1b8c9d0e21";
+export const CUSTOMER_ID = "0f6c1f0e-7a52-4f33-9c2a-5d9c3b1e7a10";
+
+export function orderRow(overrides: Partial<OrderRow> = {}): OrderRow {
+  return {
+    id: ORDER_ID,
+    customer_id: CUSTOMER_ID,
+    customer_email: "ada@example.com",
+    status: "CONFIRMED",
+    total: "137.50",
+    currency: "USD",
+    item_count: 3,
+    created_at: "2026-10-17T10:00:00Z",
+    updated_at: "2026-10-17T10:00:09Z",
+    ...overrides,
+  };
+}
+
+export function orderDetail(overrides: Partial<OrderDetail> = {}): OrderDetail {
+  return {
+    ...orderRow(),
+    card_last4: "1111",
+    shipping_address: {
+      recipient_name: "Ada Lovelace",
+      line1: "12 Analytical St",
+      line2: "Floor 2",
+      city: "London",
+      region: "Greater London",
+      postal_code: "N1 9GU",
+      country: "GB",
+      phone: "+442071234567",
+    },
+    cancel_reason: null,
+    refunded_at: null,
+    lines: [
+      { sku: "RS-001", name: "Running shoes", quantity: 2, unit_price: "59.00", line_total: "118.00" },
+      { sku: "TY-002", name: null, quantity: 1, unit_price: "19.50", line_total: "19.50" },
+    ],
+    history: [
+      { from_status: null, to_status: "PENDING", reason: "order created", at: "2026-10-17T10:00:00Z" },
+      { from_status: "PENDING", to_status: "STOCK_RESERVED", reason: "stock reserved", at: "2026-10-17T10:00:02Z" },
+      { from_status: "STOCK_RESERVED", to_status: "CONFIRMED", reason: "order confirmed", at: "2026-10-17T10:00:09Z" },
+    ],
+    ...overrides,
+  };
+}
+
+export function payment(overrides: Partial<Payment> = {}): Payment {
+  return {
+    id: "aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa",
+    order_id: ORDER_ID,
+    status: "SUCCEEDED",
+    amount: "137.50",
+    currency: "USD",
+    card_last4: "1111",
+    failure_reason: null,
+    refunded_at: null,
+    created_at: "2026-10-17T10:00:03Z",
+    updated_at: "2026-10-17T10:00:08Z",
     ...overrides,
   };
 }

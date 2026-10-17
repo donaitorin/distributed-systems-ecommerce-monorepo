@@ -8,6 +8,7 @@ from orders_testing.data import (
     CARD_DIGITS,
     CARD_NUMBER,
     CUSTOMER,
+    CUSTOMER_EMAIL,
     OTHER_CUSTOMER,
     SteppingClock,
     order_body,
@@ -435,3 +436,65 @@ async def test_the_card_number_is_not_in_anything_the_service_keeps(
     assert CARD_NUMBER not in kept
     assert "4929" not in kept
     assert "1111" in kept
+
+
+async def test_the_admin_sees_the_email_from_the_token_of_the_customer(
+    client: httpx.AsyncClient, issuer: StubTokenIssuer, admin: dict[str, str]
+) -> None:
+    signed_in = bearer(issuer, CUSTOMER, email=CUSTOMER_EMAIL)
+    created = (await place(client, signed_in)).json()["id"]
+
+    listing = (await client.get(ADMIN_ORDERS, headers=admin)).json()
+    detail = (await client.get(f"{ADMIN_ORDERS}/{created}", headers=admin)).json()
+
+    assert [item["customer_email"] for item in listing["items"]] == [CUSTOMER_EMAIL]
+    assert detail["customer_email"] == CUSTOMER_EMAIL
+
+
+async def test_a_token_without_an_email_leaves_it_null(
+    client: httpx.AsyncClient, customer: dict[str, str], admin: dict[str, str]
+) -> None:
+    created = (await place(client, customer)).json()["id"]
+
+    listing = (await client.get(ADMIN_ORDERS, headers=admin)).json()
+    detail = (await client.get(f"{ADMIN_ORDERS}/{created}", headers=admin)).json()
+
+    assert listing["items"][0]["customer_email"] is None
+    assert detail["customer_email"] is None
+
+
+@pytest.mark.parametrize("email", ["x" * 321 + "@example.com", "   "])
+async def test_an_unusable_email_claim_is_ignored_instead_of_failing_the_order(
+    client: httpx.AsyncClient, issuer: StubTokenIssuer, admin: dict[str, str], email: str
+) -> None:
+    response = await place(client, bearer(issuer, CUSTOMER, email=email))
+
+    detail = (await client.get(f"{ADMIN_ORDERS}/{response.json()['id']}", headers=admin)).json()
+    assert response.status_code == 202
+    assert detail["customer_email"] is None
+
+
+async def test_the_email_is_not_part_of_what_a_customer_reads(
+    client: httpx.AsyncClient, issuer: StubTokenIssuer
+) -> None:
+    signed_in = bearer(issuer, CUSTOMER, email=CUSTOMER_EMAIL)
+    created = (await place(client, signed_in)).json()["id"]
+
+    detail = await client.get(f"{ORDERS}/{created}", headers=signed_in)
+    listing = await client.get(ORDERS, headers=signed_in)
+
+    assert "customer_email" not in detail.json()
+    assert "customer_email" not in listing.json()["items"][0]
+    assert CUSTOMER_EMAIL not in detail.text + listing.text
+
+
+async def test_a_replay_with_another_email_in_the_token_keeps_the_first_one(
+    client: httpx.AsyncClient, issuer: StubTokenIssuer, admin: dict[str, str]
+) -> None:
+    first = (await place(client, bearer(issuer, CUSTOMER, email=CUSTOMER_EMAIL))).json()["id"]
+
+    again = await place(client, bearer(issuer, CUSTOMER, email="changed@example.com"))
+
+    detail = (await client.get(f"{ADMIN_ORDERS}/{first}", headers=admin)).json()
+    assert again.headers["idempotent-replay"] == "true"
+    assert detail["customer_email"] == CUSTOMER_EMAIL

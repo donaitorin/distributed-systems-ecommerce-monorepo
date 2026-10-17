@@ -59,6 +59,11 @@ if grep -qi 'Sign out' /tmp/gateway-check.body; then fail "store: a visitor must
 expect "store: GET /account (no session) redirects to the store login" 307 "location: /login?next=%2Faccount" "$(fetch "$GATEWAY/account")"
 expect "store: GET /cart (no session) reaches the store and redirects to its login" 307 "location: /login?next=%2Fcart" "$(fetch "$GATEWAY/cart")"
 expect "store: GET /cart/ is the store (it normalises to /cart), not the cart service" 308 "location: /cart" "$(fetch "$GATEWAY/cart/")"
+unknown_order="00000000-0000-4000-8000-000000000000"
+expect "store: GET /orders (no session) reaches the store and redirects to its login" 307 "location: /login?next=%2Forders" "$(fetch "$GATEWAY/orders")"
+expect "store: GET /checkout (no session) reaches the store and redirects to its login" 307 "location: /login?next=%2Fcheckout" "$(fetch "$GATEWAY/checkout")"
+expect "store: GET /orders/{id} (no session) reaches the store and redirects to its login" 307 "location: /login?next=%2Forders%2F$unknown_order" "$(fetch "$GATEWAY/orders/$unknown_order")"
+expect "store: GET /api/orders/{id} (no session) is the store route, not the orders API" 307 "location: /login" "$(fetch "$GATEWAY/api/orders/$unknown_order")"
 expect "store: unknown page is the store 404" 404 "could not be found" "$(fetch "$GATEWAY/does-not-exist")"
 
 store_css=$(fetch "$GATEWAY/products" >/dev/null; grep -o '/_next/static/[^"]*\.css' /tmp/gateway-check.body | head -1)
@@ -66,6 +71,7 @@ expect "store: static asset $store_css" 200 "" "$(fetch "$GATEWAY$store_css")"
 
 expect "backoffice: GET /admin (no session) redirects to the backoffice login" 307 "location: /admin/login?next=%2F" "$(fetch "$GATEWAY/admin")"
 expect "backoffice: GET /admin/ is normalised to /admin" 308 "location: /admin" "$(fetch "$GATEWAY/admin/")"
+expect "backoffice: GET /admin/orders (no session) is guarded" 307 "location: /admin/login?next=%2Forders" "$(fetch "$GATEWAY/admin/orders")"
 expect "backoffice: GET /admin/products is guarded" 307 "location: /admin/login" "$(fetch "$GATEWAY/admin/products")"
 expect "backoffice: GET /admin/login" 200 "Administrator sign in" "$(fetch "$GATEWAY/admin/login")"
 backoffice_css=$(grep -o '/admin/_next/static/[^"]*\.css' /tmp/gateway-check.body | head -1)
@@ -85,6 +91,18 @@ if [ -n "$admin_token" ] && [ -n "$customer_token" ]; then
   if grep -q 'href="/login"' /tmp/gateway-check.body; then fail "store: a customer must not see the Sign in link"; else pass "store: a customer does not see the Sign in link"; fi
   expect "store: /cart with a customer session is the store cart page" 200 "Your cart" "$(fetch -H "cookie: ecommerce_access=$customer_token" "$GATEWAY/cart")"
   if grep -qi 'swagger' /tmp/gateway-check.body; then fail "store: /cart must not be the cart service documentation"; else pass "store: /cart is not the cart service documentation"; fi
+  expect "store: /checkout with a customer session is the store checkout page" 200 "Checkout" "$(fetch -H "cookie: ecommerce_access=$customer_token" "$GATEWAY/checkout")"
+  if grep -qi 'swagger' /tmp/gateway-check.body; then fail "store: /checkout must not be an API documentation page"; else pass "store: /checkout is not an API documentation page"; fi
+  expect "store: an unknown order is the store 404 page, not an orders API problem" 404 "Order not found" "$(fetch -H "cookie: ecommerce_access=$customer_token" "$GATEWAY/orders/$unknown_order")"
+  if [ "$(header content-type)" = "application/problem+json" ] || grep -qi 'swagger' /tmp/gateway-check.body; then fail "store: /orders/{id} must stay with the store"; else pass "store: /orders/{id} is served by the store as a page"; fi
+  expect "store: /api/orders/{id} answers from the store route handler (problem+json)" 404 "Order not found" "$(fetch -H "cookie: ecommerce_access=$customer_token" "$GATEWAY/api/orders/$unknown_order")"
+  expect "store: /api/orders/{id} refuses a malformed id" 404 "problem+json" "$(fetch -H "cookie: ecommerce_access=$customer_token" "$GATEWAY/api/orders/not-an-id")"
+  expect "store: /orders with a customer session is the order history page" 200 "orders-heading" "$(fetch -H "cookie: ecommerce_access=$customer_token" "$GATEWAY/orders")"
+  if [ "$(header content-type)" = "application/problem+json" ] || grep -qi 'swagger' /tmp/gateway-check.body; then fail "store: /orders must stay with the store"; else pass "store: /orders is served by the store as a page"; fi
+  expect "store: /orders keeps a forward cursor in the address" 200 "orders-heading" "$(fetch -H "cookie: ecommerce_access=$customer_token" "$GATEWAY/orders?cursor=not-a-cursor")"
+  expect "store: the header offers the order history to a customer" 200 'href="/orders"' "$(fetch -H "cookie: ecommerce_access=$customer_token" "$GATEWAY/products")"
+  expect "store: /account links to the order history" 200 'View your orders' "$(fetch -H "cookie: ecommerce_access=$customer_token" "$GATEWAY/account")"
+  expect "store: /account lists the shipping addresses section" 200 "addresses-heading" "$(fetch -H "cookie: ecommerce_access=$customer_token" "$GATEWAY/account")"
   expect "store: the header offers the cart to a customer" 200 'href="/cart"' "$(fetch -H "cookie: ecommerce_access=$customer_token" "$GATEWAY/products")"
   expect "store: /login sends a signed in customer on to the next page" 307 "location: /account" "$(fetch -H "cookie: ecommerce_access=$customer_token" "$GATEWAY/login?next=%2Faccount")"
   expect "store: /register sends a signed in customer to the products page" 307 "location: /products" "$(fetch -H "cookie: ecommerce_access=$customer_token" "$GATEWAY/register")"
@@ -93,6 +111,15 @@ if [ -n "$admin_token" ] && [ -n "$customer_token" ]; then
   if grep -qi 'href="/admin/imports"' /tmp/gateway-check.body; then fail "backoffice: the shell must not link to a separate imports page"; else pass "backoffice: the shell has no separate imports link"; fi
   expect "backoffice: /admin/categories renders for an admin" 200 "categories-heading" "$(fetch -H "cookie: ecommerce_access=$admin_token" "$GATEWAY/admin/categories")"
   expect "backoffice: /admin/users renders for an admin" 200 "users-heading" "$(fetch -H "cookie: ecommerce_access=$admin_token" "$GATEWAY/admin/users")"
+  expect "backoffice: /admin/orders renders for an admin" 200 "orders-heading" "$(fetch -H "cookie: ecommerce_access=$admin_token" "$GATEWAY/admin/orders")"
+  if [ "$(header content-type)" = "application/problem+json" ] || grep -qi 'swagger' /tmp/gateway-check.body; then fail "backoffice: /admin/orders must stay with the backoffice"; else pass "backoffice: /admin/orders is served by the backoffice as a page"; fi
+  expect "backoffice: /admin/orders with filters in the address" 200 "orders-heading" "$(fetch -H "cookie: ecommerce_access=$admin_token" "$GATEWAY/admin/orders?status=CANCELLED&from=2026-10-01&to=2026-10-17&limit=50")"
+  expect "backoffice: /admin/orders ignores invalid filters instead of failing" 200 "orders-heading" "$(fetch -H "cookie: ecommerce_access=$admin_token" "$GATEWAY/admin/orders?status=SHIPPED&from=abc&to=2026-02-30&limit=7")"
+  expect "backoffice: /admin/orders explains an end date before the start date" 200 "on or after the start date" "$(fetch -H "cookie: ecommerce_access=$admin_token" "$GATEWAY/admin/orders?from=2026-10-17&to=2026-10-01")"
+  expect "backoffice: /admin/orders/{id} is a real 404 page for an unknown order" 404 "Page not found" "$(fetch -H "cookie: ecommerce_access=$admin_token" "$GATEWAY/admin/orders/$unknown_order")"
+  expect "backoffice: the shell links to the orders" 200 'href="/admin/orders"' "$(fetch -H "cookie: ecommerce_access=$admin_token" "$GATEWAY/admin/products")"
+  expect "backoffice: /admin/orders with a customer session is sent back to login" 307 "reason=forbidden" "$(fetch -H "cookie: ecommerce_access=$customer_token" "$GATEWAY/admin/orders")"
+  expect "backoffice: /admin/orders/{id} with a customer session is sent back to login" 307 "reason=forbidden" "$(fetch -H "cookie: ecommerce_access=$customer_token" "$GATEWAY/admin/orders/$unknown_order")"
   for section in categories users; do
     expect "backoffice: the shell links to $section" 200 "href=\"/admin/$section\"" "$(fetch -H "cookie: ecommerce_access=$admin_token" "$GATEWAY/admin/products")"
     expect "backoffice: /admin/$section with a customer session is sent back to login" 307 "reason=forbidden" "$(fetch -H "cookie: ecommerce_access=$customer_token" "$GATEWAY/admin/$section")"

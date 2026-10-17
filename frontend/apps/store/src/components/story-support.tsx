@@ -1,6 +1,7 @@
 import type { Decorator } from "@storybook/nextjs-vite";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import type { Product, ProductPage } from "@ecommerce/web-core";
+import type { Address } from "../lib/addresses";
 import type { AddResult, Cart, CartActions } from "../lib/cart";
 
 export function withUrl(searchParams = ""): Decorator {
@@ -81,4 +82,30 @@ export const STORY_CART_ACTIONS: CartActions = {
   setQuantity: () => Promise.resolve({ ok: true, cart: STORY_CART }),
   removeItem: () => Promise.resolve({ ok: true, cart: STORY_CART }),
   clearCart: () => Promise.resolve({ ok: true }),
+};
+
+export const STORY_ADDRESS: Address = {
+  id: "0b8f6d2e-5c1a-4f7b-8e3d-9a2c4b6d8e10",
+  recipient_name: "Ada Lovelace",
+  line1: "12 Analytical St",
+  line2: null,
+  city: "London",
+  region: null,
+  postal_code: "N1 9GU",
+  country: "GB",
+  phone: "+442071234567",
+  created_at: "2026-10-14T10:00:00Z",
+};
+
+export const STORY_OTHER_ADDRESS: Address = {
+  ...STORY_ADDRESS,
+  id: "1c9a7e3f-6d2b-4a8c-9f4e-0b3d5c7e9f21",
+  recipient_name: "Grace Hopper",
+  line1: "1 Compiler Way",
+  line2: "Suite 4",
+  city: "Arlington",
+  region: "VA",
+  postal_code: "22201",
+  country: "US",
+  phone: null,
 };

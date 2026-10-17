@@ -19,5 +19,14 @@ def get_customer_id(user: CustomerUser) -> UUID:
         raise InvalidTokenError("The access token is invalid or expired") from error
 
 
+EMAIL_MAX_LENGTH = 320
+
+
+def get_customer_email(user: CustomerUser) -> str | None:
+    email = user.email.strip() if user.email else ""
+    return email if 0 < len(email) <= EMAIL_MAX_LENGTH else None
+
+
 OrderServiceDep = Annotated[OrderService, Depends(get_order_service)]
 CustomerIdDep = Annotated[UUID, Depends(get_customer_id)]
+CustomerEmailDep = Annotated[str | None, Depends(get_customer_email)]

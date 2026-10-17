@@ -12,8 +12,8 @@ from orders.domain.status import ORDER_CREATED_REASON, OrderStatus
 NOW = datetime(2026, 10, 17, 12, 0, tzinfo=UTC)
 
 
-def new_order(customer: UUID | None = None) -> NewOrder:
-    return NewOrder(uuid4(), customer or uuid4(), order_request(), uuid4())
+def new_order(customer: UUID | None = None, email: str | None = None) -> NewOrder:
+    return NewOrder(uuid4(), customer or uuid4(), order_request(), uuid4(), email)
 
 
 async def add(factory: UnitOfWorkFactory, order: NewOrder, now: datetime = NOW) -> None:
@@ -318,3 +318,40 @@ async def test_purging_removes_only_expired_keys(unit_of_work: UnitOfWorkFactory
     assert purged >= 1
     assert kept is not None
     assert reusable is None
+
+
+async def test_the_customer_email_is_stored_and_read_back_in_the_order_and_the_list(
+    unit_of_work: UnitOfWorkFactory,
+) -> None:
+    customer = uuid4()
+    with_email = new_order(customer, "ada@example.com")
+    without = new_order(customer)
+    await add(unit_of_work, with_email, NOW)
+    await add(unit_of_work, without, NOW + timedelta(seconds=1))
+
+    async with unit_of_work() as uow:
+        stored = await uow.orders.get(with_email.id)
+        other = await uow.orders.get(without.id)
+        rows = await uow.orders.list_page(customer, OrderFilters(), None, 10)
+
+    assert stored is not None
+    assert other is not None
+    assert (stored.customer_email, other.customer_email) == ("ada@example.com", None)
+    assert [row.customer_email for row in rows] == [None, "ada@example.com"]
+
+
+async def test_changing_the_status_keeps_the_customer_email(
+    unit_of_work: UnitOfWorkFactory,
+) -> None:
+    order = new_order(email="ada@example.com")
+    await add(unit_of_work, order)
+
+    async with unit_of_work() as uow:
+        await uow.orders.transition(
+            order.id, {OrderStatus.PENDING}, OrderStatus.CANCELLED, NOW, "saga_timeout"
+        )
+        await uow.commit()
+        stored = await uow.orders.get(order.id)
+
+    assert stored is not None
+    assert (stored.status, stored.customer_email) == (OrderStatus.CANCELLED, "ada@example.com")

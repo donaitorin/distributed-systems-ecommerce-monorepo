@@ -50,6 +50,7 @@ class NewOrder:
     customer_id: UUID
     request: OrderRequest
     correlation_id: UUID
+    customer_email: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,6 +90,7 @@ class Order:
     updated_at: datetime
     lines: tuple[OrderLine, ...] = field(default_factory=tuple)
     history: tuple[HistoryEntry, ...] = field(default_factory=tuple)
+    customer_email: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,3 +103,4 @@ class OrderSummary:
     item_count: int
     created_at: datetime
     updated_at: datetime
+    customer_email: str | None = None

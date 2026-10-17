@@ -86,11 +86,8 @@ export function Table<Row>({
     }
     if (error || rows.length === 0) {
       return (
-        <li
-          role={error ? "alert" : undefined}
-          className="rounded-md border border-border bg-surface px-4 py-8 text-center text-sm text-primary"
-        >
-          {error ?? emptyMessage}
+        <li className="rounded-md border border-border bg-surface px-4 py-8 text-center text-sm text-primary">
+          {error ? <p role="alert">{error}</p> : emptyMessage}
         </li>
       );
     }
