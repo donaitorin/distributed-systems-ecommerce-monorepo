@@ -5,6 +5,7 @@ from ecommerce_messaging.consumer import (
     Handler,
     Outcome,
     RetryPolicy,
+    idempotent_handler,
     standalone_handler,
     transactional_handler,
 )
@@ -36,6 +37,7 @@ __all__ = [
     "PublishError",
     "Publisher",
     "RetryPolicy",
+    "idempotent_handler",
     "outbox_table",
     "processed_events_table",
     "standalone_handler",
