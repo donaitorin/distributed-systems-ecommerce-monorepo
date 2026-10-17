@@ -9,6 +9,7 @@ dependencies = [
     "ecommerce-auth",
     "ecommerce-storage",
     "ecommerce-web",
+    "ecommerce-resilience",
     "ecommerce-catalog",
     "ecommerce-auth-service",
     "ecommerce-accounts-service",
@@ -42,6 +43,7 @@ ecommerce-messaging = { workspace = true }
 ecommerce-auth = { workspace = true }
 ecommerce-storage = { workspace = true }
 ecommerce-web = { workspace = true }
+ecommerce-resilience = { workspace = true }
 ecommerce-catalog = { workspace = true }
 ecommerce-auth-service = { workspace = true }
 ecommerce-accounts-service = { workspace = true }
@@ -60,6 +62,7 @@ src = [
     "libs/auth/src",
     "libs/storage/src",
     "libs/web/src",
+    "libs/resilience/src",
     "services/catalog/src",
     "services/auth/src",
     "services/accounts/src",
@@ -83,6 +86,7 @@ mypy_path = [
     "libs/auth/src",
     "libs/storage/src",
     "libs/web/src",
+    "libs/resilience/src",
     "services/catalog/src",
     "services/auth/src",
     "services/accounts/src",
