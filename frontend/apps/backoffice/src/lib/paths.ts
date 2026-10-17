@@ -5,4 +5,5 @@ export const HOME_PATH = "/";
 export const PRODUCTS_PATH = "/products";
 export const CATEGORIES_PATH = "/categories";
 export const USERS_PATH = "/users";
+export const ORDERS_PATH = "/orders";
 export const STREAM_PATH = "/api/stream";
