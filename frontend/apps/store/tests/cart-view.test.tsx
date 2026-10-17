@@ -14,6 +14,11 @@ function actions(overrides: Partial<CartActions> = {}): jest.Mocked<CartActions>
   } as jest.Mocked<CartActions>;
 }
 
+const settled = () =>
+  waitFor(() => {
+    expect(screen.getByRole("region", { name: "Your cart" })).not.toHaveAttribute("aria-busy");
+  });
+
 const flagged = (flags: CartFlag[]) => cart([line({ flags }), line({ sku: "TY-002", name: "Toy robot" })]);
 
 describe("CartView", () => {
@@ -139,6 +144,7 @@ describe("CartView", () => {
 
       expect(await screen.findByRole("alert")).toHaveTextContent("The price is now $66.00");
       expect(screen.getByText(/The price changed from \$59.00 to \$66\.00\./)).toBeInTheDocument();
+      await settled();
 
       await userEvent.click(screen.getByRole("button", { name: /Accept new price of \$66.00/ }));
 
@@ -238,10 +244,47 @@ describe("CartView", () => {
       await userEvent.click(screen.getByRole("button", { name: "Remove Running shoes from your cart" }));
       await userEvent.click(await screen.findByRole("button", { name: "Try again" }));
       expect(removeItem).toHaveBeenCalledTimes(2);
+      await settled();
 
       await userEvent.click(screen.getByRole("button", { name: /Accept new price/ }));
       await userEvent.click(await screen.findByRole("button", { name: "Try again" }));
       expect(setQuantity).toHaveBeenCalledTimes(2);
+    });
+
+    it("ignores a second change while one is still in flight, then accepts the next one", async () => {
+      let finishRemoval: () => void = () => undefined;
+      const removeItem = jest
+        .fn()
+        .mockResolvedValueOnce({ ok: false, kind: "unavailable" })
+        .mockImplementationOnce(
+          () =>
+            new Promise<CartResult>((resolve) => {
+              finishRemoval = () => {
+                resolve({ ok: true, cart: cart() });
+              };
+            }),
+        );
+      const setQuantity = jest.fn().mockResolvedValue({ ok: true, cart: cart() });
+      render(
+        <CartView
+          cart={flagged([{ type: "price_changed", old_price: "59.00", new_price: "64.50" }])}
+          actions={actions({ removeItem, setQuantity })}
+        />,
+      );
+
+      await userEvent.click(screen.getByRole("button", { name: "Remove Running shoes from your cart" }));
+      await userEvent.click(await screen.findByRole("button", { name: "Try again" }));
+      const accept = screen.getByRole("button", { name: /Accept new price/ });
+
+      expect(accept).toBeDisabled();
+      await userEvent.click(accept);
+      expect(setQuantity).not.toHaveBeenCalled();
+
+      finishRemoval();
+      await settled();
+      await userEvent.click(screen.getByRole("button", { name: /Accept new price/ }));
+
+      expect(setQuantity).toHaveBeenCalledWith("RS-001", 2, "64.50");
     });
 
     it("disables every control while a change is in flight", async () => {
