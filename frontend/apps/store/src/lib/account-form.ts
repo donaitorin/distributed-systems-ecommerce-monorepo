@@ -10,6 +10,10 @@ const PHONE_PATTERN = /^\+\d{8,15}$/;
 
 export const PHONE_MESSAGE = "Start with + and the country code, then 8 to 15 digits in total, like +34 600 123 456.";
 
+export function isValidPhone(value: string): boolean {
+  return value === "" || PHONE_PATTERN.test(value.replace(PHONE_SEPARATORS, ""));
+}
+
 export const profileFormSchema = z.object({
   name: z
     .string()
@@ -19,7 +23,7 @@ export const profileFormSchema = z.object({
   phone: z
     .string()
     .trim()
-    .refine((value) => value === "" || PHONE_PATTERN.test(value.replace(PHONE_SEPARATORS, "")), PHONE_MESSAGE),
+    .refine(isValidPhone, PHONE_MESSAGE),
 });
 
 export type ProfileFormValues = z.infer<typeof profileFormSchema>;
