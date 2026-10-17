@@ -33,6 +33,10 @@ The cart is volatile, written often and owned by one user. It lives in its own s
 - A Redis failure is a `503` Problem Details with `Retry-After`. `/ready` checks Redis only; the service does not depend on catalog, Kafka or auth to start.
 - The documentation and health routes are published at `/cart-service/...`. A gateway route at `/cart` would shadow the storefront page of the same name (the same trap ADR 0007 notes for `/auth`).
 
+## Known limitations
+
+- **The image key is recovered from a URL.** Catalog's `GET /products/{sku}` only returns image URLs, so the cart derives the key from `image_url` (`image_key_from_full_url`, the inverse of `build_public_url` plus the `-1200.webp` suffix). Both services must therefore be configured with the same `MEDIA_PUBLIC_BASE_URL`; compose does it. If they differ the cart still works but its lines show the placeholder image instead of the photo. Events do not have the problem, they carry the key. Exposing `image_key` in catalog's response would remove the limitation, at the price of a change to catalog's API and its generated clients.
+
 ## Consequences
 
 - A product added before the projection existed, or after its entry expired, is seeded from catalog on the next add; lines of carts untouched for 30 days expire together with their entries.
