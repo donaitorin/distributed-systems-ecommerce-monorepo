@@ -13,7 +13,8 @@ services:
       - ${PROOF_CONFIG_DIR}/dynamic:/etc/traefik/dynamic:ro
     networks:
       edge: {}
-      frontend: {}
+      frontend:
+        ipv4_address: 10.250.20.14
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--ping"]
       interval: 2s
