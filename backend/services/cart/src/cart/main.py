@@ -10,12 +10,13 @@ from cart.api import install_api
 from cart.application.carts import CartService
 from cart.application.clock import utc_now
 from cart.application.ports import CartStore, CatalogGateway, ProductProjection
-from cart.infra.catalog_client import HttpCatalogGateway
+from cart.infra.catalog_client import CIRCUIT_NAME, HttpCatalogGateway
 from cart.infra.redis_client import create_redis
 from cart.infra.redis_projection import RedisProductProjection
 from cart.infra.redis_store import RedisCartStore
 from cart.settings import CartSettings
 from ecommerce_auth import create_token_verifier
+from ecommerce_resilience import CircuitBreaker, LoggingListener
 from ecommerce_web import ReadinessCheck, ServiceSettings, create_app
 
 SERVICE_NAME = "cart"
@@ -43,7 +44,10 @@ def create_cart_app(
             base_url=settings.catalog_base_url, timeout=settings.catalog_timeout_seconds
         )
         shutdown.append(client.aclose)
-        catalog = HttpCatalogGateway(client, settings.media_public_base_url)
+        breaker = CircuitBreaker(CIRCUIT_NAME, settings.catalog_breaker, LoggingListener())
+        catalog = HttpCatalogGateway(
+            client, settings.media_public_base_url, breaker, settings.catalog_retry
+        )
     app = create_app(
         ServiceSettings(name=SERVICE_NAME, log_level=settings.log_level),
         readiness_checks=[redis_readiness_check(redis)],
