@@ -33,6 +33,17 @@ from catalog.domain.listing import (
     Total,
 )
 from catalog.domain.product import Category, NewProduct, Product, ProductData
+from catalog.domain.reservation import (
+    AlreadyHandled,
+    Rejected,
+    ReleasedItem,
+    ReservationLine,
+    ReservationStatus,
+    Reserved,
+    ReservedItem,
+    ReserveResult,
+    diagnose,
+)
 from catalog.infra.memory_imports import (
     ImportData,
     InMemoryEventOutbox,
@@ -59,8 +70,15 @@ class StoredProduct:
 
 
 @dataclass(slots=True)
+class StoredReservation:
+    status: ReservationStatus
+    lines: dict[str, int] = field(default_factory=dict)
+
+
+@dataclass(slots=True)
 class InMemoryStore:
     products: dict[str, StoredProduct] = field(default_factory=dict)
+    reservations: dict[UUID, StoredReservation] = field(default_factory=dict)
     categories: dict[UUID, Category] = field(default_factory=dict)
     import_data: ImportData = field(default_factory=empty_import_data)
 
@@ -308,8 +326,57 @@ class InMemoryCategoryRepository:
         return category
 
 
+class InMemoryStockReservationRepository:
+    def __init__(self, store: InMemoryStore) -> None:
+        self._store = store
+
+    async def reserve(
+        self, order_id: UUID, lines: tuple[ReservationLine, ...], now: datetime
+    ) -> ReserveResult:
+        if order_id in self._store.reservations:
+            return AlreadyHandled()
+        ordered = sorted(lines, key=lambda line: line.sku)
+        for line in ordered:
+            stored = self._store.products.get(line.sku)
+            usable = stored is not None and stored.deleted_at is None
+            available = stored.stock if usable and stored is not None else None
+            price = stored.price if usable and stored is not None else None
+            if price != line.expected_price or available is None or available < line.quantity:
+                self._store.reservations[order_id] = StoredReservation(ReservationStatus.FAILED)
+                return Rejected(diagnose(line, price, available))
+        items: list[ReservedItem] = []
+        for line in ordered:
+            stored = self._store.products[line.sku]
+            stored.stock -= line.quantity
+            stored.version += 1
+            stored.updated_at = now
+            items.append(ReservedItem(_changed(stored), line.quantity))
+        self._store.reservations[order_id] = StoredReservation(
+            ReservationStatus.RESERVED, {line.sku: line.quantity for line in ordered}
+        )
+        return Reserved(tuple(items))
+
+    async def release(self, order_id: UUID, now: datetime) -> tuple[ReleasedItem, ...]:
+        reservation = self._store.reservations.get(order_id)
+        if reservation is None:
+            self._store.reservations[order_id] = StoredReservation(ReservationStatus.RELEASED)
+            return ()
+        if reservation.status is not ReservationStatus.RESERVED:
+            return ()
+        reservation.status = ReservationStatus.RELEASED
+        items: list[ReleasedItem] = []
+        for sku, quantity in sorted(reservation.lines.items()):
+            stored = self._store.products[sku]
+            stored.stock += quantity
+            stored.version += 1
+            stored.updated_at = now
+            items.append(ReleasedItem(_changed(stored), quantity, stored.deleted_at is not None))
+        return tuple(items)
+
+
 class InMemoryUnitOfWork:
     products: InMemoryProductRepository
+    reservations: InMemoryStockReservationRepository
     categories: InMemoryCategoryRepository
     imports: InMemoryImportRepository
     events: InMemoryEventOutbox
@@ -325,6 +392,7 @@ class InMemoryUnitOfWork:
         self.products = InMemoryProductRepository(self._store)
         self.categories = InMemoryCategoryRepository(self._store)
         self.imports = InMemoryImportRepository(self._store.import_data)
+        self.reservations = InMemoryStockReservationRepository(self._store)
         self.events = InMemoryEventOutbox(self._store.import_data)
         return self
 
@@ -336,6 +404,7 @@ class InMemoryUnitOfWork:
     ) -> None:
         if not self._committed and self._snapshot is not None:
             self._store.products = self._snapshot.products
+            self._store.reservations = self._snapshot.reservations
             self._store.categories = self._snapshot.categories
             self._store.import_data = self._snapshot.import_data
 
