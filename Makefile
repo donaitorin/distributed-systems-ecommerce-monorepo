@@ -2,13 +2,13 @@ COMPOSE := docker compose
 export BUILDX_NO_DEFAULT_ATTESTATIONS := 1
 UV_BACKEND := uv --directory backend
 PNPM_FRONTEND := cd frontend && corepack pnpm
-LONG_RUNNING := postgres redis-cart redis-cache kafka kafka-ui object-storage gateway auth auth-worker accounts accounts-worker cart cart-worker catalog catalog-worker store backoffice
+LONG_RUNNING := postgres redis-cart redis-cache kafka kafka-ui object-storage gateway auth auth-worker accounts accounts-worker cart cart-worker orders orders-worker catalog catalog-worker store backoffice
 
 .PHONY: up down logs ps dev-token seed test test-backend test-backend-unit test-frontend lint lint-backend lint-frontend format-backend openapi check-openapi check-routes check-rate-limit install-frontend storybook build-storybook test-storybook check-comments test-scripts
 
 up:
 	@test -f .env || { echo ".env not found: run 'cp .env.example .env' first"; exit 1; }
-	$(COMPOSE) build catalog auth accounts cart store backoffice
+	$(COMPOSE) build catalog auth accounts cart orders store backoffice
 	$(COMPOSE) up -d --no-build
 	$(COMPOSE) up -d --no-build --wait $(LONG_RUNNING)
 

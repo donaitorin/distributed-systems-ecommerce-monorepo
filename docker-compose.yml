@@ -38,6 +38,21 @@ x-accounts-database-environment: &accounts-database-environment
   ACCOUNTS_DB_USER: accounts_user
   ACCOUNTS_DB_PASSWORD: ${ACCOUNTS_DB_PASSWORD}
 
+x-orders-image: &orders-image
+  image: ecommerce/orders:dev
+  pull_policy: never
+
+x-orders-build: &orders-build
+  context: ./backend
+  dockerfile: services/orders/Dockerfile
+
+x-orders-database-environment: &orders-database-environment
+  ORDERS_DB_HOST: postgres
+  ORDERS_DB_PORT: "5432"
+  ORDERS_DB_NAME: orders_db
+  ORDERS_DB_USER: orders_user
+  ORDERS_DB_PASSWORD: ${ORDERS_DB_PASSWORD}
+
 x-cart-image: &cart-image
   image: ecommerce/cart:dev
   pull_policy: never
@@ -351,6 +366,56 @@ services:
     environment:
       <<: *accounts-database-environment
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+
+  orders-migrate:
+    <<: *orders-image
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      <<: *orders-database-environment
+
+  orders:
+    <<: *orders-image
+    pull_policy: build
+    build: *orders-build
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      orders-migrate:
+        condition: service_completed_successfully
+    environment:
+      <<: [*jwt-environment, *orders-database-environment]
+      JWT_JWKS_URL: http://auth:8000/api/v1/auth/.well-known/jwks.json
+      ROOT_PATH: /orders-service
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready', timeout=2)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  orders-worker:
+    <<: *orders-image
+    restart: unless-stopped
+    command: ["python", "-m", "orders.worker"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      orders-migrate:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+    environment:
+      <<: *orders-database-environment
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      ORDERS_SAGA_TIMEOUT_SECONDS: ${ORDERS_SAGA_TIMEOUT_SECONDS:-60}
+      ORDERS_SAGA_SWEEP_INTERVAL_SECONDS: ${ORDERS_SAGA_SWEEP_INTERVAL_SECONDS:-5}
 
   cart:
     <<: *cart-image
