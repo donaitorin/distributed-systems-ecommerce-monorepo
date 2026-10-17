@@ -7,16 +7,21 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Self
 
-from cart.application.ports import ProductProjection
+from cart.application.ports import CartStore, ProductProjection
 from cart.application.projection import ProjectionUpdates
+from cart.application.purchases import PurchasedLines
 from cart.infra.redis_client import create_redis
 from cart.infra.redis_projection import RedisProductProjection
+from cart.infra.redis_store import RedisCartStore
 from cart.settings import CART_TTL_SECONDS, RedisSettings
 from ecommerce_contracts import (
     CATALOG_TOPIC,
+    ORDER_CONFIRMED,
+    ORDERS_TOPIC,
     PRODUCT_DELETED,
     PRODUCT_UPDATED,
     Envelope,
+    OrderConfirmedV1,
     ProductDeletedV1,
     ProductUpdatedV1,
 )
@@ -39,6 +44,7 @@ logger = logging.getLogger(__name__)
 
 SERVICE_NAME = "cart-worker"
 CONSUMER_GROUP = "cart-catalog-events"
+ORDERS_CONSUMER_GROUP = "cart-order-events"
 PATIENT_RETRY = RetryPolicy(max_attempts=8, base_delay_seconds=0.5, max_delay_seconds=8.0)
 
 
@@ -50,6 +56,8 @@ class WorkerSettings:
     log_level: str = "INFO"
     topic: str = CATALOG_TOPIC
     group: str = CONSUMER_GROUP
+    orders_topic: str = ORDERS_TOPIC
+    orders_group: str = ORDERS_CONSUMER_GROUP
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str]) -> Self:
@@ -72,6 +80,13 @@ def product_handlers(updates: ProjectionUpdates) -> Sequence[Handler]:
         idempotent_handler(PRODUCT_UPDATED, 1, ProductUpdatedV1, on_updated),
         idempotent_handler(PRODUCT_DELETED, 1, ProductDeletedV1, on_deleted),
     ]
+
+
+def purchase_handlers(purchases: PurchasedLines) -> Sequence[Handler]:
+    async def on_confirmed(envelope: Envelope[OrderConfirmedV1]) -> None:
+        await purchases.confirmed(envelope)
+
+    return [idempotent_handler(ORDER_CONFIRMED, 1, OrderConfirmedV1, on_confirmed)]
 
 
 async def log_dead_letter(letter: DeadLetter) -> None:
@@ -113,21 +128,48 @@ def build_consumer(
     )
 
 
+def build_purchase_consumer(
+    source: MessageSource,
+    dead_letters: Publisher,
+    store: CartStore,
+    group: str = ORDERS_CONSUMER_GROUP,
+    retry: RetryPolicy = PATIENT_RETRY,
+    sleep: Sleeper = asyncio.sleep,
+) -> EventConsumer:
+    return EventConsumer(
+        group=group,
+        source=source,
+        dead_letters=dead_letters,
+        handlers=purchase_handlers(PurchasedLines(store)),
+        retry=retry,
+        on_dead_letter=log_dead_letter,
+        sleep=sleep,
+    )
+
+
 async def run_worker(settings: WorkerSettings, stop: asyncio.Event) -> None:
     redis = create_redis(settings.redis)
     publisher = KafkaPublisher(settings.kafka)
     source = build_source(settings)
+    orders_source = KafkaSource(settings.kafka, [settings.orders_topic], settings.orders_group)
     consumer = build_consumer(
         source,
         publisher,
         RedisProductProjection(redis, settings.ttl_seconds),
         group=settings.group,
     )
+    purchases = build_purchase_consumer(
+        orders_source,
+        publisher,
+        RedisCartStore(redis, settings.ttl_seconds),
+        group=settings.orders_group,
+    )
     logger.info("cart worker started")
     try:
-        await consumer.run(stop)
+        await asyncio.gather(consumer.run(stop), purchases.run(stop))
     finally:
         await source.close()
+        await orders_source.close()
         await publisher.close()
         await redis.aclose()
         logger.info("cart worker stopped")

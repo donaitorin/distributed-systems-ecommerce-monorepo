@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Protocol
 
 from cart.domain.cart import CartLine
@@ -12,6 +13,8 @@ class CartStore(Protocol):
     async def put_line(self, user_id: str, line: CartLine, max_lines: int) -> bool: ...
 
     async def remove_line(self, user_id: str, sku: str) -> None: ...
+
+    async def remove_line_added_before(self, user_id: str, sku: str, cutoff: datetime) -> bool: ...
 
     async def clear(self, user_id: str) -> None: ...
 
