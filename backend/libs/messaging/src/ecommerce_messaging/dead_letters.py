@@ -57,6 +57,12 @@ class DeadLetterEntry:
     def location(self) -> Location:
         return (self.message.partition, self.message.offset)
 
+    @property
+    def origin(self) -> str:
+        if self.original_topic is None:
+            return f"{self.message.topic}[{self.message.partition}]@{self.message.offset}"
+        return f"{self.original_topic}[{self.original_partition}]@{self.original_offset}"
+
     def summary(self) -> dict[str, Any]:
         return {
             "partition": self.message.partition,
@@ -75,9 +81,25 @@ class DeadLetterEntry:
 
 
 @dataclass(frozen=True, slots=True)
+class ReplayItem:
+    location: Location
+    origin: str
+    groups: tuple[str, ...]
+    dead_letters: int
+
+
+@dataclass(frozen=True, slots=True)
 class ReplayReport:
-    replayed: tuple[Location, ...]
+    items: tuple[ReplayItem, ...]
     missing: tuple[Location, ...]
+
+    @property
+    def dead_letters(self) -> int:
+        return sum(item.dead_letters for item in self.items)
+
+    @property
+    def duplicates_skipped(self) -> int:
+        return self.dead_letters - len(self.items)
 
 
 def require_dead_letter_topic(topic: str) -> str:
@@ -135,16 +157,25 @@ async def replay(
 ) -> ReplayReport:
     available = {entry.location: entry for entry in entries}
     wanted = sorted(available) if selected is None else sorted(selected)
-    outgoing = [
-        (location, replay_message(available[location]))
-        for location in wanted
-        if location in available
-    ]
+    chosen = [available[location] for location in wanted if location in available]
+    by_origin: dict[str, list[DeadLetterEntry]] = {}
+    for entry in chosen:
+        by_origin.setdefault(entry.origin, []).append(entry)
+    plan = [(group[0], replay_message(group[0]), group) for group in by_origin.values()]
     if not dry_run:
-        for _, message in outgoing:
+        for _, message, _ in plan:
             await publisher.publish(message)
+    items = tuple(
+        ReplayItem(
+            location=first.location,
+            origin=first.origin,
+            groups=tuple(sorted({entry.group for entry in group if entry.group is not None})),
+            dead_letters=len(group),
+        )
+        for first, _, group in plan
+    )
     return ReplayReport(
-        replayed=tuple(location for location, _ in outgoing),
+        items=items,
         missing=tuple(location for location in wanted if location not in available),
     )
 

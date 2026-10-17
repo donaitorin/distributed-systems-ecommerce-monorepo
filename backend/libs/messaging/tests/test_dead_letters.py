@@ -48,15 +48,17 @@ def event(event_id: str = EVENT_ID, number: object = 1) -> bytes:
     ).encode()
 
 
-def dead_headers(topic: str = TOPIC) -> dict[str, bytes]:
+def dead_headers(
+    topic: str = TOPIC, origin_offset: int = 41, group: str = "payments-orders"
+) -> dict[str, bytes]:
     return {
         "x-error": b"1 validation errors: payload.number: int_parsing",
         "x-error-type": b"ValidationError",
         "x-attempts": b"0",
         "x-original-topic": topic.encode(),
         "x-original-partition": b"2",
-        "x-original-offset": b"41",
-        "x-consumer-group": b"payments-orders",
+        "x-original-offset": str(origin_offset).encode(),
+        "x-consumer-group": group.encode(),
         "trace": b"abc",
     }
 
@@ -163,12 +165,14 @@ async def test_a_message_that_names_another_topic_cannot_be_replayed() -> None:
 async def test_replaying_a_selection_publishes_only_what_was_chosen() -> None:
     broker = InMemoryBroker()
     for number in range(3):
-        await seed(broker, event(str(uuid4()), number))
+        await seed(broker, event(str(uuid4()), number), dead_headers(origin_offset=number))
 
     code, out, _ = await command(broker, "replay", DEAD, "--offset", "0:1")
 
     assert code == 0
-    assert out.strip() == "replayed 1 message(s) from orders.events.dlq"
+    assert out.splitlines()[0] == (
+        "replayed 1 message(s) from orders.events.dlq (1 dead letters, 0 duplicates skipped)"
+    )
     [replayed] = broker.messages(TOPIC)
     assert json.loads(replayed.value)["payload"] == {"number": 1}
 
@@ -176,7 +180,7 @@ async def test_replaying_a_selection_publishes_only_what_was_chosen() -> None:
 async def test_replaying_everything_publishes_in_offset_order() -> None:
     broker = InMemoryBroker()
     for number in range(3):
-        await seed(broker, event(str(uuid4()), number))
+        await seed(broker, event(str(uuid4()), number), dead_headers(origin_offset=number))
 
     code, _, _ = await command(broker, "replay", DEAD, "--all")
 
@@ -192,7 +196,9 @@ async def test_a_dry_run_publishes_nothing() -> None:
     code, out, _ = await command(broker, "replay", DEAD, "--all", "--dry-run")
 
     assert code == 0
-    assert out.strip() == "would replay 1 message(s) from orders.events.dlq"
+    assert out.splitlines()[0] == (
+        "would replay 1 message(s) from orders.events.dlq (1 dead letters, 0 duplicates skipped)"
+    )
     assert broker.messages(TOPIC) == []
 
 
@@ -300,3 +306,67 @@ async def test_a_dead_letter_replayed_twice_is_applied_once_by_an_idempotent_con
 
     assert len(broker.messages(TOPIC)) == 2
     assert applied == [EVENT_ID]
+
+
+GROUPS = ("catalog-orders", "payments-order-events", "cart-order-events")
+
+
+async def seed_failed_by_every_group(broker: InMemoryBroker, origin_offsets: list[int]) -> None:
+    for origin_offset in origin_offsets:
+        value = event(str(uuid4()), origin_offset)
+        for group in GROUPS:
+            await seed(broker, value, dead_headers(origin_offset=origin_offset, group=group))
+
+
+async def test_a_message_dead_lettered_by_several_groups_is_replayed_once() -> None:
+    broker = InMemoryBroker()
+    await seed_failed_by_every_group(broker, [7, 9])
+
+    code, out, _ = await command(broker, "replay", DEAD, "--all")
+
+    assert code == 0
+    assert len(broker.messages(DEAD)) == 6
+    assert [json.loads(m.value)["payload"]["number"] for m in broker.messages(TOPIC)] == [7, 9]
+    assert out.splitlines() == [
+        "replayed 2 message(s) from orders.events.dlq (6 dead letters, 4 duplicates skipped)",
+        "  orders.events[2]@7 failed in: cart-order-events, catalog-orders, payments-order-events",
+        "  orders.events[2]@9 failed in: cart-order-events, catalog-orders, payments-order-events",
+    ]
+
+
+async def test_a_dry_run_reports_the_deduplicated_count_without_publishing() -> None:
+    broker = InMemoryBroker()
+    await seed_failed_by_every_group(broker, [7, 9])
+
+    _, out, _ = await command(broker, "replay", DEAD, "--all", "--dry-run")
+
+    assert out.splitlines()[0] == (
+        "would replay 2 message(s) from orders.events.dlq (6 dead letters, 4 duplicates skipped)"
+    )
+    assert broker.messages(TOPIC) == []
+
+
+async def test_selecting_several_copies_of_the_same_message_replays_it_once() -> None:
+    broker = InMemoryBroker()
+    await seed_failed_by_every_group(broker, [7, 9])
+
+    code, out, _ = await command(
+        broker, "replay", DEAD, "--offset", "0:0", "--offset", "0:1", "--offset", "0:3"
+    )
+
+    assert code == 0
+    assert [json.loads(m.value)["payload"]["number"] for m in broker.messages(TOPIC)] == [7, 9]
+    assert "(3 dead letters, 1 duplicates skipped)" in out.splitlines()[0]
+
+
+async def test_the_same_offset_on_another_partition_is_a_different_message() -> None:
+    broker = InMemoryBroker()
+    for partition in (0, 1):
+        headers = dead_headers(origin_offset=5) | {"x-original-partition": str(partition).encode()}
+        await seed(broker, event(str(uuid4()), partition), headers)
+
+    code, out, _ = await command(broker, "replay", DEAD, "--all")
+
+    assert code == 0
+    assert len(broker.messages(TOPIC)) == 2
+    assert "0 duplicates skipped" in out

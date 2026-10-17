@@ -87,7 +87,12 @@ async def run(
         err.write(f"error: {error}\n")
         return EXIT_FAILURE
     verb = "would replay" if options.dry_run else "replayed"
-    out.write(f"{verb} {len(report.replayed)} message(s) from {topic}\n")
+    out.write(
+        f"{verb} {len(report.items)} message(s) from {topic} "
+        f"({report.dead_letters} dead letters, {report.duplicates_skipped} duplicates skipped)\n"
+    )
+    for item in report.items:
+        out.write(f"  {item.origin} failed in: {', '.join(item.groups) or 'unknown group'}\n")
     for partition, offset in report.missing:
         out.write(f"not found: {partition}:{offset}\n")
     return EXIT_FAILURE if report.missing else 0
