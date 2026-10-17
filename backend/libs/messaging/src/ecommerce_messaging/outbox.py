@@ -176,7 +176,7 @@ class OutboxRelay:
             except (PublishError, SQLAlchemyError, OSError) as error:
                 logger.warning(
                     "outbox relay could not deliver, will retry",
-                    extra={"error": str(error), "retry_in_seconds": backoff},
+                    extra={"error_type": type(error).__name__, "retry_in_seconds": backoff},
                 )
                 delivered = 0
                 await _sleep_or_stop(stop, backoff)

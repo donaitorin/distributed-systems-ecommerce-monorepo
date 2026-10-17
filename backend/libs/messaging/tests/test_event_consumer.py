@@ -263,7 +263,7 @@ async def test_a_message_that_keeps_failing_goes_to_the_dead_letter_topic(
     [dead] = harness.dead_letters()
     assert dead.key == "order-7"
     assert dead.value == message.value
-    assert dead.headers["x-error"] == b"bad data"
+    assert dead.headers["x-error"] == b"ValueError raised while handling the event"
     assert dead.headers["x-error-type"] == b"ValueError"
     assert dead.headers["x-attempts"] == b"3"
     assert dead.headers["x-original-topic"] == TOPIC.encode()
@@ -287,7 +287,7 @@ async def test_the_dead_letter_hook_receives_the_failure(harness: Harness) -> No
     assert letter.envelope is not None
     assert letter.envelope.event_id == item.event_id
     assert (letter.error, letter.error_type, letter.attempts, letter.group) == (
-        "c",
+        "RuntimeError raised while handling the event",
         "RuntimeError",
         3,
         "group-a",

@@ -1,4 +1,6 @@
 import asyncio
+import json
+import logging
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
@@ -291,6 +293,34 @@ async def test_the_run_loop_survives_an_outage_and_delivers_when_the_broker_retu
     await asyncio.wait_for(task, timeout=5)
 
     assert numbers(broker) == [1]
+
+
+class FailsWithPayloadText:
+    async def publish(self, message: OutgoingMessage) -> None:
+        raise OSError(f"connection reset while sending {message.value.decode()}")
+
+    async def close(self) -> None:
+        return None
+
+
+async def test_a_relay_outage_is_logged_without_the_event_payload(
+    database: Database, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.DEBUG)
+    await database.add(424242)
+    stop = asyncio.Event()
+    task = asyncio.create_task(database.relay(FailsWithPayloadText()).run(stop))
+
+    for _ in range(100):
+        if any("outbox relay" in record.getMessage() for record in caplog.records):
+            break
+        await asyncio.sleep(0.05)
+    stop.set()
+    await asyncio.wait_for(task, timeout=5)
+
+    [record, *_] = [r for r in caplog.records if "outbox relay" in r.getMessage()]
+    assert record.__dict__["error_type"] == "OSError"
+    assert "424242" not in json.dumps(record.__dict__, default=str)
 
 
 async def test_old_published_rows_are_purged_and_recent_ones_kept(database: Database) -> None:

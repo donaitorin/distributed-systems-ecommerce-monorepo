@@ -4,7 +4,7 @@ UV_BACKEND := uv --directory backend
 PNPM_FRONTEND := cd frontend && corepack pnpm
 LONG_RUNNING := postgres redis-cart redis-cache kafka kafka-ui object-storage gateway auth auth-worker accounts accounts-worker cart cart-worker orders orders-worker payments payments-worker catalog catalog-worker store backoffice
 
-.PHONY: up down logs ps dev-token seed test test-backend test-backend-unit test-frontend lint lint-backend lint-frontend format-backend openapi check-openapi check-routes check-rate-limit install-frontend storybook build-storybook test-storybook check-comments test-scripts
+.PHONY: up down logs ps dev-token seed test test-backend test-backend-unit test-frontend lint lint-backend lint-frontend format-backend openapi check-openapi check-routes check-rate-limit check-dead-letters dlq-inspect dlq-replay install-frontend storybook build-storybook test-storybook check-comments test-scripts
 
 up:
 	@test -f .env || { echo ".env not found: run 'cp .env.example .env' first"; exit 1; }
@@ -20,6 +20,19 @@ dev-token:
 
 seed:
 	$(COMPOSE) run --build --rm --no-deps catalog python -m catalog.tools.seed --count $(or $(COUNT),200000)
+
+DLQ_CLI := $(COMPOSE) run --rm --no-deps -T orders-worker python -m ecommerce_messaging.dlq_cli
+
+dlq-inspect:
+	@test -n "$(TOPIC)" || { echo "usage: make dlq-inspect TOPIC=orders.events.dlq [SHOW_PAYLOAD=1]"; exit 2; }
+	@$(DLQ_CLI) inspect $(TOPIC) $(if $(SHOW_PAYLOAD),--show-payload)
+
+dlq-replay:
+	@test -n "$(TOPIC)" || { echo "usage: make dlq-replay TOPIC=orders.events.dlq (OFFSETS=\"0:12 3:4\" | ALL=1) [DRY_RUN=1]"; exit 2; }
+	@$(DLQ_CLI) replay $(TOPIC) $(if $(OFFSETS),$(foreach location,$(OFFSETS),--offset $(location)),$(if $(ALL),--all)) $(if $(DRY_RUN),--dry-run)
+
+check-dead-letters:
+	./scripts/check_dead_letters.sh
 
 logs:
 	$(COMPOSE) logs -f --tail=100 $(SERVICE)

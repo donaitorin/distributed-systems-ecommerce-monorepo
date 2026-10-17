@@ -135,7 +135,7 @@ async def test_events_flow_through_kafka_and_a_poison_event_lands_in_the_dead_le
 
     assert cluster.seen == [1, 2, 3]
     [headers] = await cluster.read_dead_letters(1)
-    assert headers["x-error"] == b"poison pill"
+    assert headers["x-error"] == b"ValueError raised while handling the event"
     assert headers["x-original-topic"] == cluster.topic.encode()
     assert headers["x-attempts"] == b"2"
     assert headers["x-consumer-group"] == cluster.group.encode()
