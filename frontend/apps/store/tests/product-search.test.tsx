@@ -5,6 +5,7 @@ import type { Failure } from "@ecommerce/web-core";
 import { ProductSearch, type ProductSearchProps } from "../src/components/catalog/product-search";
 import { CATEGORY, OTHER_CATEGORY, productPage } from "./support/api";
 import { renderApp } from "./support/render";
+import { settled } from "@ecommerce/web-core/testing";
 
 const CATEGORIES = [CATEGORY, OTHER_CATEGORY];
 
@@ -133,10 +134,12 @@ describe("ProductSearch filters", () => {
     await waitFor(() => {
       expect(lastUrl(onUrlUpdate).get("category")).toBe("toys");
     });
+    await settled();
     await user.click(screen.getByRole("checkbox", { name: "In stock only" }));
     await waitFor(() => {
       expect(lastUrl(onUrlUpdate).get("in_stock")).toBe("true");
     });
+    await settled();
     await user.click(screen.getByRole("combobox", { name: "Sort by" }));
     await user.click(await screen.findByRole("option", { name: "Price, low to high" }));
     await waitFor(() => {
@@ -352,9 +355,7 @@ describe("ProductSearch pagination", () => {
     await waitFor(() => {
       expect(lastUrl(onUrlUpdate).get("cursor")).toBe("NEXT");
     });
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Previous" })).toBeEnabled();
-    });
+    await settled();
     await user.click(screen.getByRole("button", { name: "Previous" }));
     await waitFor(() => {
       expect(lastUrl(onUrlUpdate).get("cursor")).toBe("PREV");
@@ -441,6 +442,7 @@ describe("ProductSearch filter drawer", () => {
     await waitFor(() => {
       expect(lastUrl(onUrlUpdate).get("in_stock")).toBe("true");
     });
+    await settled();
     await user.click(within(dialog).getByRole("button", { name: "Show results" }));
 
     await waitFor(() => {

@@ -6,6 +6,7 @@ import { ProfileForm } from "../src/components/account/profile-form";
 import type { ProfileFormValues } from "../src/lib/account-form";
 import type { ProfileSaved } from "../src/server/profile";
 import { PROFILE } from "./support/api";
+import { settled } from "@ecommerce/web-core/testing";
 
 type Submit = (values: ProfileFormValues) => Promise<ProfileSaved | Failure>;
 
@@ -111,6 +112,7 @@ describe("ProfileForm", () => {
 
     await user.click(screen.getByRole("button", { name: "Save profile" }));
     expect(await screen.findByText("Profile saved.")).toBeInTheDocument();
+    await settled();
     await user.type(screen.getByLabelText("Name"), "x");
     await user.click(screen.getByRole("button", { name: "Save profile" }));
 

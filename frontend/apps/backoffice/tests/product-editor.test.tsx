@@ -4,6 +4,7 @@ import { ProductEditor } from "../src/components/products/product-editor";
 import { CATEGORY, product } from "./support/api";
 import { resetRouter, router } from "./support/navigation-mock";
 import { renderApp } from "./support/render";
+import { settled } from "@ecommerce/web-core/testing";
 
 jest.mock("next/navigation", () => jest.requireActual("./support/navigation-mock") as unknown);
 
@@ -52,6 +53,7 @@ describe("ProductEditor", () => {
       expect(updateProduct).toHaveBeenCalledWith("RS-001", '"3"', expect.objectContaining({ name: "Running shoes" }));
     });
     await screen.findByText("RS-001 was updated.");
+    await settled();
     await user.click(screen.getByRole("button", { name: "Save changes" }));
 
     await waitFor(() => {
@@ -66,6 +68,7 @@ describe("ProductEditor", () => {
     await user.upload(screen.getByLabelText("Upload an image"), file);
     await user.click(screen.getByRole("button", { name: "Upload image" }));
     await screen.findByText("The image of RS-001 was updated.");
+    await settled();
     await user.click(screen.getByRole("button", { name: "Save changes" }));
 
     await waitFor(() => {

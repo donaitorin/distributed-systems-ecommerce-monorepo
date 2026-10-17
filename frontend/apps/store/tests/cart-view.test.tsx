@@ -4,6 +4,7 @@ import { axe } from "jest-axe";
 import { CartView } from "../src/components/cart/cart-view";
 import type { CartActions, CartFlag, CartResult } from "../src/lib/cart";
 import { cart, line } from "./support/cart";
+import { settled } from "@ecommerce/web-core/testing";
 
 function actions(overrides: Partial<CartActions> = {}): jest.Mocked<CartActions> {
   return {
@@ -13,11 +14,6 @@ function actions(overrides: Partial<CartActions> = {}): jest.Mocked<CartActions>
     ...overrides,
   } as jest.Mocked<CartActions>;
 }
-
-const settled = () =>
-  waitFor(() => {
-    expect(screen.getByRole("region", { name: "Your cart" })).not.toHaveAttribute("aria-busy");
-  });
 
 const flagged = (flags: CartFlag[]) => cart([line({ flags }), line({ sku: "TY-002", name: "Toy robot" })]);
 
