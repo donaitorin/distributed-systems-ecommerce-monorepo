@@ -47,6 +47,7 @@ One-shot jobs `kafka-init`, `object-storage-init`, `auth-migrate` and `catalog-m
 | Auth | `auth` | `/api/v1/auth/*`, and `/auth/docs`, `/auth/health`, `/auth/ready` |
 | Accounts | `accounts`, `accounts-worker` | `/api/v1/accounts/*`, and `/accounts/docs`, `/accounts/health`, `/accounts/ready` |
 | Cart | `cart`, `cart-worker` | `/api/v1/cart/*`, and `/cart-service/docs`, `/cart-service/health`, `/cart-service/ready` |
+| Orders | `orders`, `orders-worker` | `/api/v1/orders/*`, `/api/v1/admin/orders/*`, and `/orders-service/docs`, `/orders-service/health`, `/orders-service/ready` |
 | Catalog | `catalog` | `/api/v1/products`, `/api/v1/categories`, and `/catalog/docs`, `/catalog/health`, `/catalog/ready` |
 | Backoffice | `backoffice` | `/admin` and `/admin/*` |
 | Store | `store` | Everything else (lowest priority), including `/login`, `/register` and `/account` |
@@ -123,6 +124,28 @@ curl -s localhost:8000/api/v1/cart -H "Authorization: Bearer $TOKEN"
 - **Projection.** The `cart-worker` container consumes `catalog.events` in the group `cart-catalog-events` and keeps `product:{sku}` (price, stock, name, version, deleted) in Redis, applying an event only if its version is newer than the stored one, with a Lua script. Replays and out of order delivery change nothing, so there is no processed-events table ([ADR 0011](docs/adr/0011-consumers-that-skip-the-claim.md), [ADR 0012](docs/adr/0012-cart-service.md)). Entries exist only for products that were added to some cart and expire 30 days after their last use, so importing 200,000 products cannot fill `redis-cart`.
 - **Lifetime.** A cart expires 30 days after its last change. Reading does not renew it.
 - **Independence.** `/ready` checks Redis only. The service starts without catalog, Kafka or auth; catalog is called only when a product is added or a price is accepted.
+
+## Orders API
+
+Orders orchestrates the checkout saga over Kafka ([ADR 0014](docs/adr/0014-orders-saga-and-idempotency.md)): it creates the order as `PENDING` with `order.created`, catalog reserves the stock (`stock.reserved` or `stock.reservation_failed`, [ADR 0013](docs/adr/0013-stock-reservations.md)), orders asks for the payment (`order.payment_requested`) and confirms or cancels. Every state change is a row in `order_status_history`. The docs live under `/orders-service/...` because `/orders` belongs to the storefront. The payments service arrives in the next part: until then an order stops at `STOCK_RESERVED` and the saga timeout cancels it and gives the stock back.
+
+| Endpoint | Behaviour |
+| --- | --- |
+| `POST /api/v1/orders` | Customer. Body `{lines: [{sku, quantity, unit_price}], shipping_address, payment: {card_number}}`; the header `Idempotency-Key` is required. `202 {id, status: "PENDING"}`. The same key with the same body returns the same response for 24 hours (`Idempotent-Replay: true`); the same key with a different body is `422` with `code: idempotency_key_reused`; a missing or malformed key is `400`. `unit_price` is the price the customer saw: catalog refuses the order if it changed (`price_changed`) |
+| `GET /api/v1/orders` | The customer's own orders, newest first, `limit` 25/50/100, opaque `cursor`, optional `status` |
+| `GET /api/v1/orders/{id}` | Owner only (`404` otherwise): lines, totals, `card_last4`, address snapshot, `cancel_reason`, `refunded_at` and the status history |
+| `GET /api/v1/admin/orders`, `/{id}` | Admin. Filters `status`, `created_from` (inclusive) and `created_to` (exclusive), both with a time zone |
+
+Statuses: `PENDING`, `STOCK_RESERVED`, `PAID`, `CONFIRMED`, `CANCELLED`. The card number is used only to keep its last four digits: it is not stored, logged or published (a test fails if it appears in the tables, the outbox or the logs). The timeout is `ORDERS_SAGA_TIMEOUT_SECONDS` (60) checked every `ORDERS_SAGA_SWEEP_INTERVAL_SECONDS` (5) by every `orders-worker`, safely in parallel.
+
+```bash
+TOKEN=$(ROLE=customer make -s dev-token)
+curl -s -X POST localhost:8000/api/v1/orders -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" -H "Idempotency-Key: demo-0001" -d '{
+    "lines": [{"sku": "RS-001", "quantity": 1, "unit_price": "39.90"}],
+    "shipping_address": {"recipient_name": "Ada", "line1": "1 St", "city": "London", "postal_code": "N1", "country": "GB"},
+    "payment": {"card_number": "4111 1111 1111 1111"}}'
+```
 
 ## Catalog API
 
