@@ -515,6 +515,7 @@ networks:
     ipam:
       config:
         - subnet: 10.250.10.0/28
+          ip_range: 10.250.10.8/29
 
 volumes:
   auth-keys:
