@@ -238,8 +238,6 @@ data/        sample-products.csv
 
 ### How this was built (AI usage)
 
-> **Draft wording, for the author to review before delivery.**
-
 The project followed a written plan of stages (E0 to E16: base environment, backend foundations, catalog, search, images, CSV import, auth, accounts, frontend foundations, backoffice, store, cart, orders and payments, checkout, resilience and this documentation; observability was planned as E15 and skipped). Each stage was split into parts and built with Claude Code under the rules in `CLAUDE.md`: work on one part at a time and only what its scope says, never start the next part alone, ask when the plan does not cover a decision (or state the assumption), prefer the simplest solution, no comments or docstrings, English everywhere, every change with tests, and never run `git commit`, `git push` or create branches. At the end of each part Claude Code stopped and reported what it built, its assumptions, the exact commands to verify it, the test and coverage numbers and a suggested split into Conventional Commits.
 
-A second assistant reviewed each report and wrote the prompt for the next part. The author then verified the work by running the commands in the report and committed by hand, so every commit in the history was read and run by a person. Decisions that mattered were written down as ADRs (`docs/adr/`). The plan itself (`.planning/`) is a local working note and is not versioned.
+A second assistant reviewed each report and wrote the prompt for the next part. The author then verified the work by running the commands in the report and committed by hand, so every commit in the history was read and run by a person. Decisions that mattered were written down as ADRs (`docs/adr/`).
