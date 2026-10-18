@@ -92,6 +92,15 @@ class KafkaBroker:
         self.container = container
         wait_until_ready(self.bootstrap)
 
+    def pause(self) -> None:
+        assert self.container is not None
+        self.container.get_wrapped_container().stop(timeout=5)
+
+    def resume(self) -> None:
+        assert self.container is not None
+        self.container.get_wrapped_container().start()
+        wait_until_ready(self.bootstrap)
+
     def stop(self) -> None:
         if self.container is not None:
             self.container.stop()
