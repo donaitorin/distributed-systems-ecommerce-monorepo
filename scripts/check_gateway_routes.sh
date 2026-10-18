@@ -64,7 +64,7 @@ expect "store: GET /orders (no session) reaches the store and redirects to its l
 expect "store: GET /checkout (no session) reaches the store and redirects to its login" 307 "location: /login?next=%2Fcheckout" "$(fetch "$GATEWAY/checkout")"
 expect "store: GET /orders/{id} (no session) reaches the store and redirects to its login" 307 "location: /login?next=%2Forders%2F$unknown_order" "$(fetch "$GATEWAY/orders/$unknown_order")"
 expect "store: GET /api/orders/{id} (no session) is the store route, not the orders API" 307 "location: /login" "$(fetch "$GATEWAY/api/orders/$unknown_order")"
-expect "store: unknown page is the store 404" 404 "could not be found" "$(fetch "$GATEWAY/does-not-exist")"
+expect "store: unknown page is the store 404" 404 "Page not found" "$(fetch "$GATEWAY/does-not-exist")"
 
 store_css=$(fetch "$GATEWAY/products" >/dev/null; grep -o '/_next/static/[^"]*\.css' /tmp/gateway-check.body | head -1)
 expect "store: static asset $store_css" 200 "" "$(fetch "$GATEWAY$store_css")"
