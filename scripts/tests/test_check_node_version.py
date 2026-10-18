@@ -57,5 +57,35 @@ def test_main_prints_the_problem_and_fails_when_they_differ(
     assert capsys.readouterr().err.startswith("error: Node v20.10.0 is active")
 
 
+def test_the_two_nvmrc_files_must_hold_the_same_version() -> None:
+    assert guard.files_disagree("24.22.0\n", "24.22.0") is None
+    message = guard.files_disagree("24.22.0\n", "24.21.0\n")
+    assert message is not None
+    assert "edit both" in message
+
+
+def test_main_fails_when_the_root_file_differs(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    frontend, root = tmp_path / "frontend.nvmrc", tmp_path / "root.nvmrc"
+    frontend.write_text("24.22.0\n")
+    root.write_text("22.1.0\n")
+
+    assert guard.main([str(frontend), "v24.22.0", str(root)]) == 1
+    assert "must hold the same version" in capsys.readouterr().err
+
+
+def test_main_passes_when_both_files_agree_and_the_major_matches(tmp_path: Path) -> None:
+    frontend, root = tmp_path / "frontend.nvmrc", tmp_path / "root.nvmrc"
+    frontend.write_text("24.22.0\n")
+    root.write_text("24.22.0")
+
+    assert guard.main([str(frontend), "v24.5.0", str(root)]) == 0
+
+
+def test_the_repository_files_agree() -> None:
+    assert guard.files_disagree(guard.NVMRC.read_text(), guard.ROOT_NVMRC.read_text()) is None
+
+
 def test_the_repository_nvmrc_is_a_version() -> None:
     assert guard.major_of(guard.NVMRC.read_text()) is not None

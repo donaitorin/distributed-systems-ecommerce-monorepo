@@ -7,6 +7,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 NVMRC = REPO_ROOT / "frontend" / ".nvmrc"
+ROOT_NVMRC = REPO_ROOT / ".nvmrc"
 VERSION = re.compile(r"v?(\d+)(?:\.\d+)*")
 
 
@@ -39,10 +40,22 @@ def check(wanted_text: str, active_text: str | None) -> str | None:
     )
 
 
+def files_disagree(frontend_text: str, root_text: str) -> str | None:
+    if frontend_text.strip() == root_text.strip():
+        return None
+    return (
+        f"frontend/.nvmrc ({frontend_text.strip()}) and the root .nvmrc ({root_text.strip()}) "
+        "must hold the same version: edit both."
+    )
+
+
 def main(arguments: Sequence[str]) -> int:
     wanted = Path(arguments[0]) if arguments else NVMRC
-    active = arguments[1] if len(arguments) > 1 else active_node_version()
-    problem = check(wanted.read_text(), active)
+    root = Path(arguments[2]) if len(arguments) > 2 else ROOT_NVMRC
+    active = arguments[1] if len(arguments) > 1 and arguments[1] else active_node_version()
+    problem = files_disagree(wanted.read_text(), root.read_text()) or check(
+        wanted.read_text(), active
+    )
     if problem is None:
         return 0
     sys.stderr.write(f"error: {problem}\n")
