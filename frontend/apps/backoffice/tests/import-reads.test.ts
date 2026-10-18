@@ -6,7 +6,14 @@ import { GET as getProblems } from "../src/app/api/imports/[id]/problems/route";
 import { GET as getCsv } from "../src/app/api/imports/[id]/problems.csv/route";
 import { confirmImportAction, revalidateImportAction } from "../src/app/products/import/actions";
 import { confirmImport, revalidateImport } from "../src/server/import-actions";
-import { downloadProblemsCsv, failureResponse, isImportId, readImport, readProblems } from "../src/server/import-reads";
+import {
+  downloadProblemsCsv,
+  failureResponse,
+  isImportId,
+  PROBLEMS_CSV_TIMEOUT_MS,
+  readImport,
+  readProblems,
+} from "../src/server/import-reads";
 import { headerOf, importView, json, mockFetch, problem } from "./support/api";
 
 jest.mock("@ecommerce/auth/next", () => ({
@@ -144,6 +151,16 @@ describe("downloading problems.csv", () => {
 
     expect(response.headers.get("content-disposition")).toContain(`import-${ID}-problems.csv`);
     expect(response.headers.get("content-type")).toContain("text/csv");
+  });
+
+  it("gives the download a timeout and turns a timeout into a 502", async () => {
+    const timeout = jest.spyOn(AbortSignal, "timeout");
+    mockFetch([{ method: "GET", path: `/api/v1/imports/${ID}/problems.csv`, respond: () => new Response("a") }]);
+
+    await downloadProblemsCsv(ID);
+
+    expect(timeout).toHaveBeenCalledWith(PROBLEMS_CSV_TIMEOUT_MS);
+    timeout.mockRestore();
   });
 
   it("passes failures on, rejects bad ids and survives an unreachable API", async () => {

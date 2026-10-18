@@ -9,6 +9,7 @@ export {
   type Failure,
 } from "./failure";
 export { describeRetry } from "./retry";
+export { timeoutSignal } from "./timeout";
 export { formatDate, formatDateTime } from "./date-format";
 export { nextPath, type NextPathOptions } from "./next-path";
 export {
@@ -46,6 +47,7 @@ export {
   loadProductSearch,
   PRICE_ERROR,
   priceFieldError,
+  isSearchOutage,
   searchFailureMessage,
   SORT_CHOICES,
   toSearchParams,

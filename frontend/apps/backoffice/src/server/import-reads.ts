@@ -6,6 +6,7 @@ import { problemResponse } from "./stream-upload";
 
 const IMPORT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const NO_STORE = { "cache-control": "no-store" };
+export const PROBLEMS_CSV_TIMEOUT_MS = 60_000;
 
 export function isImportId(value: string): boolean {
   return IMPORT_ID.test(value);
@@ -74,6 +75,7 @@ export async function downloadProblemsCsv(id: string): Promise<Response> {
     const upstream = await fetch(`${authRuntime().config.apiBaseUrl}/api/v1/imports/${id}/problems.csv`, {
       headers: await authorizationHeaders(),
       cache: "no-store",
+      signal: AbortSignal.timeout(PROBLEMS_CSV_TIMEOUT_MS),
     });
     if (!upstream.ok) {
       return failureResponse(failureFromProblem(await readProblem(upstream)));

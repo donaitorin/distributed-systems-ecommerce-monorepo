@@ -6,6 +6,7 @@ from redis.exceptions import RedisError
 
 from cart.application.errors import (
     CartFullError,
+    CatalogCircuitOpenError,
     CatalogUnavailableError,
     PriceChangedError,
     ProductNotFoundError,
@@ -47,6 +48,19 @@ def register_cart_errors(app: FastAPI) -> None:
             current_price=str(error.current_price),
         )
 
+    @app.exception_handler(CatalogCircuitOpenError)
+    async def handle_catalog_circuit_open(
+        request: Request, error: CatalogCircuitOpenError
+    ) -> JSONResponse:
+        return problem_response(
+            request,
+            HTTPStatus.SERVICE_UNAVAILABLE,
+            "Catalog unavailable",
+            "The catalog is not answering; products cannot be added right now, try again shortly",
+            code="catalog_unavailable",
+            headers={"Retry-After": str(error.retry_after_seconds)},
+        )
+
     @app.exception_handler(CatalogUnavailableError)
     async def handle_catalog_unavailable(
         request: Request, error: CatalogUnavailableError
@@ -56,6 +70,7 @@ def register_cart_errors(app: FastAPI) -> None:
             HTTPStatus.SERVICE_UNAVAILABLE,
             "Catalog unavailable",
             "The product could not be checked right now; try again shortly",
+            code="catalog_unavailable",
             headers={"Retry-After": RETRY_AFTER_SECONDS},
         )
 

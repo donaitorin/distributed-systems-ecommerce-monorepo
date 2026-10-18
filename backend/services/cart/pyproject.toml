@@ -7,6 +7,7 @@ dependencies = [
     "ecommerce-contracts",
     "ecommerce-messaging",
     "ecommerce-observability",
+    "ecommerce-resilience",
     "ecommerce-storage",
     "ecommerce-web",
     "httpx>=0.28",
@@ -19,6 +20,7 @@ ecommerce-auth = { workspace = true }
 ecommerce-contracts = { workspace = true }
 ecommerce-messaging = { workspace = true }
 ecommerce-observability = { workspace = true }
+ecommerce-resilience = { workspace = true }
 ecommerce-storage = { workspace = true }
 ecommerce-web = { workspace = true }
 

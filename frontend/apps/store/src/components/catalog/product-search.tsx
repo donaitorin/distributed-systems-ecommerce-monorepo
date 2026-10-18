@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { useQueryStates } from "nuqs";
+import { createSerializer, useQueryStates } from "nuqs";
 import {
   Button,
   EmptyState,
@@ -17,6 +17,7 @@ import {
   activeFilterChips,
   CLEARED_FILTERS,
   displayedSort,
+  isSearchOutage,
   PAGE_SIZES,
   productSearchParsers,
   searchFailureMessage,
@@ -29,7 +30,7 @@ import {
   type SortValue,
 } from "@ecommerce/web-core";
 import { useUrlText } from "@ecommerce/web-core/client";
-import { productHref } from "../../lib/paths";
+import { PRODUCTS_PATH, productHref } from "../../lib/paths";
 import { FilterFields } from "./filter-fields";
 
 export type ProductSearchProps = {
@@ -39,6 +40,7 @@ export type ProductSearchProps = {
 };
 
 const PRIORITY_CARDS = 4;
+const serializeSearch = createSerializer(productSearchParsers);
 
 function countText(page: ProductPage | null): string {
   if (page === null) {
@@ -178,6 +180,11 @@ export function ProductSearch({ categories, page, failure }: ProductSearchProps)
           {failure ? (
             <div role="alert" className="flex flex-col items-start gap-3 text-base font-medium text-danger-strong">
               <p>{searchFailureMessage(failure)}</p>
+              {isSearchOutage(failure) ? (
+                <a href={serializeSearch(PRODUCTS_PATH, state)} className="text-accent-strong underline">
+                  Try again
+                </a>
+              ) : null}
               {staleCursor ? (
                 <Button
                   variant="secondary"

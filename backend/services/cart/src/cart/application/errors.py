@@ -26,3 +26,9 @@ class PriceChangedError(CartError):
 
 class CatalogUnavailableError(CartError):
     pass
+
+
+class CatalogCircuitOpenError(CatalogUnavailableError):
+    def __init__(self, retry_after_seconds: int) -> None:
+        super().__init__("the catalog circuit breaker is open")
+        self.retry_after_seconds = retry_after_seconds

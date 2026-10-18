@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ecommerce_contracts import Envelope
 from ecommerce_messaging.ports import IncomingMessage, MessageSource, OutgoingMessage, Publisher
+from ecommerce_messaging.safe_errors import InvalidEventError, describe_error
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,6 @@ HEADER_ORIGINAL_TOPIC: Final = "x-original-topic"
 HEADER_ORIGINAL_PARTITION: Final = "x-original-partition"
 HEADER_ORIGINAL_OFFSET: Final = "x-original-offset"
 HEADER_GROUP: Final = "x-consumer-group"
-ERROR_LIMIT: Final = 500
 
 type Callback = Callable[[Envelope[Any], AsyncSession | None], Awaitable[None]]
 type DeadLetterHook = Callable[["DeadLetter"], Awaitable[None]]
@@ -45,10 +45,6 @@ class Outcome(StrEnum):
     DUPLICATE = "duplicate"
     IGNORED = "ignored"
     DEAD_LETTERED = "dead_lettered"
-
-
-class InvalidEventError(ValueError):
-    pass
 
 
 class AnyPayload(BaseModel):
@@ -124,6 +120,10 @@ class DeadLetter:
 DEFAULT_RETRY: Final = RetryPolicy()
 
 
+def _position(message: IncomingMessage) -> dict[str, object]:
+    return {"topic": message.topic, "partition": message.partition, "offset": message.offset}
+
+
 class EventConsumer:
     def __init__(
         self,
@@ -171,7 +171,11 @@ class EventConsumer:
             except Exception as error:
                 logger.warning(
                     "event consumer will retry after an error",
-                    extra={"group": self._group, "error": repr(error), "retry_in": backoff},
+                    extra={
+                        "group": self._group,
+                        "error_type": type(error).__name__,
+                        "retry_in": backoff,
+                    },
                 )
                 await self._sleep(backoff)
                 backoff = min(backoff * 2, MAX_LOOP_BACKOFF_SECONDS)
@@ -207,7 +211,8 @@ class EventConsumer:
                         "event_type": envelope.event_type,
                         "event_id": str(envelope.event_id),
                         "attempt": attempt,
-                        "error": repr(error),
+                        "error_type": type(error).__name__,
+                        **_position(message),
                     },
                 )
                 if attempt < self._retry.max_attempts:
@@ -220,7 +225,9 @@ class EventConsumer:
         try:
             head = Envelope[AnyPayload].model_validate_json(message.value)
         except (ValidationError, json.JSONDecodeError, ValueError) as error:
-            raise InvalidEventError(f"not a valid event envelope: {error}") from error
+            raise InvalidEventError(
+                f"not a valid event envelope: {describe_error(error)}"
+            ) from error
         handler = self._handlers.get((head.event_type, head.event_version))
         if handler is not None:
             return head, handler
@@ -281,7 +288,7 @@ class EventConsumer:
         attempts: int,
         stop: asyncio.Event,
     ) -> None:
-        description = str(error)[:ERROR_LIMIT]
+        description = describe_error(error)
         headers = dict(message.headers) | {
             HEADER_ERROR: description.encode(),
             HEADER_ERROR_TYPE: type(error).__name__.encode(),
@@ -304,7 +311,12 @@ class EventConsumer:
                     raise
                 logger.warning(
                     "could not write to the dead letter topic, will retry",
-                    extra={"topic": outgoing.topic, "error": repr(failure)},
+                    extra={
+                        "group": self._group,
+                        "dead_letter_topic": outgoing.topic,
+                        "error_type": type(failure).__name__,
+                        **_position(message),
+                    },
                 )
                 await self._sleep(delay)
                 delay = min(delay * 2, MAX_LOOP_BACKOFF_SECONDS)
@@ -312,9 +324,13 @@ class EventConsumer:
             "event moved to the dead letter topic",
             extra={
                 "group": self._group,
-                "topic": outgoing.topic,
-                "original_offset": message.offset,
-                "error": description,
+                "dead_letter_topic": outgoing.topic,
+                "event_id": str(envelope.event_id) if envelope is not None else None,
+                "event_type": envelope.event_type if envelope is not None else None,
+                "error_type": type(error).__name__,
+                "error_summary": description,
+                "attempts": attempts,
+                **_position(message),
             },
         )
         if self._on_dead_letter is not None:
@@ -323,5 +339,12 @@ class EventConsumer:
             )
             try:
                 await self._on_dead_letter(hook)
-            except Exception:
-                logger.exception("dead letter hook failed")
+            except Exception as failure:
+                logger.error(
+                    "dead letter hook failed",
+                    extra={
+                        "group": self._group,
+                        "error_type": type(failure).__name__,
+                        **_position(message),
+                    },
+                )

@@ -100,11 +100,17 @@ def order_handlers(reservations: StockReservations) -> Sequence[Handler]:
     ]
 
 
+def failure_reason(letter: DeadLetter) -> str:
+    if letter.error.startswith(letter.error_type):
+        return letter.error
+    return f"{letter.error_type}: {letter.error}"
+
+
 def mark_failed_on_dead_letter(jobs: ImportJobs) -> Callable[[DeadLetter], Awaitable[None]]:
     async def hook(letter: DeadLetter) -> None:
         if letter.envelope is None or not isinstance(letter.envelope.payload, ImportFileReference):
             return
-        reason = f"{letter.error_type}: {letter.error}"
+        reason = failure_reason(letter)
         await jobs.fail(letter.envelope.payload.import_id, reason)
 
     return hook

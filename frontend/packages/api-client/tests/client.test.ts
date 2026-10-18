@@ -276,3 +276,118 @@ describe("compile time contracts", () => {
     expect(token).toBe("a");
   });
 });
+
+describe("read retries", () => {
+  const problem = (status: number, headers: Record<string, string> = {}) =>
+    new Response(JSON.stringify({ type: "about:blank", title: "Unavailable", status }), {
+      status,
+      headers: { "content-type": "application/problem+json", ...headers },
+    });
+
+  function retrying(responses: Array<Response | Error | DOMException>, overrides: Partial<Parameters<typeof createApiClient>[0]> = {}) {
+    const queue = [...responses];
+    const fetchMock = jest.fn(() => {
+      const next = queue.shift() ?? problem(500);
+      return next instanceof Response ? Promise.resolve(next) : Promise.reject(next);
+    });
+    const sleeps: number[] = [];
+    const client = createApiClient<GatewayPaths>({
+      baseUrl: "http://gateway.test",
+      fetch: fetchMock,
+      random: () => 0.5,
+      sleep: (milliseconds) => {
+        sleeps.push(milliseconds);
+        return Promise.resolve();
+      },
+      ...overrides,
+    });
+    return { client, fetchMock, sleeps };
+  }
+
+  it("retries a GET once after a network error and returns the second answer", async () => {
+    const { client, fetchMock, sleeps } = retrying([new TypeError("fetch failed"), jsonResponse({ items: [] })]);
+
+    const result = await client.get("/api/v1/products");
+
+    expect(result.data).toEqual({ items: [] });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(sleeps).toEqual([75]);
+  });
+
+  it.each([502, 503, 504])("retries a GET answered with %s", async (status) => {
+    const { client, fetchMock } = retrying([problem(status), jsonResponse({ items: [] })]);
+
+    await client.get("/api/v1/products");
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops after the configured number of attempts and raises the last error", async () => {
+    const { client, fetchMock } = retrying([problem(503), problem(503), problem(503)], {
+      readRetry: { attempts: 3, baseDelayMs: 10, maxDelayMs: 20 },
+    });
+
+    await expect(client.get("/api/v1/products")).rejects.toBeInstanceOf(ApiError);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not retry when the server says when to come back", async () => {
+    const { client, fetchMock } = retrying([problem(503, { "retry-after": "5" })]);
+
+    await expect(client.get("/api/v1/products")).rejects.toBeInstanceOf(ApiError);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([400, 401, 404, 409, 422, 500])("does not retry a GET answered with %s", async (status) => {
+    const { client, fetchMock } = retrying([problem(status)]);
+
+    await expect(client.get("/api/v1/products")).rejects.toBeInstanceOf(ApiError);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not retry a timeout, so the caller is not kept waiting twice", async () => {
+    const { client, fetchMock } = retrying([new DOMException("timed out", "TimeoutError")]);
+
+    await expect(client.get("/api/v1/products")).rejects.toBeInstanceOf(ApiNetworkError);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not retry after the caller aborted", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const { client, fetchMock } = retrying([new DOMException("aborted", "AbortError")]);
+
+    await expect(client.get("/api/v1/products", { signal: controller.signal })).rejects.toBeDefined();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["post", "put", "patch", "delete"] as const)("never retries a %s", async (method) => {
+    const { client, fetchMock } = retrying([problem(503), jsonResponse({})]);
+
+    await expect(
+      (client[method] as unknown as (path: string, options?: unknown) => Promise<unknown>)(
+        "/api/v1/cart/items/{sku}",
+        { params: { sku: "A" }, body: {} },
+      ),
+    ).rejects.toBeInstanceOf(ApiError);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives reads a shorter timeout than writes", async () => {
+    const seen: number[] = [];
+    const spy = jest.spyOn(AbortSignal, "timeout").mockImplementation((milliseconds: number) => {
+      seen.push(milliseconds);
+      return new AbortController().signal;
+    });
+    const { client } = retrying([jsonResponse({}), jsonResponse({})]);
+
+    await client.get("/api/v1/products");
+    await (client.put as unknown as (path: string, options?: unknown) => Promise<unknown>)(
+      "/api/v1/cart/items/{sku}",
+      { params: { sku: "A" }, body: {} },
+    );
+    spy.mockRestore();
+
+    expect(seen).toEqual([5_000, 10_000]);
+  });
+});

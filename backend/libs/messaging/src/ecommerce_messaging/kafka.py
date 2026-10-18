@@ -33,7 +33,9 @@ class KafkaPublisher:
             )
         except (KafkaError, TimeoutError, OSError) as error:
             await self._discard()
-            raise PublishError(f"could not publish to {message.topic}: {error!r}") from error
+            raise PublishError(
+                f"could not publish to {message.topic}: {type(error).__name__}"
+            ) from error
 
     async def close(self) -> None:
         await self._discard()
@@ -54,7 +56,9 @@ class KafkaPublisher:
                     )
                 except (KafkaError, TimeoutError, OSError) as error:
                     await _stop_quietly(producer)
-                    raise PublishError(f"could not connect to Kafka: {error!r}") from error
+                    raise PublishError(
+                        f"could not connect to Kafka: {type(error).__name__}"
+                    ) from error
                 self._producer = producer
             return self._producer
 
@@ -68,8 +72,10 @@ class KafkaPublisher:
 async def _stop_quietly(producer: AIOKafkaProducer) -> None:
     try:
         await asyncio.wait_for(producer.stop(), timeout=5)
-    except (KafkaError, TimeoutError, OSError, RuntimeError):
-        logger.debug("kafka producer did not stop cleanly", exc_info=True)
+    except (KafkaError, TimeoutError, OSError, RuntimeError) as error:
+        logger.debug(
+            "kafka producer did not stop cleanly", extra={"error_type": type(error).__name__}
+        )
 
 
 class KafkaSource:
@@ -86,7 +92,7 @@ class KafkaSource:
             batches = await consumer.getmany(timeout_ms=int(timeout_seconds * 1000), max_records=1)
         except (KafkaError, OSError) as error:
             await self._discard()
-            raise ConsumeError(f"could not read from Kafka: {error!r}") from error
+            raise ConsumeError(f"could not read from Kafka: {type(error).__name__}") from error
         for records in batches.values():
             for record in records:
                 headers = dict(record.headers or ())
@@ -103,7 +109,7 @@ class KafkaSource:
             await consumer.commit({partition: message.offset + 1})
         except (KafkaError, OSError) as error:
             await self._discard()
-            raise ConsumeError(f"could not commit offset: {error!r}") from error
+            raise ConsumeError(f"could not commit offset: {type(error).__name__}") from error
 
     async def close(self) -> None:
         await self._discard()
@@ -125,8 +131,10 @@ class KafkaSource:
                         consumer.start(), timeout=self._settings.publish_timeout_seconds
                     )
                 except (KafkaError, TimeoutError, OSError) as error:
-                    await _stop_consumer_quietly(consumer)
-                    raise ConsumeError(f"could not connect to Kafka: {error!r}") from error
+                    await stop_consumer_quietly(consumer)
+                    raise ConsumeError(
+                        f"could not connect to Kafka: {type(error).__name__}"
+                    ) from error
                 self._consumer = consumer
             return self._consumer
 
@@ -134,11 +142,13 @@ class KafkaSource:
         async with self._lock:
             consumer, self._consumer = self._consumer, None
         if consumer is not None:
-            await _stop_consumer_quietly(consumer)
+            await stop_consumer_quietly(consumer)
 
 
-async def _stop_consumer_quietly(consumer: AIOKafkaConsumer) -> None:
+async def stop_consumer_quietly(consumer: AIOKafkaConsumer) -> None:
     try:
         await asyncio.wait_for(consumer.stop(), timeout=5)
-    except (KafkaError, TimeoutError, OSError, RuntimeError):
-        logger.debug("kafka consumer did not stop cleanly", exc_info=True)
+    except (KafkaError, TimeoutError, OSError, RuntimeError) as error:
+        logger.debug(
+            "kafka consumer did not stop cleanly", extra={"error_type": type(error).__name__}
+        )

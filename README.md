@@ -124,6 +124,7 @@ curl -s localhost:8000/api/v1/cart -H "Authorization: Bearer $TOKEN"
 - **Accepting a new price.** `PUT` with `accepted_price` set to the `new_price` the customer saw. The line takes the current price and name and keeps its quantity. If catalog's price is no longer that value the answer is `409` (`code: price_changed`, `current_price`), the same optimistic idea as `If-Match` on products.
 - **Projection.** The `cart-worker` container consumes `catalog.events` in the group `cart-catalog-events` and keeps `product:{sku}` (price, stock, name, version, deleted) in Redis, applying an event only if its version is newer than the stored one, with a Lua script. Replays and out of order delivery change nothing, so there is no processed-events table ([ADR 0011](docs/adr/0011-consumers-that-skip-the-claim.md), [ADR 0012](docs/adr/0012-cart-service.md)). Entries exist only for products that were added to some cart and expire 30 days after their last use, so importing 200,000 products cannot fill `redis-cart`.
 - **Lifetime.** A cart expires 30 days after its last change. Reading does not renew it.
+- **Catalog outage.** The catalog call has a 2 s timeout, one jittered retry for connection errors and `502/503/504`, and a circuit breaker (5 consecutive failures open it for 10 s, then one probe decides; `CART_CATALOG_BREAKER_*` and `CART_CATALOG_RETRY_ATTEMPTS` in `.env`). While it is open, adding a new product answers `503` Problem Details (`code: catalog_unavailable`) with `Retry-After` at once, and viewing the cart, changing a quantity, removing and clearing keep working from Redis and the projection. See [ADR 0018](docs/adr/0018-http-resilience.md), which also lists every synchronous HTTP call with its timeout and retry policy.
 - **Independence.** `/ready` checks Redis only. The service starts without catalog, Kafka or auth; catalog is called only when a product is added or a price is accepted.
 
 ## Orders API
@@ -337,6 +338,64 @@ Keyboard and screen reader walkthrough of the purchase flow (VoiceOver or NVDA) 
 - **Customer accounts.** `/register` creates the account and signs in with the same credentials; `/login` signs in. Both are server actions over `packages/auth`, so the tokens only ever live in the `httpOnly` cookies. An email that is taken is shown on the email field (with a link to sign in), password rules from the API (too short, too common, same as the email) are explained in plain language on the password field, and a rate limit says when to retry. `next` is only accepted as an internal path (`nextPath` in `web-core`, the same helper and open-redirect table the backoffice uses); anything else, and the login and register pages themselves, fall back to `/products`. The header shows Sign in to a visitor and Account and Sign out to a customer. `/account` reads the profile from `GET /api/v1/accounts/me` and edits name and phone with `PATCH` (a blank phone clears it); field errors are linked to their inputs and focus goes to the first invalid one. Saved addresses come with checkout.
 - **Cart.** The product page has the add to cart action in its slot: a quantity (1 to 99, never above the stock) and a button that is disabled, with the reason, when the product is out of stock. A visitor who adds goes to `/login?next=/products/{sku}`. Signed in customers see a Cart link with the number of units in the header; a polite live region announces the new count when it changes. `/cart` (protected like `/account`; the cart service documentation is under `/cart-service`) lists each line with image, name, quantity control, line total and Remove, a subtotal, an empty state and Clear cart behind a confirmation dialog. Every call goes through the store server with the session cookie. A price change shows as "The price changed from $X to $Y" with Accept new price (it sends `accepted_price`; on a `409` the page shows the price the server reported and the next click accepts that one), a retired product as "No longer available" and low stock as "Only N left" or "Out of stock". The cart limits (100 different products, 1 to 99 per product) and an unreachable cart are shown as plain messages, the latter with Try again. Changes are announced in `role="status"` regions and focus returns to the page heading when the cart empties. See [ADR 0010](docs/adr/0010-store-catalog-search-and-product-pages.md).
 
+## Resilience
+
+Each pattern below has a test that proves it; the last column says how to see it work.
+
+| Pattern | Where it lives | See it work |
+| --- | --- | --- |
+| Transactional outbox, at least once | `libs/messaging` (`OutboxWriter`, `OutboxRelay`), one table per service | Stop Kafka, place an order: it is accepted and waits as `PENDING` (`make check-failure-scenarios SCENARIO=kafka`) |
+| Idempotent consumers | `processed_events` claims, or naturally idempotent handlers ([ADR 0011](docs/adr/0011-consumers-that-skip-the-claim.md)) | The outbox may publish an event twice after a restart; the effect (stock, payment, profile) happens once |
+| Retries with backoff, dead letter topics | `EventConsumer`: 3 attempts, then `<topic>.dlq`, the partition keeps moving | `make check-dead-letters` |
+| `Idempotency-Key` on `POST /orders` | orders service ([ADR 0014](docs/adr/0014-orders-saga-and-idempotency.md)) | Repeat the same request: same order, header `Idempotent-Replay: true` |
+| Saga timeout | the orders worker cancels `PENDING` and `STOCK_RESERVED` orders after `ORDERS_SAGA_TIMEOUT_SECONDS` (60) and the stock is released | Stop payments, place an order (`make check-failure-scenarios SCENARIO=payments`) |
+| Timeouts, read retries, circuit breaker on synchronous HTTP | `libs/resilience`, cart to catalog, `packages/api-client` ([ADR 0018](docs/adr/0018-http-resilience.md)) | Stop catalog and add a product to the cart |
+
+**Timeouts, retries and the breaker.** Every synchronous call has a timeout, and only idempotent reads are retried (once, with jittered backoff, never after a read timeout or a `503` with `Retry-After`). [ADR 0018](docs/adr/0018-http-resilience.md) lists every call with its timeout and policy. Only cart to catalog has a circuit breaker (5 consecutive failures open it for 10 s, then one probe). The breaker lives in each cart process, so two cart replicas open independently. While it is open, adding a new product answers `503` Problem Details with `Retry-After` immediately.
+
+**What keeps working with catalog down.** Viewing the cart, removing a line, clearing it and changing the quantity of a line that is already in the cart never call catalog: they use Redis and the projection fed by `catalog.events`. Changing a quantity does not recheck the price, on purpose: the price is checked atomically when the stock is reserved (`UPDATE ... WHERE price = :expected AND stock >= :qty`, [ADR 0013](docs/adr/0013-stock-reservations.md)), so an order at a price that changed is cancelled with `price_changed` and nothing is charged. The store search shows "not available right now" with a Try again link, and the product page and the other pages that need catalog show their own message.
+
+**Dead letters.** Malformed messages, unsupported versions and handlers that keep failing go to `<topic>.dlq` with a safe error summary (never payload values). `make dlq-inspect` and `make dlq-replay` look at them and publish them again to the original topic, once per original message even when several consumer groups dead-lettered it. See [Dead letters](#dead-letters).
+
+### Failure scenarios and how to run them
+
+Both exist as integration tests (Testcontainers, part of `make test-backend`) and as a script against the running stack.
+
+| Scenario | Expected result | Test | Script |
+| --- | --- | --- | --- |
+| Payments stopped during a purchase | The order is accepted, the stock is reserved and the order waits. After the saga timeout it is `CANCELLED` with `saga_timeout` and the stock is back. When payments returns, the queued charge is made and refunded at once (one payment row, one `payment.succeeded`, one `payment.refunded`), the order stays cancelled and new orders are confirmed | `backend/tests/e2e/test_payments_outage.py` | `make check-failure-scenarios SCENARIO=payments` |
+| Kafka stopped and started | Orders and registrations are accepted (HTTP writes only need their own database), their events wait in the outbox, the order stays `PENDING`. After the restart the relays publish, the saga completes and every effect happens once. A repeated idempotency key still buys once | `backend/tests/e2e/test_kafka_outage.py` | `make check-failure-scenarios SCENARIO=kafka` |
+| A malformed message in any topic | It lands in that topic's `.dlq` and the partition is not blocked | `backend/tests/test_malformed_messages_per_topic.py` | `make check-dead-letters` |
+| Catalog stopped | Adding to the cart fails fast with `503` once the breaker is open; the cart page still loads | `backend/services/cart/tests/integration/test_catalog_outage.py` | stop catalog and `PUT /api/v1/cart/items/{sku}` |
+
+`make check-failure-scenarios` runs both scenarios (about 4 minutes, it stops and starts `payments`, `payments-worker` and `kafka` and restarts them when it ends, deleting nothing). Use `SCENARIO=payments` or `SCENARIO=kafka` for one. It creates a product `SCEN-<timestamp>-...` for each run and a user `scenario-<timestamp>@example.com`. Keep a Kafka outage shorter than `ORDERS_SAGA_TIMEOUT_SECONDS`: the sweeper cancels orders that stayed `PENDING` longer than that, whatever the cause (`KAFKA_OUTAGE_SECONDS`, 15 by default, sets how long the script waits).
+
+The integration tests wait with bounded polling only and were run three times in a row with the CPUs saturated. After a Kafka restart the services reconnect by themselves; consumers continue from their committed offsets.
+
+### Guards that keep this honest
+
+- `make test-backend` fails when any lib or service is below 85% (`scripts/check_package_coverage.py`, on top of the global 85%). Frontend packages inherit the 85% Jest threshold from `@ecommerce/config`.
+- `make check-not-found-csp` fetches an unknown store URL through the running gateway and fails on any `<style>` or inline `<script>` without the nonce of the Content-Security-Policy.
+- The frontend Make targets stop with a clear message when the active Node major differs from `frontend/.nvmrc`.
+- The frontend Docker images prepare the pinned pnpm in its own layer with up to 5 attempts, and retry `pnpm install` up to 3 times.
+
+## Dead letters
+
+A message that cannot be processed goes to `<topic>.dlq` and the partition keeps moving. That covers anything that is not a valid event envelope, an unsupported event version, a payload that does not match its contract, and a handler that still fails after its retries (3 attempts with exponential backoff). The original key and value are kept so the message can be replayed.
+
+Logs and dead letter headers never carry payload values. A log line has the event id and type (when the envelope could be read), the error type, the topic, partition and offset. The `x-error` header is a safe summary: for a contract violation it lists the field paths and error codes (`2 validation errors: payload.email: string_type; event_version: int_parsing`), and for any other exception only its type. The other headers are `x-error-type`, `x-attempts`, `x-original-topic`, `x-original-partition`, `x-original-offset` and `x-consumer-group`.
+
+| Command | What it does |
+| --- | --- |
+| `make dlq-inspect TOPIC=orders.events.dlq` | One JSON object per dead letter: partition, offset, key, event id and type, origin, group, error type, safe summary, attempts. Add `SHOW_PAYLOAD=1` to include the raw value (base64), which may hold personal data |
+| `make dlq-replay TOPIC=orders.events.dlq OFFSETS="0:12 3:4"` | Publish those dead letters (`PARTITION:OFFSET`, as printed by inspect) again to the original topic |
+| `make dlq-replay TOPIC=orders.events.dlq ALL=1` | Replay every dead letter of the topic. `DRY_RUN=1` shows what would be replayed without publishing |
+| `make check-dead-letters` | Produce one malformed message into every topic and wait until each `.dlq` has it (needs the stack running) |
+
+A message that several consumer groups could not process (a malformed message on `orders.events` is dead-lettered by catalog, payments and cart separately) has one dead letter per group. Replay deduplicates by `(x-original-topic, x-original-partition, x-original-offset)`, publishes each original message once, and prints the count (`6 dead letters, 4 duplicates skipped`) and, for every message, the groups that failed it.
+
+Replaying is safe to repeat: the replayed message keeps its event id, so every consumer skips what it already applied, and the original dead letter stays in the topic (Kafka does not delete). A replay is all or nothing: if one selected message has no usable `x-original-topic` header, or names a topic other than the one its dead letter topic belongs to, nothing is published. A message that is still malformed simply lands in the dead letter topic again, so fix the cause (a deploy, a missing row) before replaying. The commands run the `ecommerce_messaging.dlq_cli` module inside the `orders-worker` image, so they use the stack's Kafka and need no local Python setup.
+
 ## Commands
 
 | Command | Description |
@@ -358,6 +417,8 @@ Keyboard and screen reader walkthrough of the purchase flow (VoiceOver or NVDA) 
 | `make storybook`, `make test-storybook` | Run Storybook; build it and run axe on every story |
 | `make openapi`, `make check-openapi` | Regenerate the OpenAPI documents and API types, or fail when they are stale |
 | `make check-routes` | Prove the gateway routes against the running stack |
+| `make check-failure-scenarios [SCENARIO=payments\|kafka]`, `make check-not-found-csp` | Prove the payments and Kafka outage scenarios against the running stack, and the store 404 page against the CSP nonce (see Resilience) |
+| `make dlq-inspect`, `make dlq-replay`, `make check-dead-letters` | Inspect and replay dead letters, and prove every topic has a working dead letter path (see Dead letters) |
 | `make check-rate-limit` | Prove the rate limit buckets and the forwarded header trust (isolated stack, needs Docker) |
 
 ## Repository layout

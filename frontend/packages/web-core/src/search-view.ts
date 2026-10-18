@@ -118,13 +118,19 @@ export function activeFilterChips(state: ProductSearchState, categories: readonl
   return chips;
 }
 
+const OUTAGE_STATUSES = new Set([502, 503, 504]);
+
+export function isSearchOutage(failure: Failure): boolean {
+  return failure.status === null || OUTAGE_STATUSES.has(failure.status);
+}
+
 export function searchFailureMessage(failure: Failure): string {
   if (failure.status === 422) {
     return failure.fieldErrors.cursor !== undefined
       ? "This page link no longer matches the current filters."
       : "Some filters are not valid. Adjust them and try again.";
   }
-  if (failure.status === 503 || failure.status === null) {
+  if (isSearchOutage(failure)) {
     return "The product search is not available right now. Try again in a moment.";
   }
   return failure.detail ?? failure.title;
