@@ -3,7 +3,7 @@ set -u
 
 here=$(cd "$(dirname "$0")" && pwd)
 gateway_config="$here/.."
-project=(docker compose -f "$here/docker-compose.yml")
+project=(docker compose -p ratelimit-check -f "$here/docker-compose.yml")
 failures=0
 
 workdir=$(mktemp -d)

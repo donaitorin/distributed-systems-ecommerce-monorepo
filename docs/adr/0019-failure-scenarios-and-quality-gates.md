@@ -16,6 +16,8 @@ Two outages are proven end to end with the real workers, relays, outbox tables a
 - **Kafka stopped.** The broker container is stopped and started again (same data, same port), so committed offsets survive. Orders and registrations are accepted and their events wait in the outbox. After the restart the saga completes and every effect (stock taken, payment row, status history) happens once, even though the relay may publish an event twice. The published copies are not asserted to be one: the guarantee is at least once delivery plus idempotent consumers.
 - The Kafka scenario uses a saga timeout longer than the outage. The sweeper cancels `PENDING` orders older than the timeout whatever the cause, so an outage longer than `ORDERS_SAGA_TIMEOUT_SECONDS` (60 s) cancels the orders that were waiting. That is intended: an order that could not progress in a minute should not hang for ever.
 
+The alternative to the charge-then-refund after a payments outage is an `expires_at` on `order.payment_requested`, which would avoid the charge altogether (ADR 0015). It was not built: the refund path already exists and is proven, and the field would touch a contract that three services use.
+
 Tests wait with bounded polling only (`eventually`, `asyncio.timeout`, `for` loops with a limit) and are run repeatedly under CPU load before a change is accepted.
 
 ### Gates

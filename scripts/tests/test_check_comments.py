@@ -146,8 +146,8 @@ requires_typescript = pytest.mark.skipif(
 )
 
 
-def test_default_roots_include_the_frontend() -> None:
-    assert "frontend" in DEFAULT_ROOTS
+def test_default_roots_include_the_frontend_and_the_scripts() -> None:
+    assert {"backend", "frontend", "scripts"} <= set(DEFAULT_ROOTS)
 
 
 def test_typescript_extensions_share_one_batch_checker() -> None:
