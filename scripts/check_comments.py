@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_ROOTS = ("backend", "frontend")
+DEFAULT_ROOTS = ("backend", "frontend", "scripts")
 TYPESCRIPT_SUFFIXES = frozenset({".ts", ".tsx"})
 TYPESCRIPT_SCANNER = REPO_ROOT / "frontend" / "packages" / "config" / "tools" / "check-comments.cjs"
 EXCLUDED_FILE_NAMES = frozenset({"next-env.d.ts"})
