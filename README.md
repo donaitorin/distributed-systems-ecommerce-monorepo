@@ -10,7 +10,7 @@ Quick links: [API reference](docs/api-reference.md) · [CSV import](docs/csv-imp
 
 ## 1. Quick start
 
-**Prerequisites:** Docker with Compose v2 (tested with Docker 28 and Compose 2.38) and GNU Make. The stack uses about 3 GB of RAM. The first build downloads base images and builds eight application images, so allow several minutes; later runs are incremental. Ports 8000, 8001, 8088, 15432, 16379, 16380, 19000 and 29092 must be free on `127.0.0.1` (all are configurable in `.env`).
+**Prerequisites:** Docker with Compose v2 (tested with Docker 28 and Compose 2.38) and GNU Make. The stack uses about 3 GB of RAM. The first run downloads base images and dependencies and builds eight application images: under a minute when Docker already has the base images, several minutes on a machine that has never pulled them. Later runs are incremental. Ports 8000, 8001, 8088, 15432, 16379, 16380, 19000 and 29092 must be free on `127.0.0.1` (all are configurable in `.env`).
 
 ```bash
 cp .env.example .env
@@ -18,7 +18,7 @@ make up          # builds the images, starts the stack (28 containers, a few are
 make ps
 ```
 
-`docker compose up -d --build` also works from a machine with no images; `make up` is the recommended way because it builds once and then starts without rebuilding.
+`docker compose up -d --build` also works from a machine with no images (checked), but it returns before the services are healthy, so give it a minute and look at `docker compose ps`. `make up` is the recommended way: it builds once and waits until everything is healthy.
 
 | What | URL |
 | --- | --- |
@@ -46,7 +46,7 @@ make ps
 | `9999` | The provider never answers: after 60 s the saga timeout cancels the order and releases the stock |
 | `2222` | Approved after 90 s, when the order is already cancelled: the payment is refunded |
 
-**The demo path** (about five minutes): sign in at `/admin/login`, open Products, then **Import CSV** and upload `data/sample-products.csv` (downloaded **Thursday 15 October 2026**; the report shows 88 importable products, 4 rows with errors and 3 replaced or skipped rows), review the report and confirm. Then open the store, search (`runing shoes` finds running shoes), add products to the cart, sign in as a customer, check out with card `1111` and watch the order become `CONFIRMED`; repeat with `0000` to see the cancellation. `make seed` loads 200,000 synthetic products to try search at volume.
+**The demo path** (about five minutes): sign in at `/admin/login`, open Products, then **Import CSV** and upload `data/sample-products.csv` (downloaded **Thursday 15 October 2026**; the report shows 88 importable rows, 4 errors and 3 warnings), review the report and confirm. Then open the store, search (`runing shoes` finds running shoes), add products to the cart, sign in as a customer, check out with card `1111` and watch the order become `CONFIRMED`; repeat with `0000` to see the cancellation. `make seed` loads 200,000 synthetic products to try search at volume.
 
 **Looking inside** (credentials are in `.env`):
 
@@ -167,7 +167,7 @@ States: `PENDING`, `STOCK_RESERVED`, `PAID`, `CONFIRMED`, `CANCELLED`. Every tra
 | A malformed message in any topic | It lands in that topic's `.dlq` and the partition is not blocked | `backend/tests/test_malformed_messages_per_topic.py` | `make check-dead-letters` |
 | Catalog stopped | Adding to the cart fails fast once the breaker is open; the cart page loads | `backend/services/cart/tests/integration/test_catalog_outage.py` | stop catalog, `PUT /api/v1/cart/items/{sku}` |
 
-`make check-failure-scenarios` takes about four minutes, stops and starts `payments`, `payments-worker` and `kafka` and restarts them at the end. It orders as the customer `scenario-bot@example.com`, creates `SCEN-*` products and removes them through the catalog API when it finishes. No API deletes users or orders, so `scenario-bot`, a `scenario-reg-<timestamp>` user and their orders stay; for a pristine run use a disposable stack: copy the repository, `export COMPOSE_PROJECT_NAME=ecommerce-scratch`, use another `.env` with different ports and a different frontend subnet (see [ADR 0020](docs/adr/0020-operational-notes-and-known-limitations.md)). Keep a Kafka outage shorter than the saga timeout.
+`make check-failure-scenarios` takes about four minutes, stops and starts `payments`, `payments-worker` and `kafka` and restarts them at the end. It orders as the customer `scenario-bot@example.com`, creates `SCEN-*` products and removes them through the catalog API when it finishes. No API deletes users or orders, so `scenario-bot`, a `scenario-reg-<timestamp>` user and their orders stay; for a pristine run use a disposable stack: copy the repository, `export COMPOSE_PROJECT_NAME=ecommerce-scratch`, use another `.env` with different host ports and a different frontend subnet (the compose project name does not separate host ports, and the subnet is fixed; see [ADR 0020](docs/adr/0020-operational-notes-and-known-limitations.md)). Keep a Kafka outage shorter than the saga timeout.
 
 ## 6. Testing and quality gates
 
@@ -194,7 +194,7 @@ Each item is explained in [ADR 0020](docs/adr/0020-operational-notes-and-known-l
 - The circuit breaker lives in each cart instance.
 - Adding to the cart is read-then-write (the store reads the quantity and sets the new total; the service reads the line and writes it), so two simultaneous adds of the same product can lose one.
 - The refresh-token deduplication of the Next.js servers is per process. The CSP nonce makes every page dynamic. Image keys are recovered from URLs, so catalog and cart need the same `MEDIA_PUBLIC_BASE_URL`.
-- The frontend network `10.250.10.0/28` is fixed in four files; it can collide with some VPNs and two stacks cannot run side by side. Stacks created before the `ip_range` change need one `docker compose down` (never `-v`).
+- The frontend network `10.250.10.0/28` is fixed in three files (`docker-compose.yml`, `infra/gateway/traefik.yml`, `infra/gateway/dynamic/auth.yml`; [ADR 0020](docs/adr/0020-operational-notes-and-known-limitations.md) has the one-line change); it can collide with some VPNs and two stacks cannot run side by side. Stacks created before the `ip_range` change need one `docker compose down` (never `-v`).
 - `BUILDX_NO_DEFAULT_ATTESTATIONS=1` is set so `make up` does not recreate containers on every run.
 - The Storybook test runner is deprecated (migration path: the Vitest addon); MSW is not used (tests mock `fetch` at the Next.js server boundary).
 - Users created before the outbox existed have no `user.registered` event; accounts creates their profile on first use.

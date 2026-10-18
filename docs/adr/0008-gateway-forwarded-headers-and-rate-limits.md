@@ -39,7 +39,7 @@ If the store or backoffice has no address to forward, the hop shares one bucket 
 ## Operational notes
 
 - A stack created before the `ip_range` was added to the `frontend` network needs `docker compose down` once (never `-v`: the volumes keep the data), because Docker cannot change the ranges of an existing network.
-- `10.250.10.0/28` can collide with some VPNs and with other Docker networks, and two stacks cannot run side by side. Changing it means editing the four places that name it together, see ADR 0020.
+- `10.250.10.0/28` can collide with some VPNs and with other Docker networks, and two stacks cannot run side by side. Changing it means editing the three files that name it together, see ADR 0020.
 
 ## Consequences
 
