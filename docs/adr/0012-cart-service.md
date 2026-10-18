@@ -29,7 +29,7 @@ The cart is volatile, written often and owned by one user. It lives in its own s
 
 ### Failure behaviour
 
-- Adding a product needs catalog (2 s timeout). If it cannot answer the request fails with `503` and `Retry-After`; the circuit breaker comes in E14. Changing the quantity of a line already in the cart, reading and removing never call catalog.
+- Adding a product needs catalog (2 s timeout). If it cannot answer the request fails with `503` and `Retry-After`; the timeout, the read retry and the circuit breaker are described in ADR 0018. Changing the quantity of a line already in the cart, reading and removing never call catalog.
 - A Redis failure is a `503` Problem Details with `Retry-After`. `/ready` checks Redis only; the service does not depend on catalog, Kafka or auth to start.
 - The documentation and health routes are published at `/cart-service/...`. A gateway route at `/cart` would shadow the storefront page of the same name (the same trap ADR 0007 notes for `/auth`).
 
@@ -44,5 +44,6 @@ The `cart-worker` has a second consumer (group `cart-order-events`, topic `order
 ## Consequences
 
 - A product added before the projection existed, or after its entry expired, is seeded from catalog on the next add; lines of carts untouched for 30 days expire together with their entries.
-- Subtotals are advisory. A customer can see a stale price for as long as it takes an event to arrive (usually well under a second); checkout (E12) revalidates price and stock.
-- E12's stock reservations must emit `product.updated`, or `insufficient_stock` will lag.
+- Subtotals are advisory. A customer can see a stale price for as long as it takes an event to arrive (usually well under a second); checkout revalidates price and stock.
+- Stock reservations emit `product.updated` (ADR 0013), or `insufficient_stock` would lag.
+- Adding is read-then-write at two levels (the store reads the quantity and sets the total, the service reads the line and writes it), so two simultaneous adds of the same product can lose one; see ADR 0020.

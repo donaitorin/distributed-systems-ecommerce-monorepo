@@ -4,7 +4,7 @@ Status: accepted (2026-10-15)
 
 ## Context
 
-The auth service owns credentials, roles and tokens. Every other service must validate an access token on its own, without calling auth, and the frontend (E8) will keep both tokens in `httpOnly` cookies and refresh them from its server side, where several page requests can race to refresh at the same time. This record covers how tokens are issued and rotated, where the signing key lives, and how passwords are stored.
+The auth service owns credentials, roles and tokens. Every other service must validate an access token on its own, without calling auth, and the frontend keeps both tokens in `httpOnly` cookies and refresh them from its server side, where several page requests can race to refresh at the same time. This record covers how tokens are issued and rotated, where the signing key lives, and how passwords are stored.
 
 ## Decision
 

@@ -30,11 +30,16 @@ Also checked by hand against the running stack: from inside the real store conta
 Not covered:
 
 - Docker Desktop shows every request from the host as one address, so two real browsers on one machine cannot be told apart; that is why the proof uses containers. Direct browser traffic to the gateway from the host therefore shares one bucket locally, and in a real deployment sees real addresses.
-- The full browser path through a Next.js login page: the login screens arrive in E9 and E10. The store hop is exercised with a stand-in and with a fetch from the real store container, not with the real forms.
+- The full browser path through the Next.js login pages: the proof exercises the store hop with a stand-in and with a fetch from the real store container, not with the real forms.
 - IPv6 forwarded addresses and a load balancer or CDN in front of Traefik. With one in front, its address must also be trusted and the client is the rightmost address that is not one of ours, which changes how `packages/auth` picks the address.
 - Limits are in memory per Traefik instance; several gateway replicas would each count separately.
 
 If the store or backoffice has no address to forward, the hop shares one bucket (degraded, never unlimited); a test pins that behaviour.
+
+## Operational notes
+
+- A stack created before the `ip_range` was added to the `frontend` network needs `docker compose down` once (never `-v`: the volumes keep the data), because Docker cannot change the ranges of an existing network.
+- `10.250.10.0/28` can collide with some VPNs and with other Docker networks, and two stacks cannot run side by side. Changing it means editing the four places that name it together, see ADR 0020.
 
 ## Consequences
 

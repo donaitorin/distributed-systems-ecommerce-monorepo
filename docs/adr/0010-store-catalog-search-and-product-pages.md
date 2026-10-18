@@ -32,12 +32,12 @@ The storefront needs a searchable catalog with shareable links, a product page t
 
 ### Add to cart
 
-`AddToCartSlot` renders a notice for out of stock products (visible, not purchasable) and an empty element with the id `add-to-cart-slot` otherwise. The cart stage replaces the body of that component; nothing else in the page has to change.
+`AddToCartSlot` renders a notice for out of stock products (visible, not purchasable) and an empty element with the id `add-to-cart-slot` otherwise. The cart section below describes what replaced its body (`AddToCartForm`); nothing else in the page changed.
 
 ## Consequences
 
 - Moving between `/products` and a product page is a full page load (plain links, as in the backoffice), which the dynamic rendering of ADR 0007 already implies.
-- The store has the same dependencies as the backoffice for URL state (`nuqs`) and none for forms yet; `react-hook-form`, `zod` resolvers and the session UI arrive with the customer authentication stage.
+- The store has the same dependencies as the backoffice for URL state (`nuqs`) and none for forms yet; `react-hook-form`, `zod` resolvers and the session UI came later, with the customer authentication section below.
 - Test files that render these components need `globalThis.Request`, which jsdom lacks and nuqs's server loader checks for; the store's Jest setup defines it once.
 
 ## Customer authentication and account (added with the customer accounts stage)
